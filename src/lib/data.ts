@@ -16,8 +16,17 @@ const findImage = (id: string) => {
     }
     throw new Error(`Image with id "${id}" not found.`);
   }
-  const [width, height] = image.imageUrl.split('/').slice(-2);
-  return { ...image, width: parseInt(width, 10), height: parseInt(height, 10) };
+
+  // Extract width and height from unsplash URL
+  const url = new URL(image.imageUrl);
+  const width = url.searchParams.get("w");
+  const height = url.searchParams.get("h");
+
+  return { 
+    ...image, 
+    width: width ? parseInt(width, 10) : 1080, // Default or parsed width
+    height: height ? parseInt(height, 10) : 720 // Default or parsed height
+  };
 };
 
 export type Product = {
