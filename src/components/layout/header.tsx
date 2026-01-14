@@ -13,7 +13,7 @@ function AdminNav() {
     const firestore = useFirestore();
 
     const adminRef = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
         return doc(firestore, 'roles_admin', user.uid);
     }, [firestore, user]);
 

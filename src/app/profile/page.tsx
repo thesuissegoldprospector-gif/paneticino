@@ -639,7 +639,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
         
         updateDocumentNonBlocking(bakerDocRef, {
             ...bakerData,
-            deliveryZones: bakerData.deliveryZones.split(',').map(zone => zone.trim().toLowerCase()),
+            deliveryZones: values.deliveryZones.split(',').map(zone => zone.trim().toLowerCase()),
             deliveryConditions: bakerData.deliveryConditions || '',
         });
         

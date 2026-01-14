@@ -21,7 +21,7 @@ function AdminNav() {
     const pathname = usePathname();
 
     const adminRef = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
         return doc(firestore, 'roles_admin', user.uid);
     }, [firestore, user]);
     
