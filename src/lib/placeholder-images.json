@@ -1,3 +1,76 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "bakery-cover-1",
+      "description": "Warm interior of a modern bakery",
+      "imageUrl": "https://images.unsplash.com/photo-1689037676470-b72230d5236e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxiYWtlcnklMjBpbnRlcmlvcnxlbnwwfHx8fDE3NjgzODMyNDV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bakery interior"
+    },
+    {
+      "id": "bakery-profile-1",
+      "description": "Logo of Il Forno Incantato",
+      "imageUrl": "https://images.unsplash.com/photo-1653922841869-58867b60d0e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxiYWtlcnklMjBsb2dvfGVufDB8fHx8MTc2ODM4MzI0NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bakery logo"
+    },
+    {
+      "id": "bakery-cover-2",
+      "description": "Exterior of a traditional bakery",
+      "imageUrl": "https://images.unsplash.com/photo-1701104427900-70ce3ddc2470?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8YmFrZXJ5JTIwc3RvcmVmcm9udHxlbnwwfHx8fDE3NjgzNDg5MzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bakery storefront"
+    },
+    {
+      "id": "bakery-profile-2",
+      "description": "Logo of Panificio Nonna Rosa",
+      "imageUrl": "https://images.unsplash.com/photo-1755409022211-93efd6ecae73?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxiYWtlcnklMjBsb2dvfGVufDB8fHx8MTc2ODM4MzI0NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bakery logo"
+    },
+    {
+      "id": "bakery-cover-3",
+      "description": "Close up of freshly baked bread loaves",
+      "imageUrl": "https://images.unsplash.com/photo-1623990672430-a8acb647dc68?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxicmVhZCUyMGxvYXZlc3xlbnwwfHx8fDE3NjgzNzE3MDF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bread loaves"
+    },
+    {
+      "id": "bakery-profile-3",
+      "description": "Logo of Antica Forneria",
+      "imageUrl": "https://images.unsplash.com/photo-1653922841869-58867b60d0e1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxiYWtlcnklMjBsb2dvfGVufDB8fHx8MTc2ODM4MzI0NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "bakery logo"
+    },
+    {
+      "id": "product-bread-1",
+      "description": "A loaf of sourdough bread",
+      "imageUrl": "https://images.unsplash.com/photo-1591458736923-c06a260e3412?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxzb3VyZG91Z2glMjBicmVhZHxlbnwwfHx8fDE3NjgzMTUyNjN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "sourdough bread"
+    },
+    {
+      "id": "product-croissant-1",
+      "description": "A flaky croissant",
+      "imageUrl": "https://images.unsplash.com/photo-1587912001191-0cd4f14fd89e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjcm9pc3NhbnR8ZW58MHx8fHwxNzY4MzgzMjQ1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "croissant"
+    },
+    {
+      "id": "product-focaccia-1",
+      "description": "A slice of focaccia with rosemary",
+      "imageUrl": "https://images.unsplash.com/photo-1767065887161-36982570167d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxmb2NhY2NpYSUyMHJvc2VtYXJ5fGVufDB8fHx8MTc2ODM4MzI0Nnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "focaccia rosemary"
+    },
+    {
+      "id": "product-ciabatta-1",
+      "description": "A loaf of ciabatta bread",
+      "imageUrl": "https://images.unsplash.com/photo-1678827567276-4aeb9a8b406c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjaWFiYXR0YSUyMGJyZWFkfGVufDB8fHx8MTc2ODM4MzI0Nnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "ciabatta bread"
+    },
+    {
+      "id": "product-baguette-1",
+      "description": "A classic French baguette",
+      "imageUrl": "https://images.unsplash.com/photo-1568471173242-461f0a730452?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxiYWd1ZXR0ZXxlbnwwfHx8fDE3NjgzODMyNDV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "baguette"
+    },
+    {
+      "id": "product-brioche-1",
+      "description": "A sweet brioche loaf",
+      "imageUrl": "https://images.unsplash.com/photo-1767065886016-94c6e3cfaddb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxicmlvY2hlJTIwbG9hZnxlbnwwfHx8fDE3NjgzODMyNDV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "brioche loaf"
+    }
+  ]
 }
