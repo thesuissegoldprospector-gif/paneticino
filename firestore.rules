@@ -27,8 +27,6 @@ service cloud.firestore {
     }
     
     function isApprovedBaker() {
-      // IMPORTANT: This get() can only be used in rules for single-document operations (get, update, delete)
-      // on the resource itself. It cannot be used for list/query operations.
       return get(/databases/$(database)/documents/bakers/$(request.auth.uid)).data.approvalStatus == 'approved';
     }
 
@@ -106,11 +104,8 @@ service cloud.firestore {
 
       allow read: if true;
       
-      // A baker can only create products for themselves. 
-      // The product data must contain the baker's ID.
       allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid;
       
-      // Only the baker who owns the product can update or delete it.
       allow update, delete: if isSignedIn()
         && resource.data.bakerId == request.auth.uid;
     }
@@ -135,7 +130,11 @@ service cloud.firestore {
         && request.resource.data.total == resource.data.total;
 
 
-      allow list: if false;
+      allow list: if isSignedIn() && (
+        request.query.where.bakerId == request.auth.uid ||
+        request.query.where.customerId == request.auth.uid
+      );
+      
       allow delete: if false;
     }
 
