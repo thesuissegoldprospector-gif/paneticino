@@ -20,6 +20,7 @@ function AdminDashboard() {
   const { data: pendingBakers, isLoading } = useCollection(pendingBakersQuery);
 
   const handleApproval = (bakerId: string, newStatus: 'approved' | 'rejected') => {
+    if (!firestore) return;
     const bakerRef = doc(firestore, 'bakers', bakerId);
     updateDocumentNonBlocking(bakerRef, { approvalStatus: newStatus });
   };
