@@ -9,23 +9,24 @@ import {
   SheetFooter,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/hooks/use-cart';
 import { ShoppingCart, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
 export function CartSheet() {
-  const { items, total, removeItem, updateItemQuantity } = useCart();
+  const { cart, total, removeFromCart, updateItemQuantity } = useCart();
+
+  const totalItems = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
   return (
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="outline" size="icon" className="relative">
           <ShoppingCart />
-          {items.length > 0 && (
+          {totalItems > 0 && (
             <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-              {items.reduce((acc, item) => acc + item.quantity, 0)}
+              {totalItems}
             </span>
           )}
         </Button>
@@ -34,10 +35,10 @@ export function CartSheet() {
         <SheetHeader>
           <SheetTitle>Il Mio Carrello</SheetTitle>
         </SheetHeader>
-        {items.length > 0 ? (
+        {cart.length > 0 ? (
           <>
             <div className="flex-1 overflow-y-auto pr-4">
-              {items.map((item) => (
+              {cart.map((item) => (
                 <div key={item.id} className="mt-4 flex items-start justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md bg-muted">
@@ -49,14 +50,14 @@ export function CartSheet() {
                     </div>
                     <div className='flex-1'>
                       <p className="font-semibold">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.price}</p>
+                      <p className="text-sm text-muted-foreground">{item.price.toFixed(2)}€</p>
                       <div className="mt-2 flex items-center">
                         <Button
                           variant="outline"
                           size="icon"
                           className="h-6 w-6"
-                          onClick={() => updateItemQuantity(item.id, item.quantity - 1)}
-                          disabled={item.quantity <= 1}
+                          onClick={() => updateItemQuantity(item.id, (item.quantity || 1) - 1)}
+                          disabled={(item.quantity || 1) <= 1}
                         >
                           -
                         </Button>
@@ -65,14 +66,14 @@ export function CartSheet() {
                           variant="outline"
                           size="icon"
                           className="h-6 w-6"
-                          onClick={() => updateItemQuantity(item.id, item.quantity + 1)}
+                          onClick={() => updateItemQuantity(item.id, (item.quantity || 1) + 1)}
                         >
                           +
                         </Button>
                       </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItem(item.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFromCart(item.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>

@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { useUser } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
+
 
 // ----------------------
 // Product Card Skeleton
@@ -32,23 +34,44 @@ function ProductCardSkeleton() {
 // ----------------------
 function ProductCard({ product, bakery }: { product: any, bakery: any }) {
   const { user } = useUser();
-  const { addItem } = useCart();
+  const { addToCart } = useCart();
+  const { toast } = useToast();
 
   const handleAddToCart = () => {
     if (!user) {
-      // Or redirect to login
-      alert("Devi effettuare l'accesso per aggiungere prodotti al carrello.");
+      toast({
+        variant: "destructive",
+        title: "Accesso richiesto",
+        description: "Devi effettuare l'accesso per aggiungere prodotti al carrello.",
+      });
       return;
     }
-    addItem({
+
+    const priceString = String(product.price || '0').replace('€', '').trim();
+    const price = parseFloat(priceString);
+
+    if (isNaN(price)) {
+        toast({
+            variant: "destructive",
+            title: "Prezzo non valido",
+            description: "Questo prodotto non può essere aggiunto al carrello.",
+        });
+        return;
+    }
+
+    addToCart({
       id: product.id,
       name: product.name,
-      price: product.price,
-      quantity: 1,
+      price: price,
       imageUrl: product.imageUrl || '',
       bakerId: bakery.id,
       bakerName: bakery.companyName
     });
+
+     toast({
+        title: "Prodotto aggiunto!",
+        description: `${product.name} è stato aggiunto al carrello.`,
+      });
   };
 
   return (

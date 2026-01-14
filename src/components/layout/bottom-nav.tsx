@@ -50,13 +50,13 @@ function AdminNav() {
 export function BottomNav() {
   const pathname = usePathname();
   const { user } = useUser();
-  const { items } = useCart();
+  const { cart } = useCart();
 
   const handleLogout = async () => {
     await signOut(getAuth());
   };
 
-  const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
+  const totalItems = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 h-20 border-t bg-background/95 backdrop-blur-sm md:hidden">

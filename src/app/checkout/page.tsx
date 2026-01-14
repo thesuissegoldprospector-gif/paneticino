@@ -1,59 +1,40 @@
 'use client';
 
-import { useCart } from '@/hooks/use-cart';
-import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import React from "react";
+import { useCart } from "@/hooks/use-cart";
+import { Button } from "@/components/ui/button";
+import { Loader2, ShoppingCart } from "lucide-react";
+import Link from "next/link";
+import { useUser } from "@/firebase";
+import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
-import { collection, serverTimestamp } from 'firebase/firestore';
-import { Loader2, ShoppingCart } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
+
+export function CartSkeleton() {
+  return (
+    <div className="flex flex-col gap-2 animate-pulse p-4 max-w-md mx-auto">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-16 w-full bg-muted rounded"
+        />
+      ))}
+       <div className="h-10 w-full bg-primary/50 rounded mt-4" />
+    </div>
+  );
+}
 
 export default function CheckoutPage() {
-  const { items, total, clearCart, isLoading: isCartLoading } = useCart();
+  const { cart, addToCart, removeFromCart, clearCart, isLoading, total } = useCart();
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
+  const { toast } = useToast();
   const router = useRouter();
 
-  const handlePlaceOrder = async () => {
-    if (!user || !firestore) return;
 
-    const orderData = {
-      userId: user.uid,
-      items: items.map(item => ({
-          productId: item.id,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          imageUrl: item.imageUrl
-      })),
-      totalAmount: total,
-      orderDate: serverTimestamp(),
-      status: 'pending', // o 'new'
-    };
-
-    const ordersCollection = collection(firestore, 'orders');
-    const docRef = await addDocumentNonBlocking(ordersCollection, orderData);
-
-    await clearCart();
-
-    if (docRef) {
-        router.push(`/order-confirmation/${docRef.id}`);
-    } else {
-        // Handle error, maybe show a toast
-        console.error("Failed to create order");
-    }
-  };
-
-  if (isUserLoading || isCartLoading) {
-    return (
-      <div className="flex h-full min-h-[400px] w-full items-center justify-center">
+  if (isLoading || isUserLoading) return (
+     <div className="flex h-full min-h-[400px] w-full items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
-    );
-  }
+  );
 
   if (!user) {
     return (
@@ -69,60 +50,59 @@ export default function CheckoutPage() {
     )
   }
 
-  if (items.length === 0) {
+  if (cart.length === 0)
     return (
-      <div className="container mx-auto flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-        <ShoppingCart className="h-12 w-12 text-muted-foreground" />
-        <h2 className="text-2xl font-bold">Il tuo carrello è vuoto</h2>
-        <p className="text-muted-foreground">
-          Aggiungi qualche prodotto per poter procedere all'ordine.
-        </p>
-        <Button asChild>
-          <Link href="/bakeries">Esplora i panettieri</Link>
-        </Button>
-      </div>
+        <div className="container mx-auto flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+            <ShoppingCart className="h-12 w-12 text-muted-foreground" />
+            <h2 className="text-2xl font-bold">Il tuo carrello è vuoto</h2>
+            <p className="text-muted-foreground">
+            Aggiungi qualche prodotto per poter procedere all'ordine.
+            </p>
+            <Button asChild>
+            <Link href="/bakeries">Esplora i panettieri</Link>
+            </Button>
+        </div>
     );
-  }
+
+  const handleCheckout = () => {
+    // Here you would typically connect to a payment gateway
+    // and create an order in your database.
+    console.log("Simulating order creation with items:", cart);
+    toast({
+        title: "Ordine Inviato!",
+        description: "Il tuo ordine è stato simulato con successo."
+    });
+    clearCart();
+    router.push('/'); // Redirect to home after checkout
+  };
 
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Riepilogo Ordine</CardTitle>
-          <CardDescription>Controlla i tuoi articoli e completa l'ordine.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="relative h-16 w-16 rounded-md bg-muted overflow-hidden">
-                    {item.imageUrl ? (
-                        <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-                    ): (
-                        <ShoppingCart className="h-8 w-8 text-muted-foreground absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"/>
-                    )}
-                </div>
-                <div>
-                  <p className="font-semibold">{item.name}</p>
-                  <p className="text-sm text-muted-foreground">Quantità: {item.quantity}</p>
-                </div>
-              </div>
-              <p className="font-semibold">{item.price}</p>
-            </div>
-          ))}
-          <Separator />
-          <div className="flex justify-between font-bold text-lg">
-            <p>Totale</p>
-            <p>{total.toFixed(2)}€</p>
+    <div className="p-4 max-w-md mx-auto space-y-4">
+        <h1 className="font-headline text-3xl text-center">Riepilogo Ordine</h1>
+      {cart.map((item) => (
+        <div key={item.id} className="flex justify-between items-center border-b pb-2">
+          <div>
+            <p className="font-semibold">{item.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {item.quantity} × {item.price.toFixed(2)}€
+            </p>
           </div>
-        </CardContent>
-        <CardFooter>
-          <Button className="w-full" onClick={handlePlaceOrder}>
-            Conferma Ordine
-          </Button>
-        </CardFooter>
-      </Card>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => addToCart(item)}>+</Button>
+            <Button size="sm" variant="outline" onClick={() => removeFromCart(item.id)}>-</Button>
+          </div>
+        </div>
+      ))}
+
+      <p className="text-right font-bold text-lg">Totale: {total.toFixed(2)}€</p>
+
+      <Button
+        onClick={handleCheckout}
+        className="w-full"
+      >
+        Conferma e Paga
+      </Button>
     </div>
   );
 }
