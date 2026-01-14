@@ -133,7 +133,8 @@ export default function CheckoutPage() {
         });
         
         // Remove only the items for this baker from the cart
-        orderData.items.forEach(item => clearCart(item.id));
+        const itemIdsToRemove = orderData.items.map(item => item.id);
+        clearCart(itemIdsToRemove);
         
         // Await the promise to get the doc reference for redirection
         const docRef = await docPromise;

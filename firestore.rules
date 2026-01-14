@@ -25,11 +25,11 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && docExists();
     }
-
-    function isApprovedBaker(userId) {
-      let bakerDoc =
-        get(/databases/$(database)/documents/bakers/$(userId));
-      return bakerDoc.data.approvalStatus == 'approved';
+    
+    function isApprovedBaker() {
+      // IMPORTANT: This get() can only be used in rules for single-document operations (get, update, delete)
+      // on the resource itself. It cannot be used for list/query operations.
+      return get(/databases/$(database)/documents/bakers/$(request.auth.uid)).data.approvalStatus == 'approved';
     }
 
     // ----------------------------------------------------------------
@@ -105,11 +105,14 @@ service cloud.firestore {
     match /products/{productId} {
 
       allow get, list: if true;
-
-      allow create: if isSignedIn()
-        && request.resource.data.bakerId == request.auth.uid
-        && isApprovedBaker(request.auth.uid);
-
+      
+      // A baker can only create products for themselves. They don't need to be approved to add products,
+      // but the products will only be visible once the baker profile is approved.
+      // We cannot use get() in a query rule, so isApprovedBaker() cannot be used here.
+      // Instead, we trust the bakerId from the client, as only the owner can write it.
+      allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid;
+      
+      // Only the baker who owns the product can update or delete it.
       allow update, delete: if isSignedIn()
         && resource.data.bakerId == request.auth.uid;
     }

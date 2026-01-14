@@ -19,7 +19,7 @@ interface CartState {
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateItemQuantity: (itemId: string, quantity: number) => void;
-  clearCart: (productId?: string) => void; // Optional productId
+  clearCart: (productIds?: string[]) => void; // Optional array of productIds
   _rehydrate: () => void;
   total: number;
 }
@@ -72,15 +72,15 @@ export const useCart = create<CartState>()(
         });
       },
 
-      clearCart: (productId) => {
-        if (productId) {
-            // Remove a single item by its ID
+      clearCart: (productIds) => {
+        if (productIds && productIds.length > 0) {
+            // Remove a specific list of items by their IDs
              set(state => {
-                const newCart = state.cart.filter(item => item.id !== productId);
+                const newCart = state.cart.filter(item => !productIds.includes(item.id));
                 return { cart: newCart, total: calculateTotal(newCart) };
             });
         } else {
-            // Clear the entire cart
+            // Clear the entire cart if no IDs are provided
             set({ cart: [], total: 0 });
         }
       },
