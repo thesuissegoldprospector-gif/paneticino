@@ -141,6 +141,45 @@
         "companyNumber",
         "approvalStatus"
       ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a product sold by a baker.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
+        },
+        "bakerId": {
+          "type": "string",
+          "description": "Reference to the baker who sells this product. (Relationship: BakerProfile 1:N Product)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the product."
+        },
+        "price": {
+          "type": "string",
+          "description": "The price of the product (e.g., '€4.50')."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL to an image of the product.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "bakerId",
+        "name",
+        "price"
+      ]
     }
   },
   "auth": {
@@ -195,6 +234,22 @@
             {
               "name": "bakerId",
               "description": "The unique identifier for the baker's profile."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Stores product information. Access is controlled by the baker who owns it.",
+          "params": [
+            {
+              "name": "productId",
+              "description": "The unique identifier for the product."
             }
           ]
         }

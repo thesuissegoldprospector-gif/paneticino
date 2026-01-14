@@ -9,12 +9,14 @@
  * - `/users/{userId}`: Stores core, role-agnostic user account data.
  * - `/customers/{customerId}`: Contains profile information specific to customers.
  * - `/bakers/{bakerId}`: Holds profile data for bakers, including a critical `approvalStatus` field that drives authorization.
+ * - `/products/{productId}`: Stores product information, strictly owned by the baker who created it.
  * - `/roles_admin/{userId}`: An admin-only collection where the existence of a document grants a user administrative rights across the application.
  *
  * ## Key Security Decisions
- * - **Strict Ownership**: All user-generated content in `/users`, `/customers`, and `/bakers` is owned by the user who created it. Only the owner or an admin can modify this data.
+ * - **Strict Ownership**: All user-generated content in `/users`, `/customers`, `/bakers`, and `/products` is owned by the user who created it. Only the owner or an admin can modify this data.
  * - **Baker Approval Workflow**: New bakers can create a profile, but it is locked in a `pending` state. They can edit their pending application but cannot approve it themselves. Only an admin can transition the `approvalStatus` to `approved` or `rejected`, granting or denying them full visibility and access.
- * - **Public vs. Private Data**: Approved baker profiles are publicly readable to allow customers to browse bakeries. Pending or rejected baker profiles are private and only visible to the owner and admins.
+ * - **Product Management**: Only an approved baker can create, update, or delete their own products. Products are publicly readable so customers can browse them.
+ * - **Public vs. Private Data**: Approved baker profiles and their products are publicly readable. Pending or rejected baker profiles are private and only visible to the owner and admins.
  * - **No User Enumeration**: Listing the contents of the `/users` and `/customers` collections is explicitly disallowed to protect user privacy.
  * - **Admin Access via DBAC**: Admin privileges are granted based on the existence of a document in the `/roles_admin` collection (Database-Based Access Control), making role management explicit and auditable. Client-side modification of this collection is forbidden.
  *
@@ -70,6 +72,15 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && docExists();
     }
+    
+    /**
+     * Checks if the baker is approved.
+     */
+    function isApprovedBaker(userId) {
+      let bakerDoc = get(/databases/$(database)/documents/bakers/$(userId));
+      return bakerDoc.data.approvalStatus == 'approved';
+    }
+
 
     // ----------------------------------------------------------------
     // Collection Rules
@@ -123,9 +134,23 @@ service cloud.firestore {
     }
 
     /**
+     * @description Products sold by bakers. Only the baker who owns the product can manage it.
+     * @path /products/{productId}
+     * @allow (list, get) Publicly readable to allow customers to browse.
+     * @deny (create, update, delete) A user who is not the owning, approved baker.
+     * @principle Enforces ownership and ensures only approved bakers can sell products.
+     */
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid && isApprovedBaker(request.auth.uid);
+      allow update, delete: if isSignedIn() && resource.data.bakerId == request.auth.uid;
+    }
+
+
+    /**
      * @description Grants admin privileges. The existence of a document confirms admin status.
      * @path /roles_admin/{userId}
-     * @allow (get) An admin reading the document to confirm another user's admin status.
+     * @allow (get) Any authenticated user can check their own admin status.
      * @deny (create, update, delete) Any client-side user attempting to grant themselves or others admin rights.
      * @principle Secures role management by making it a read-only collection for clients. Roles must be managed server-side or via the Firebase Console.
      */
