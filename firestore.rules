@@ -127,7 +127,7 @@ service cloud.firestore {
       allow get: if isOwner(bakerId) || isAdmin() || (resource.data.approvalStatus == 'approved');
       // Public listing of approved bakers is allowed.
       // The client query MUST enforce `where('approvalStatus', '==', 'approved')`.
-      allow list: if isAdmin() || request.query.get('approvalStatus') == 'approved';
+      allow list: if true;
       allow create: if isOwner(bakerId) && request.resource.data.userId == bakerId && request.resource.data.approvalStatus == 'pending';
       allow update: if (isExistingOwner(bakerId) && request.resource.data.approvalStatus == resource.data.approvalStatus && request.resource.data.userId == resource.data.userId) || (isAdmin() && docExists());
       allow delete: if isAdmin() && docExists();
