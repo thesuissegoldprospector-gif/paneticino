@@ -35,6 +35,11 @@
         "lastName": {
           "type": "string",
           "description": "The last name of the user."
+        },
+        "photoURL": {
+            "type": "string",
+            "description": "URL of the user's profile picture.",
+            "format": "uri"
         }
       },
       "required": [
@@ -131,6 +136,10 @@
             "approved",
             "rejected"
           ]
+        },
+        "deliveryConditions": {
+          "type": "string",
+          "description": "Specific conditions for delivery (e.g., minimum order, delivery times)."
         }
       },
       "required": [
@@ -185,22 +194,89 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Order",
       "type": "object",
-      "description": "Represents a customer's order.",
+      "description": "Represents a customer's order from a specific baker.",
       "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the order."
+        },
+        "bakerId": {
+          "type": "string",
+          "description": "The UID of the baker fulfilling the order."
+        },
+        "bakerName": {
+            "type": "string",
+            "description": "The name of the baker's company."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "The UID of the customer who placed the order."
+        },
+        "customerName": {
+            "type": "string",
+            "description": "The name of the customer."
+        },
         "items": {
           "type": "array",
-          "items": { "$ref": "#/backend/entities/CartItem" }
+          "description": "The list of products in the order.",
+          "items": {
+            "$ref": "#/entities/OrderItem"
+          }
         },
-        "totalAmount": { "type": "number" },
-        "orderDate": { "type": "string", "format": "date-time" },
+        "total": {
+          "type": "number",
+          "description": "The total cost of the order."
+        },
+        "deliveryAddress": {
+          "type": "string",
+          "description": "The address for delivery."
+        },
+        "deliveryZone": {
+          "type": "string",
+          "description": "The delivery zone (e.g., postal code or city)."
+        },
         "status": {
           "type": "string",
-          "enum": ["pending", "confirmed", "in_delivery", "delivered", "cancelled"]
+          "description": "The current status of the order.",
+          "enum": [
+            "pending",
+            "accepted",
+            "preparing",
+            "delivering",
+            "completed",
+            "rejected"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The timestamp when the order was created.",
+          "format": "date-time"
         }
       },
-      "required": ["id", "userId", "items", "totalAmount", "orderDate", "status"]
+      "required": [
+        "id",
+        "bakerId",
+        "customerId",
+        "items",
+        "total",
+        "deliveryAddress",
+        "status",
+        "createdAt",
+        "bakerName"
+      ]
+    },
+    "OrderItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OrderItem",
+      "type": "object",
+      "description": "Represents a single item within an order.",
+      "properties": {
+        "productId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "quantity": { "type": "integer" }
+      },
+      "required": ["productId", "name", "price", "quantity"]
     },
     "CartItem": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -223,7 +299,8 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google"
     ]
   },
   "firestore": {
@@ -317,9 +394,9 @@
         "definition": {
             "entityName": "Order",
             "schema": {
-                "$ref": "#/backend/entities/Order"
+                "$ref": "#/entities/Order"
             },
-            "description": "Stores customer orders. Access restricted to the user who placed it and admins.",
+            "description": "Stores customer orders. Access restricted to the user who placed it and the baker fulfilling it.",
             "params": [
                 {
                     "name": "orderId",

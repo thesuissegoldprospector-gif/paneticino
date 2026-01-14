@@ -944,7 +944,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
 };
 
 function OrderStatusBadge({ status }: { status: string }) {
-    const config = statusConfig[status] || { label: 'Sconosciuto', color: 'bg-gray-500', icon: HelpCircle };
+    const config = statusConfig[status] || { label: 'Sconosciuto', color: 'bg-gray-500', icon: 'HelpCircle' };
     const Icon = config.icon;
     return (
         <Badge className={cn("text-white whitespace-nowrap", config.color)}>
@@ -1052,12 +1052,6 @@ function CustomerOrdersDashboard({ customerId }: { customerId: string }) {
     }, [firestore, customerId]);
 
     const { data: orders, isLoading } = useCollection(ordersQuery);
-     const { data: bakerProfiles } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, 'bakers') : null, [firestore]));
-
-    const getBakerName = (bakerId: string) => {
-        return bakerProfiles?.find(b => b.id === bakerId)?.companyName || 'Panettiere';
-    }
-
 
     return (
         <Card className="md:col-span-2">
@@ -1079,7 +1073,7 @@ function CustomerOrdersDashboard({ customerId }: { customerId: string }) {
                                 <AccordionTrigger>
                                      <div className="flex justify-between w-full pr-4 items-center">
                                         <div className="text-left">
-                                            <p className="font-semibold">Ordine da {getBakerName(order.bakerId)}</p>
+                                            <p className="font-semibold">Ordine da {order.bakerName || 'Panettiere'}</p>
                                             <p className="text-sm text-muted-foreground">
                                                 {format(order.createdAt.toDate(), 'dd MMM yyyy, HH:mm', { locale: it })}
                                             </p>

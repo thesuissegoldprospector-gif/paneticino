@@ -5,7 +5,7 @@ import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingCart, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
+import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, useCollection } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { collection, doc, serverTimestamp } from "firebase/firestore";
 
 export default function CheckoutPage() {
-  const { cart, clearCart, isLoading: isCartLoading } = useCart();
+  const { cart, removeFromCart, total, clearCart, isLoading: isCartLoading } = useCart();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const router = useRouter();
@@ -98,6 +98,7 @@ export default function CheckoutPage() {
       
       const orderPayload = {
           bakerId: orderData.bakerId,
+          bakerName: orderData.bakerName, // Aggiunto bakerName
           customerId: user.uid,
           customerName: user.displayName || `${customerProfile.firstName} ${customerProfile.lastName}`,
           items: orderData.items.map(item => ({
@@ -213,5 +214,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-    
