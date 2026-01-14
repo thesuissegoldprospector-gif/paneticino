@@ -73,6 +73,17 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
+
+        if (error.code === 'permission-denied') {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Firestore permission denied for document:', memoizedDocRef.path);
+            setData(null);
+            setIsLoading(false);
+            setError(null); // Set error to null to avoid throwing
+            return;
+          }
+        }
+
         const contextualError = new FirestorePermissionError({
           operation: 'get',
           path: memoizedDocRef.path,

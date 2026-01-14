@@ -24,6 +24,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { User } from 'firebase/auth';
 
 
 function useUserDoc(firestore: Firestore | null, userId: string | undefined) {
@@ -115,6 +116,8 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto max-w-5xl space-y-8 px-4 py-8">
+      {user && userDocRef && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />}
+      
       {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user ? (
         <BakerProfileDashboard 
             user={user}
@@ -123,14 +126,9 @@ export default function ProfilePage() {
             userDocRef={userDocRef} 
             bakerDocRef={bakerDocRef} 
         />
-      ) : role === 'customer' && customerProfile && userDocRef && user ? (
-        <>
-            <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
-            {customerProfile && customerDocRef && <CustomerProfileDashboard user={user} profile={customerProfile} docRef={customerDocRef} />}
-        </>
-      ) : (
-         user && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
-      )}
+      ) : role === 'customer' && customerProfile && customerDocRef && user ? (
+        <CustomerProfileDashboard user={user} profile={customerProfile} docRef={customerDocRef} />
+      ) : null }
       
       <div className="flex justify-center pt-8">
           <Button variant="destructive" onClick={handleLogout}>
@@ -599,7 +597,9 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
         return query(collection(firestore, 'products'), where('bakerId', '==', user.uid));
     }, [firestore, user]);
 
-    const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
+    const { data: products, isLoading: areProductsLoading } = productsQuery
+        ? useCollection(productsQuery)
+        : { data: null, isLoading: false };
     
     const profileForm = useForm<z.infer<typeof bakerProfileFormSchema>>({
         resolver: zodResolver(bakerProfileFormSchema),
@@ -769,7 +769,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
                 </form>
             </Form>
 
-            <BakerOrdersDashboard bakerId={user.uid} />
+            <BakerOrdersDashboard user={user} />
 
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -924,7 +924,7 @@ function CustomerProfileDashboard({ user, profile, docRef }: { user: User, profi
         </CardContent>
       </Card>
 
-      <CustomerOrdersDashboard customerId={user.uid} />
+      <CustomerOrdersDashboard user={user} />
     </div>
   );
 }
@@ -954,19 +954,20 @@ function OrderStatusBadge({ status }: { status: string }) {
     );
 }
 
-function BakerOrdersDashboard({ bakerId }: { bakerId: string }) {
+function BakerOrdersDashboard({ user }: { user: User }) {
     const firestore = useFirestore();
+    const { data: userDoc } = useUserDoc(firestore, user.uid);
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !user || userDoc?.role !== 'baker') return null;
         return query(
             collection(firestore, 'orders'),
-            where('bakerId', '==', bakerId),
+            where('bakerId', '==', user.uid),
             orderBy('createdAt', 'desc')
         );
-    }, [firestore, bakerId]);
+    }, [firestore, user, userDoc]);
 
-    const { data: orders, isLoading } = useCollection(ordersQuery);
+    const { data: orders, isLoading } = ordersQuery ? useCollection(ordersQuery) : { data: null, isLoading: false};
 
     const handleUpdateStatus = (orderId: string, newStatus: string) => {
         if (!firestore) return;
@@ -1039,19 +1040,20 @@ function BakerOrdersDashboard({ bakerId }: { bakerId: string }) {
 }
 
 
-function CustomerOrdersDashboard({ customerId }: { customerId: string }) {
+function CustomerOrdersDashboard({ user }: { user: User }) {
     const firestore = useFirestore();
+    const { data: userDoc } = useUserDoc(firestore, user.uid);
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !user || userDoc?.role !== 'customer') return null;
         return query(
             collection(firestore, 'orders'),
-            where('customerId', '==', customerId),
+            where('customerId', '==', user.uid),
             orderBy('createdAt', 'desc')
         );
-    }, [firestore, customerId]);
+    }, [firestore, user, userDoc]);
 
-    const { data: orders, isLoading } = useCollection(ordersQuery);
+    const { data: orders, isLoading } = ordersQuery ? useCollection(ordersQuery) : { data: null, isLoading: false };
 
     return (
         <Card className="md:col-span-2">
@@ -1103,3 +1105,4 @@ function CustomerOrdersDashboard({ customerId }: { customerId: string }) {
     
 
     
+

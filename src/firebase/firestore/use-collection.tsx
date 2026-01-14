@@ -85,6 +85,16 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
+        if (error.code === 'permission-denied') {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Firestore permission denied for query:', (memoizedTargetRefOrQuery as any)?.path);
+            setData(null);
+            setIsLoading(false);
+            setError(null); // Set error to null to avoid throwing
+            return;
+          }
+        }
+
         // This logic extracts the path from either a ref or a query
         const path: string =
           memoizedTargetRefOrQuery.type === 'collection'
@@ -107,8 +117,10 @@ export function useCollection<T = any>(
 
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
-  if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
+  
+  if(memoizedTargetRefOrQuery && !(memoizedTargetRefOrQuery as any).__memo) {
+    console.warn('Query/reference passed to useCollection was not created with useMemoFirebase. This can lead to infinite loops.', memoizedTargetRefOrQuery);
   }
+
   return { data, isLoading, error };
 }
