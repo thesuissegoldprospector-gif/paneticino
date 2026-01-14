@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
 
 // Define the type for a cart item
@@ -16,13 +16,16 @@ export interface CartItem {
   bakerName: string;
 }
 
+// Define the type for the input of the addItem function to avoid syntax parsing issues.
+type AddItemInput = Omit<CartItem, 'quantity'> & { quantity?: number };
+
 // Define the state structure for the cart store
 interface CartState {
   items: CartItem[];
   isLoading: boolean;
   total: number;
   setItems: (items: CartItem[]) => void;
-  addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
+  addItem: (item: AddItemInput) => void;
   removeItem: (itemId: string) => void;
   updateItemQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => Promise<void>;
@@ -34,8 +37,9 @@ const useCartStore = create<CartState>((set, get) => ({
   total: 0,
   setItems: (items) => {
     const total = items.reduce((acc, item) => {
-        // remove currency symbol and parse
-        const price = parseFloat(item.price.replace(new RegExp('[^0-9.-]+', 'g'), ''));
+        // Remove currency symbol and parse. Fallback to 0 if parsing fails.
+        const priceString = item.price.replace('€', '').trim();
+        const price = parseFloat(priceString) || 0;
         return acc + price * item.quantity;
     }, 0);
     set({ items, total, isLoading: false });
