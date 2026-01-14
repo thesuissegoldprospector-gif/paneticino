@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from "react";
@@ -67,6 +66,11 @@ export default function BakeryDetailPage({ params }: Props) {
 
   const isLoading = isBakeryLoading || areProductsLoading;
 
+  // DEBUG LOGS
+  console.log("ID FROM ROUTE:", id);
+  console.log("BAKERY DOC:", bakery);
+
+
   if (isLoading) {
     return (
       <div className="flex h-full min-h-[600px] w-full items-center justify-center">
@@ -75,7 +79,8 @@ export default function BakeryDetailPage({ params }: Props) {
     );
   }
 
-  if (!isLoading && (!bakery || bakery.approvalStatus !== 'approved')) {
+  // If loading is finished and we still have no bakery, or the bakery is not approved, show 404.
+  if (!bakery || bakery.approvalStatus !== 'approved') {
     notFound();
   }
 
