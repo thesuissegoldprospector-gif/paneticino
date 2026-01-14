@@ -73,25 +73,25 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /bakers/{bakerId} {
 
-      // ✅ chiunque autenticato può LISTARE i panettieri
-      allow list: if isSignedIn();
+      // ✅ allow list for everyone (client will filter for 'approved')
+      allow list: if true;
 
-      // ✅ profilo leggibile se:
-      // - proprietario
+      // ✅ profile readable if:
+      // - owner
       // - admin
-      // - approvato
+      // - approved
       allow get: if isOwner(bakerId)
         || isAdmin()
         || resource.data.approvalStatus == 'approved';
 
-      // ➕ richiesta panettiere (pending)
+      // ➕ baker application (pending)
       allow create: if isOwner(bakerId)
         && request.resource.data.userId == bakerId
         && request.resource.data.approvalStatus == 'pending';
 
       // ✏️ update:
-      // - il panettiere NON può cambiare approvalStatus
-      // - l’admin può fare tutto
+      // - baker cannot change approvalStatus
+      // - admin can do anything
       allow update: if
         (
           isExistingOwner(bakerId)
@@ -100,7 +100,7 @@ service cloud.firestore {
         )
         || isAdmin();
 
-      // ❌ delete solo admin
+      // ❌ delete only admin
       allow delete: if isAdmin();
     }
 
@@ -109,15 +109,15 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /products/{productId} {
 
-      // 📖 prodotti pubblici
+      // 📖 public products
       allow get, list: if true;
 
-      // ➕ solo panettieri approvati
+      // ➕ only approved bakers
       allow create: if isSignedIn()
         && request.resource.data.bakerId == request.auth.uid
         && isApprovedBaker(request.auth.uid);
 
-      // ✏️ solo proprietario
+      // ✏️ only owner
       allow update, delete: if isSignedIn()
         && resource.data.bakerId == request.auth.uid;
     }
