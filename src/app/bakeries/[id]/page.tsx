@@ -3,12 +3,14 @@ import { firestore } from "@/firebase/server"; // Server-side Firebase client
 import BakeryDetailClient from "./BakeryDetailClient";
 import { notFound } from "next/navigation";
 
+// The props object now includes a `params` property
 type Props = {
   params: { id: string };
 };
 
-export default async function BakeryDetailPage({ params }: Props) {
-  const id = params.id;
+// The component is async and receives props
+export default async function BakeryDetailPage(props: Props) {
+  const id = props.params.id;
 
   if (!id) {
     notFound();
