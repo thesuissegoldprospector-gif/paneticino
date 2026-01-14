@@ -174,17 +174,47 @@ export default function EditBakerProfilePage() {
           <Form {...profileForm}>
             <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <FormField control={profileForm.control} name="companyName" render={({ field }) => ( <FormItem> <FormLabel>Nome Ditta</FormLabel> <FormControl> <Input placeholder="Es. Panificio Nonna Rosa" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-                 <FormField control={profileForm.control} name="address" render={({ field }) => ( <FormItem> <FormLabel>Indirizzo Completo</FormLabel> <FormControl> <Input placeholder="Via, numero civico, città, CAP" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+                 <FormField control={profileForm.control} name="companyName" render={({ field }) => (
+                   <FormItem>
+                     <FormLabel>Nome Ditta</FormLabel>
+                     <FormControl><Input placeholder="Es. Panificio Nonna Rosa" {...field} /></FormControl>
+                     <FormMessage />
+                   </FormItem>
+                  )} />
+                 <FormField control={profileForm.control} name="address" render={({ field }) => (
+                   <FormItem>
+                     <FormLabel>Indirizzo Completo</FormLabel>
+                     <FormControl><Input placeholder="Via, numero civico, città, CAP" {...field} /></FormControl>
+                     <FormMessage />
+                   </FormItem>
+                  )} />
               </div>
-              <FormField control={profileForm.control} name="deliveryZones" render={({ field }) => ( <FormItem> <FormLabel>Zone di Consegna (separate da virgola)</FormLabel> <FormControl> <Textarea placeholder="Elenca le aree, i CAP o le città" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+              <FormField control={profileForm.control} name="deliveryZones" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Zone di Consegna (separate da virgola)</FormLabel>
+                  <FormControl><Textarea placeholder="Elenca le aree, i CAP o le città" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField control={profileForm.control} name="profilePictureUrl" render={({ field }) => ( <FormItem> <FormLabel>URL Foto Profilo</FormLabel> <FormControl> <Input placeholder="https://esempio.com/immagine.jpg" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={profileForm.control} name="coverPhotoUrl" render={({ field }) => ( <FormItem> <FormLabel>URL Foto Copertina</FormLabel> <FormControl> <Input placeholder="https://esempio.com/immagine.jpg" {...field} /> </FormControl> <FormMessage /> </FormItem> )} />
+                <FormField control={profileForm.control} name="profilePictureUrl" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL Foto Profilo</FormLabel>
+                    <FormControl><Input placeholder="https://esempio.com/immagine.jpg" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={profileForm.control} name="coverPhotoUrl" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL Foto Copertina</FormLabel>
+                    <FormControl><Input placeholder="https://esempio.com/immagine.jpg" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </div>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => router.push('/profile')}> Annulla </Button>
-                <Button type="submit" disabled={profileForm.formState.isSubmitting}> {profileForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salva Modifiche </Button>
+                <Button type="button" variant="ghost" onClick={() => router.push('/profile')}>Annulla</Button>
+                <Button type="submit" disabled={profileForm.formState.isSubmitting}>{profileForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salva Modifiche</Button>
               </div>
             </form>
           </Form>
@@ -202,11 +232,35 @@ export default function EditBakerProfilePage() {
               <Form {...productForm}>
                 <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={productForm.control} name="name" render={({ field }) => ( <FormItem> <FormLabel>Nome Prodotto</FormLabel> <FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={productForm.control} name="price" render={({ field }) => ( <FormItem> <FormLabel>Prezzo</FormLabel> <FormControl><Input placeholder="€4.50" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                    <FormField control={productForm.control} name="name" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome Prodotto</FormLabel>
+                        <FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={productForm.control} name="price" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Prezzo</FormLabel>
+                        <FormControl><Input placeholder="€4.50" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                   </div>
-                  <FormField control={productForm.control} name="description" render={({ field }) => ( <FormItem> <FormLabel>Descrizione</FormLabel> <FormControl><Textarea placeholder="Breve descrizione del prodotto" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                  <FormField control={productForm.control} name="imageUrl" render={({ field }) => ( <FormItem> <FormLabel>URL Immagine</FormLabel> <FormControl><Input placeholder="https://esempio.com/immagine-prodotto.jpg" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
+                  <FormField control={productForm.control} name="description" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descrizione</FormLabel>
+                      <FormControl><Textarea placeholder="Breve descrizione del prodotto" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={productForm.control} name="imageUrl" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL Immagine</FormLabel>
+                      <FormControl><Input placeholder="https://esempio.com/immagine-prodotto.jpg" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
                   <Button type="submit" disabled={productForm.formState.isSubmitting}>
                     {productForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle />}
                     Aggiungi Prodotto
