@@ -409,7 +409,7 @@ function UserProfileCard({ user, userDoc, userDocRef }: { user: User, userDoc: a
     );
 }
 
-function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, bakerDocRef }: { user: User, userProfile: any, bakerProfile: any, userDocRef: DocumentReference, bakerDocRef: DocumentReference }) {
+function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, bakerDocRef, orders, areOrdersLoading }: { user: User, userProfile: any, bakerProfile: any, userDocRef: DocumentReference, bakerDocRef: DocumentReference, orders: any[] | null, areOrdersLoading: boolean }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -520,7 +520,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
                 </form>
             </Form>
 
-            <BakerOrdersDashboard user={user} userDoc={userProfile} />
+            <BakerOrdersDashboard user={user} userDoc={userProfile} orders={orders} isLoading={areOrdersLoading} />
 
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -563,7 +563,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
     );
 }
 
-function CustomerProfileDashboard({ user, userDoc, profile, docRef }: { user: User, userDoc: any, profile: any, docRef: DocumentReference | null }) {
+function CustomerProfileDashboard({ user, userDoc, profile, docRef, orders, areOrdersLoading }: { user: User, userDoc: any, profile: any, docRef: DocumentReference | null, orders: any[] | null, areOrdersLoading: boolean }) {
     const [newAddress, setNewAddress] = useState('');
     const { toast } = useToast();
 
@@ -607,7 +607,7 @@ function CustomerProfileDashboard({ user, userDoc, profile, docRef }: { user: Us
                     {profile.favoriteBakeries?.length > 0 ? <ul>{profile.favoriteBakeries.map((b: string) => <li key={b}>{b}</li>)}</ul> : <p className='text-sm text-muted-foreground'>Nessun panettiere preferito.</p>}
                 </CardContent>
             </Card>
-            <CustomerOrdersDashboard user={user} userDoc={userDoc} />
+            <CustomerOrdersDashboard user={user} userDoc={userDoc} orders={orders} isLoading={areOrdersLoading} />
         </div>
     );
 }
@@ -632,15 +632,9 @@ function OrderStatusBadge({ status }: { status: string }) {
     );
 }
 
-function BakerOrdersDashboard({ user, userDoc }: { user: User, userDoc: any }) {
+function BakerOrdersDashboard({ user, userDoc, orders, isLoading }: { user: User, userDoc: any, orders: any[] | null, isLoading: boolean }) {
     const firestore = useFirestore();
-    const ordersQuery = useMemoFirebase(() => (
-        (firestore && user && userDoc?.role === 'baker')
-            ? query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'))
-            : null
-    ), [firestore, user, userDoc]);
-    const { data: orders, isLoading } = useCollection(ordersQuery);
-
+    
     const handleUpdateStatus = (orderId: string, newStatus: string) => {
         if (!firestore) return;
         updateDocumentNonBlocking(doc(firestore, 'orders', orderId), { status: newStatus });
@@ -694,14 +688,7 @@ function BakerOrdersDashboard({ user, userDoc }: { user: User, userDoc: any }) {
     );
 }
 
-function CustomerOrdersDashboard({ user, userDoc }: { user: User, userDoc: any }) {
-    const firestore = useFirestore();
-    const ordersQuery = useMemoFirebase(() => (
-        (firestore && user && userDoc?.role === 'customer')
-            ? query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'))
-            : null
-    ), [firestore, user, userDoc]);
-    const { data: orders, isLoading } = useCollection(ordersQuery);
+function CustomerOrdersDashboard({ user, userDoc, orders, isLoading }: { user: User, userDoc: any, orders: any[] | null, isLoading: boolean }) {
 
     return (
         <Card className="md:col-span-2">
@@ -746,6 +733,22 @@ export default function ProfilePage() {
   const { data: userDoc, isLoading: isUserDocLoading, ref: userDocRef } = useUserDoc(firestore, user?.uid);
   const { data: bakerProfile, isLoading: isBakerLoading, ref: bakerDocRef } = useBakerProfile(firestore, user?.uid);
   const { data: customerProfile, isLoading: isCustomerLoading, ref: customerDocRef } = useCustomerProfile(firestore, user?.uid);
+  
+  const role = userDoc?.role;
+
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore || !user || !role) return null;
+
+    if (role === 'baker') {
+        return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
+    }
+    if (role === 'customer') {
+        return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
+    }
+    return null;
+  }, [firestore, user, role]);
+
+  const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
   const isLoading = isUserLoading || isUserDocLoading || isBakerLoading || isCustomerLoading;
 
@@ -767,8 +770,6 @@ export default function ProfilePage() {
     );
   }
 
-  const role = userDoc?.role;
-
   return (
     <div className="container mx-auto max-w-5xl space-y-8 px-4 py-8">
       {/* User Profile */}
@@ -781,7 +782,9 @@ export default function ProfilePage() {
           userProfile={userDoc} 
           bakerProfile={bakerProfile} 
           userDocRef={userDocRef} 
-          bakerDocRef={bakerDocRef} 
+          bakerDocRef={bakerDocRef}
+          orders={orders}
+          areOrdersLoading={areOrdersLoading}
         />
       )}
 
@@ -791,7 +794,9 @@ export default function ProfilePage() {
           user={user} 
           userDoc={userDoc} 
           profile={customerProfile} 
-          docRef={customerDocRef} 
+          docRef={customerDocRef}
+          orders={orders}
+          areOrdersLoading={areOrdersLoading}
         />
       )}
 
