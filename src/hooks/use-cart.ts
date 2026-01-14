@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useEffect } from 'react';
 import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
+import type { StateCreator } from 'zustand';
 
 // Define the type for a cart item
 export interface CartItem {
@@ -16,7 +17,7 @@ export interface CartItem {
   bakerName: string;
 }
 
-// Define the type for the input of the addItem function to avoid syntax parsing issues.
+// Define the type for the input of the addItem function.
 type AddItemInput = Omit<CartItem, 'quantity'> & { quantity?: number };
 
 // Define the state structure for the cart store
@@ -31,13 +32,13 @@ interface CartState {
   clearCart: () => Promise<void>;
 }
 
-const useCartStore = create<CartState>((set, get) => ({
+// Extracted store logic into a standalone function to avoid parsing errors.
+const cartStateCreator: StateCreator<CartState> = (set, get) => ({
   items: [],
   isLoading: true,
   total: 0,
   setItems: (items) => {
     const total = items.reduce((acc, item) => {
-        // Remove currency symbol and parse. Fallback to 0 if parsing fails.
         const priceString = item.price.replace('€', '').trim();
         const price = parseFloat(priceString) || 0;
         return acc + price * item.quantity;
@@ -92,7 +93,6 @@ const useCartStore = create<CartState>((set, get) => ({
     const { user, firestore } = useUser.getState();
     const items = get().items;
     if (user && firestore) {
-      // Create a batch write to delete all items
       const deletePromises = items.map(item => {
         const cartItemRef = doc(firestore, 'users', user.uid, 'cart', item.id);
         return deleteDoc(cartItemRef);
@@ -101,7 +101,10 @@ const useCartStore = create<CartState>((set, get) => ({
     }
     get().setItems([]);
   },
-}));
+});
+
+const useCartStore = create<CartState>(cartStateCreator);
+
 
 // A wrapper hook to sync Firestore with the Zustand store
 export const useCart = () => {
