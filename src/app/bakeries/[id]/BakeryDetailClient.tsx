@@ -32,7 +32,22 @@ function ProductCard({ product }: { product: any }) {
   );
 }
 
-export default function BakeryDetailClient({ bakery, products }: { bakery: any; products: any[] }) {
+function ProductCardSkeleton() {
+    return (
+      <Card className="flex h-full flex-col overflow-hidden">
+        <div className="aspect-[4/3] w-full animate-pulse bg-muted" />
+        <CardContent className="flex flex-1 flex-col justify-between p-4">
+          <div className="space-y-2">
+            <div className="h-5 w-3/4 animate-pulse rounded bg-muted-foreground/20" />
+            <div className="h-8 w-full animate-pulse rounded bg-muted-foreground/20" />
+          </div>
+          <div className="mt-4 h-5 w-1/4 animate-pulse rounded bg-muted-foreground/20" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+export default function BakeryDetailClient({ bakery, products }: { bakery: any; products: any[] | null }) {
   return (
     <div>
       {/* Cover */}
@@ -69,12 +84,20 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
             <TabsTrigger value="info">Info</TabsTrigger>
           </TabsList>
           <TabsContent value="products" className="mt-6">
-            {products && products.length > 0 ? (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {products.map((product) => <ProductCard key={product.id} product={product}/>)}
-              </div>
+            {products ? (
+                products.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                    {products.map((product) => <ProductCard key={product.id} product={product}/>)}
+                </div>
+                ) : (
+                <p className="py-8 text-center text-muted-foreground">Questo panettiere non ha ancora aggiunto nessun prodotto.</p>
+                )
             ) : (
-              <p className="py-8 text-center text-muted-foreground">Questo panettiere non ha ancora aggiunto nessun prodotto.</p>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <ProductCardSkeleton key={i} />
+                    ))}
+                </div>
             )}
           </TabsContent>
           <TabsContent value="info" className="mt-6">
