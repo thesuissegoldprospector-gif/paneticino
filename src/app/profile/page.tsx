@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle, Upload, Camera, Trash2, LogOut } from 'lucide-react';
+import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle, Upload, Camera, Trash2, LogOut, Truck } from 'lucide-react';
 import { useUser, useDoc, useMemoFirebase, useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { doc, DocumentData, Firestore, DocumentReference, collection, query, where } from 'firebase/firestore';
 import Link from 'next/link';
@@ -57,6 +57,7 @@ const bakerProfileFormSchema = z.object({
     companyName: z.string().min(2, { message: 'Il nome della ditta è obbligatorio.' }),
     address: z.string().min(5, { message: 'L\'indirizzo è obbligatorio.' }),
     deliveryZones: z.string().min(2, { message: 'Inserisci almeno una zona di consegna.' }),
+    deliveryConditions: z.string().optional(),
 });
 
 const productFormSchema = z.object({
@@ -424,6 +425,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
             companyName: '',
             address: '',
             deliveryZones: '',
+            deliveryConditions: '',
         }
     });
 
@@ -442,6 +444,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                 companyName: bakerProfile.companyName || '',
                 address: bakerProfile.address || '',
                 deliveryZones: (bakerProfile.deliveryZones || []).join(', '),
+                deliveryConditions: bakerProfile.deliveryConditions || '',
             });
         }
     }, [userProfile, bakerProfile, profileForm]);
@@ -455,6 +458,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
             updateDocumentNonBlocking(bakerDocRef, {
                 ...bakerData,
                 deliveryZones: bakerData.deliveryZones.split(',').map(zone => zone.trim().toLowerCase()),
+                deliveryConditions: bakerData.deliveryConditions || '',
             })
         ]);
         
@@ -570,6 +574,9 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                              </div>
                             <FormField control={profileForm.control} name="deliveryZones" render={({ field }) => (
                                 <FormItem><FormLabel>Zone di Consegna (separate da virgola)</FormLabel><FormControl><Textarea placeholder="Elenca le aree, i CAP o le città" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={profileForm.control} name="deliveryConditions" render={({ field }) => (
+                                <FormItem><FormLabel>Condizioni di Consegna</FormLabel><FormControl><Textarea placeholder="Es. Ordine minimo 10€, consegna gratuita sopra i 30€, orari di consegna 9-12." {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                              <div className="flex justify-end gap-2">
                                 <Button type="submit" disabled={profileForm.formState.isSubmitting}>{profileForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salva Modifiche</Button>
@@ -748,5 +755,7 @@ function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, 
     </div>
   );
 }
+
+    
 
     

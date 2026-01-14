@@ -94,6 +94,7 @@ export default function SignUpPage() {
             address: '',
             companyNumber: '',
             deliveryZones: [],
+            deliveryConditions: '',
             approvalStatus: 'pending',
             profilePictureUrl: '',
             coverPhotoUrl: '',
@@ -230,3 +231,5 @@ export default function SignUpPage() {
     </div>
   );
 }
+
+    

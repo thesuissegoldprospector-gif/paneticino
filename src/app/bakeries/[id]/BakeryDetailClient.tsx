@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Info, ShoppingBag } from "lucide-react";
+import { MapPin, Info, ShoppingBag, Truck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
@@ -236,11 +236,17 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
               <div className="space-y-4 text-card-foreground">
                 <div className="flex items-start gap-3">
                   <Info className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
-                  <p>Zone di consegna: {(bakery.deliveryZones || []).join(", ")}</p>
+                  <p><span className="font-semibold">Zone di consegna:</span> {(bakery.deliveryZones || []).join(", ")}</p>
                 </div>
+                {bakery.deliveryConditions && (
+                  <div className="flex items-start gap-3">
+                    <Truck className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
+                    <p><span className="font-semibold">Condizioni di consegna:</span> {bakery.deliveryConditions}</p>
+                  </div>
+                )}
                 <div className="flex items-start gap-3">
                   <MapPin className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
-                  <p>{bakery.address}</p>
+                   <p><span className="font-semibold">Indirizzo:</span> {bakery.address}</p>
                 </div>
               </div>
             </div>
@@ -253,3 +259,5 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
     </div>
   );
 }
+
+    

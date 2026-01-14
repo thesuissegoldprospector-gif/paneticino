@@ -131,6 +131,10 @@
             "approved",
             "rejected"
           ]
+        },
+        "deliveryConditions": {
+          "type": "string",
+          "description": "Specific conditions for delivery (e.g., minimum order, delivery times)."
         }
       },
       "required": [
@@ -180,6 +184,44 @@
         "name",
         "price"
       ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a customer's order.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/backend/entities/CartItem" }
+        },
+        "totalAmount": { "type": "number" },
+        "orderDate": { "type": "string", "format": "date-time" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "in_delivery", "delivered", "cancelled"]
+        }
+      },
+      "required": ["id", "userId", "items", "totalAmount", "orderDate", "status"]
+    },
+    "CartItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CartItem",
+      "type": "object",
+      "description": "Represents an item in the shopping cart.",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "bakerId": { "type": "string" },
+        "bakerName": { "type": "string" }
+      },
+      "required": ["id", "productId", "name", "price", "quantity"]
     }
   },
   "auth": {
@@ -202,6 +244,26 @@
             {
               "name": "userId",
               "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/users/{userId}/cart/{cartItemId}",
+        "definition": {
+          "entityName": "CartItem",
+          "schema": {
+            "$ref": "#/backend/entities/CartItem"
+          },
+          "description": "Stores items in a user's shopping cart. Access is restricted to the user themselves.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The user's ID."
+            },
+            {
+                "name": "cartItemId",
+                "description": "The cart item's ID (usually the product ID)."
             }
           ]
         }
@@ -255,6 +317,22 @@
         }
       },
       {
+        "path": "/orders/{orderId}",
+        "definition": {
+            "entityName": "Order",
+            "schema": {
+                "$ref": "#/backend/entities/Order"
+            },
+            "description": "Stores customer orders. Access restricted to the user who placed it and admins.",
+            "params": [
+                {
+                    "name": "orderId",
+                    "description": "The unique identifier for the order."
+                }
+            ]
+        }
+      },
+      {
         "path": "/roles_admin/{userId}",
         "definition": {
           "entityName": "adminRole",
@@ -271,6 +349,8 @@
         }
       }
     ],
-    "reasoning": "This Firestore data structure is designed to support the PaneDelivery application, focusing on a clear separation of user roles (customer and baker) and efficient data access while adhering to the core design principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are Not Filters).\n\n**Authorization Independence (CRITICAL):**\nTo avoid hierarchical authorization dependencies and enable atomic operations, the `BakerProfile` includes an `approvalStatus` field.  This allows rules to grant access based on the baker's approval status directly, without needing to read data from another document or collection.  This is especially important during the baker application process. No `get()` calls are required.\n\n**Structural Segregation (Homogeneous Security Posture):**\nUser data is separated into `/users` for core user information, `/customers/{customerId}` for customer-specific profiles, and `/bakers/{bakerId}` for baker-specific profiles. This segregation simplifies security rules by ensuring that each collection has a consistent security posture. For example, only the user themselves can modify their `/users/{userId}` document (with some exceptions for admin-level updates), while baker profiles have stricter access controls based on their `approvalStatus` and admin roles.\n\n**Access Modeling (Standardization and Consistency):**\n*   **Private Data:**  Customer and baker profile data are stored under `/customers/{customerId}` and `/bakers/{bakerId}`. This path-based ownership provides a clear and secure way to manage access to individual profiles.\n*   **Global Roles (DBAC):** The `/roles_admin/{uid}` collection is used to grant administrative privileges. The existence of a document in this collection grants admin access. Rules are defined based on the existence of these role documents.\n\n**QAPs (Rules are Not Filters):**\nThe structure supports secure `list` operations by using structural segregation and explicit state modeling.  For example, listing approved bakers is done via the `/bakers` collection combined with a rule that filters based on the `approvalStatus` field. Since rules are not filters, the `approvalStatus` field cannot be read directly from other document. Admin users can bypass certain restrictions for management purposes, facilitated by the `/roles_admin/{uid}` collection.\n\n**Invariants:**\nThe structure supports the integrity of ownership.  The `userId` field within both `CustomerProfile` and `BakerProfile` explicitly links the profiles to the associated user accounts, maintaining a clear ownership relationship.  Timestamps can be managed within each document as needed (though not explicitly defined in the provided schema, it is implied as a best practice).\n"
+    "reasoning": "This Firestore data structure is designed to support the PaneDelivery application, focusing on a clear separation of user roles (customer and baker) and efficient data access while adhering to the core design principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are Not Filters).\n\n**Authorization Independence (CRITICAL):**\nTo avoid hierarchical authorization dependencies and atomic operations, the `BakerProfile` includes an `approvalStatus` field.  This allows rules to grant access based on the baker's approval status directly, without needing to read data from another document or collection.  This is especially important during the baker application process. No `get()` calls are required.\n\n**Structural Segregation (Homogeneous Security Posture):**\nUser data is separated into `/users` for core user information, `/customers/{customerId}` for customer-specific profiles, and `/bakers/{bakerId}` for baker-specific profiles. This segregation simplifies security rules by ensuring that each collection has a consistent security posture. For example, only the user themselves can modify their `/users/{userId}` document (with some exceptions for admin-level updates), while baker profiles have stricter access controls based on their `approvalStatus` and admin roles.\n\n**Access Modeling (Standardization and Consistency):**\n*   **Private Data:**  Customer and baker profile data are stored under `/customers/{customerId}` and `/bakers/{bakerId}`. This path-based ownership provides a clear and secure way to manage access to individual profiles.\n*   **Global Roles (DBAC):** The `/roles_admin/{uid}` collection is used to grant administrative privileges. The existence of a document in this collection grants admin access. Rules are defined based on the existence of these role documents.\n\n**QAPs (Rules are Not Filters):**\nThe structure supports secure `list` operations by using structural segregation and explicit state modeling.  For example, listing approved bakers is done via the `/bakers` collection combined with a rule that filters based on the `approvalStatus` field. Since rules are not filters, the `approvalStatus` field cannot be read directly from other document. Admin users can bypass certain restrictions for management purposes, facilitated by the `/roles_admin/{uid}` collection.\n\n**Invariants:**\nThe structure supports the integrity of ownership.  The `userId` field within both `CustomerProfile` and `BakerProfile` explicitly links the profiles to the associated user accounts, maintaining a clear ownership relationship.  Timestamps can be managed within each document as needed (though not explicitly defined in the provided schema, it is implied as a best practice).\n"
   }
 }
+
+    

@@ -20,6 +20,7 @@ const formSchema = z.object({
   address: z.string().min(5, { message: 'L\'indirizzo è obbligatorio.' }),
   companyNumber: z.string().min(5, { message: 'Il numero aziendale è obbligatorio.' }),
   deliveryZones: z.string().min(2, { message: 'Inserisci almeno una zona di consegna.' }),
+  deliveryConditions: z.string().optional(),
 });
 
 export default function BakerApplicationPage() {
@@ -35,6 +36,7 @@ export default function BakerApplicationPage() {
       address: '',
       companyNumber: '',
       deliveryZones: '',
+      deliveryConditions: '',
     },
   });
 
@@ -54,6 +56,7 @@ export default function BakerApplicationPage() {
       address: values.address,
       companyNumber: values.companyNumber,
       deliveryZones: values.deliveryZones.split(',').map(zone => zone.trim().toLowerCase()),
+      deliveryConditions: values.deliveryConditions || '',
       approvalStatus: 'pending',
       // Add empty fields for profilePictureUrl and coverPhotoUrl
       profilePictureUrl: '',
@@ -149,6 +152,25 @@ export default function BakerApplicationPage() {
                   </FormItem>
                 )}
               />
+               <FormField
+                control={form.control}
+                name="deliveryConditions"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Condizioni di Consegna (Opzionale)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Es. Ordine minimo 10€, consegna gratuita sopra i 30€, orari di consegna 9-12."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Specifica qui eventuali condizioni particolari per la consegna.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Invia Richiesta
@@ -160,3 +182,5 @@ export default function BakerApplicationPage() {
     </div>
   );
 }
+
+    
