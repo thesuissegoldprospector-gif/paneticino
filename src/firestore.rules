@@ -138,12 +138,12 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /orders/{orderId} {
         // Customer can create their own order
-        allow create: if isOwner(request.resource.data.customerId);
+        allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
         // Customer who made it, baker who fulfills it, or admin can read
         allow get: if isSignedIn() && (
-            request.auth.uid == resource.data.customerId ||
-            request.auth.uid == resource.data.bakerId ||
+            resource.data.customerId == request.auth.uid ||
+            resource.data.bakerId == request.auth.uid ||
             isAdmin()
         );
         
@@ -151,8 +151,10 @@ service cloud.firestore {
         allow list: if isSignedIn();
 
         // Only the assigned baker can update the status
-        allow update: if isOwner(resource.data.bakerId) &&
-            request.resource.data.keys().hasOnly(['status']);
+        allow update: if isSignedIn()
+          && resource.data.bakerId == request.auth.uid
+          && request.resource.data.keys().hasOnly(['status']);
+
 
         // No one can delete orders for now
         allow delete: if false;
@@ -169,5 +171,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

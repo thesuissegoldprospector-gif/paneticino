@@ -29,6 +29,12 @@ export default function CheckoutPage() {
     return doc(firestore, 'customers', user.uid);
   }, [firestore, user]);
   const { data: customerProfile, isLoading: isCustomerLoading } = useDoc(customerRef);
+  
+  const userRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+  const { data: userDoc, isLoading: isUserDocLoading } = useDoc(userRef);
 
   // Group cart items by baker
   const ordersByBaker = useMemo(() => {
@@ -48,7 +54,7 @@ export default function CheckoutPage() {
     }, {} as Record<string, { bakerId: string; bakerName: string; items: typeof cart; total: number }>);
   }, [cart]);
 
-  const isLoading = isCartLoading || isUserLoading || isCustomerLoading;
+  const isLoading = isCartLoading || isUserLoading || isCustomerLoading || isUserDocLoading;
 
   if (isLoading) {
     return (
@@ -80,7 +86,7 @@ export default function CheckoutPage() {
   }
   
   const handlePlaceOrder = async (bakerId: string) => {
-      if (!firestore || !user || !customerProfile) return;
+      if (!firestore || !user || !customerProfile || !userDoc) return;
       
       const orderData = ordersByBaker[bakerId];
       const deliveryAddress = selectedAddresses[bakerId];
@@ -96,11 +102,13 @@ export default function CheckoutPage() {
       
       setIsSubmitting(true);
       
+      const customerName = user.displayName || (userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : 'Cliente');
+
       const orderPayload = {
           bakerId: orderData.bakerId,
-          bakerName: orderData.bakerName, // Aggiunto bakerName
+          bakerName: orderData.bakerName,
           customerId: user.uid,
-          customerName: user.displayName || `${customerProfile.firstName} ${customerProfile.lastName}`,
+          customerName: customerName,
           items: orderData.items.map(item => ({
               productId: item.id,
               name: item.name,
@@ -116,7 +124,9 @@ export default function CheckoutPage() {
       };
 
       try {
-        const docRef = await addDocumentNonBlocking(collection(firestore, 'orders'), orderPayload);
+        const ordersCollectionRef = collection(firestore, 'orders');
+        const docPromise = addDocumentNonBlocking(ordersCollectionRef, orderPayload);
+
         toast({
             title: "Ordine Inviato!",
             description: `Il tuo ordine per ${orderData.bakerName} è stato inviato.`,
@@ -125,11 +135,11 @@ export default function CheckoutPage() {
         // Remove only the items for this baker from the cart
         orderData.items.forEach(item => clearCart(item.id));
         
-        // Redirect to a confirmation page
+        // Await the promise to get the doc reference for redirection
+        const docRef = await docPromise;
         if (docRef) {
           router.push(`/order-confirmation/${docRef.id}`);
         } else {
-          // Fallback if docRef is not immediately available
           router.push('/profile');
         }
         
