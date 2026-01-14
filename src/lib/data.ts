@@ -60,7 +60,3 @@ export type Bakery = {
 export const products: Product[] = [];
 
 export const bakeries: Bakery[] = [];
-
-export const getBakeryBySlug = (slug: string) => bakeries.find((b) => b.slug === slug);
-export const getProductsByBakeryId = (bakeryId: string) => products.filter((p) => p.bakeryId === bakeryId);
-export const getSponsoredProducts = () => [];
