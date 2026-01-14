@@ -1,6 +1,5 @@
 'use client';
 
-import { use } from 'react';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import Image from 'next/image';
@@ -44,18 +43,17 @@ function ProductCard({ product }: { product: any }) {
 
 
 export default function BakeryDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
   const firestore = useFirestore();
   
   const bakeryRef = useMemoFirebase(() => {
-    if (!firestore || !id) return null;
-    return doc(firestore, 'bakers', id);
-  }, [firestore, id]);
+    if (!firestore || !params.id) return null;
+    return doc(firestore, 'bakers', params.id);
+  }, [firestore, params.id]);
   
   const productsQuery = useMemoFirebase(() => {
-    if (!firestore || !id) return null;
-    return query(collection(firestore, 'products'), where('bakerId', '==', id));
-  }, [firestore, id]);
+    if (!firestore || !params.id) return null;
+    return query(collection(firestore, 'products'), where('bakerId', '==', params.id));
+  }, [firestore, params.id]);
 
   const { data: bakery, isLoading: isBakeryLoading } = useDoc(bakeryRef);
   const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
