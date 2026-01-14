@@ -18,10 +18,10 @@
         "role": {
           "type": "string",
           "description": "The role of the user, either 'customer' or 'baker'.",
-          "format": "enum",
-          "items": {
-            "type": "string"
-          }
+          "enum": [
+            "customer",
+            "baker"
+          ]
         },
         "registrationDate": {
           "type": "string",
@@ -126,10 +126,11 @@
         "approvalStatus": {
           "type": "string",
           "description": "The approval status of the baker's account. Possible values: 'pending', 'approved', 'rejected'.",
-          "format": "enum",
-          "items": {
-            "type": "string"
-          }
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
         }
       },
       "required": [

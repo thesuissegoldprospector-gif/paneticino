@@ -113,10 +113,10 @@ service cloud.firestore {
      * @principle Implements a public-read (for approved content) and owner-write model with an admin-controlled approval workflow.
      */
     match /bakers/{bakerId} {
-      allow get: if isOwner(bakerId) || isAdmin() || resource.data.approvalStatus == 'approved';
+      allow get: if isOwner(bakerId) || isAdmin() || (resource.data.approvalStatus == 'approved');
       // Public listing is allowed to let users browse bakeries.
       // CRITICAL: Client queries MUST include `where("approvalStatus", "==", "approved")` to avoid showing pending applications.
-      allow list: if true;
+      allow list: if isAdmin() || request.query.offset > 0 || request.query.limit <= 10;
       allow create: if isOwner(bakerId) && request.resource.data.userId == bakerId && request.resource.data.approvalStatus == 'pending';
       allow update: if (isExistingOwner(bakerId) && request.resource.data.approvalStatus == resource.data.approvalStatus && request.resource.data.userId == resource.data.userId) || (isAdmin() && docExists());
       allow delete: if isAdmin() && docExists();

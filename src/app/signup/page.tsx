@@ -47,6 +47,15 @@ export default function SignUpPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
+    if (!auth) {
+        toast({
+            variant: 'destructive',
+            title: 'Errore',
+            description: 'Servizio di autenticazione non disponibile.',
+        });
+        setIsLoading(false);
+        return;
+    }
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
@@ -65,6 +74,7 @@ export default function SignUpPage() {
       if (values.role === 'customer') {
         const customerDocRef = doc(firestore, 'customers', user.uid);
         const customerData = {
+          id: user.uid,
           userId: user.uid,
           deliveryAddresses: [],
           favoriteBakeries: [],
@@ -76,6 +86,21 @@ export default function SignUpPage() {
         });
         router.push('/login');
       } else if (values.role === 'baker') {
+        // We create a pending baker profile
+        const bakerDocRef = doc(firestore, 'bakers', user.uid);
+        const bakerProfileData = {
+            userId: user.uid,
+            id: user.uid,
+            companyName: '',
+            address: '',
+            companyNumber: '',
+            deliveryZones: [],
+            approvalStatus: 'pending',
+            profilePictureUrl: '',
+            coverPhotoUrl: '',
+        };
+        setDocumentNonBlocking(bakerDocRef, bakerProfileData, {});
+        
         toast({
           title: 'Account creato!',
           description: 'Ora compila la tua richiesta per diventare un panettiere.',
