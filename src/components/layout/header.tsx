@@ -45,6 +45,8 @@ export function Header() {
         <Link href="/" className="text-2xl font-bold font-headline text-primary">
           PaneDelivery
         </Link>
+        
+        {/* Desktop Nav */}
         <div className="hidden items-center gap-2 md:flex">
           {!isUserLoading &&
             (user ? (
@@ -67,6 +69,12 @@ export function Header() {
               </>
             ))}
         </div>
+
+        {/* Mobile Cart Icon */}
+        <div className="flex items-center gap-2 md:hidden">
+            {user && <CartSheet />}
+        </div>
+
       </div>
     </header>
   );
