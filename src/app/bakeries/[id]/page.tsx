@@ -42,7 +42,8 @@ function ProductCard({ product }: { product: any }) {
 }
 
 
-export default function BakeryDetailPage({ params: { id } }: { params: { id: string } }) {
+export default function BakeryDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const firestore = useFirestore();
   
   const bakeryRef = useMemoFirebase(() => {
