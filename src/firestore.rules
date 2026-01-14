@@ -27,7 +27,7 @@ service cloud.firestore {
     }
     
     function isApprovedBaker() {
-      return get(/databases/$(database)/documents/bakers/$(request.auth.uid)).data.approvalStatus == 'approved';
+        return get(/databases/$(database)/documents/bakers/$(request.auth.uid)).data.approvalStatus == 'approved';
     }
 
     // ----------------------------------------------------------------
@@ -101,27 +101,26 @@ service cloud.firestore {
     // PRODUCTS
     // ----------------------------------------------------------------
     match /products/{productId} {
-
       allow read: if true;
-      
       allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid;
-      
-      allow update, delete: if isSignedIn()
-        && resource.data.bakerId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.bakerId == request.auth.uid;
     }
     
     // ----------------------------------------------------------------
     // ORDERS
     // ----------------------------------------------------------------
-    match /orders/{orderId} {
+     match /orders/{orderId} {
+      // A customer can create an order for themselves.
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
+      // An order can be read by the customer who placed it, the baker who is fulfilling it, or an admin.
       allow get: if isSignedIn() && (
         resource.data.customerId == request.auth.uid ||
         resource.data.bakerId == request.auth.uid ||
         isAdmin()
       );
       
+      // A baker can update the status of an order. No other fields can be changed.
       allow update: if isSignedIn()
         && resource.data.bakerId == request.auth.uid
         && request.resource.data.customerId == resource.data.customerId
@@ -129,12 +128,13 @@ service cloud.firestore {
         && request.resource.data.items.size() == resource.data.items.size()
         && request.resource.data.total == resource.data.total;
 
-
+      // Allow customers and bakers to list ONLY their own orders
       allow list: if isSignedIn() && (
         request.query.where.bakerId == request.auth.uid ||
         request.query.where.customerId == request.auth.uid
       );
       
+      // Orders cannot be deleted.
       allow delete: if false;
     }
 

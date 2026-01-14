@@ -690,7 +690,7 @@ export default function ProfilePage() {
       {user && userDocRef && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />}
 
       {/* Baker Dashboard */}
-      {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user && userDoc && (
+      {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user && userDoc && bakerProfile.approvalStatus === 'approved' && (
         <BakerProfileDashboard 
           user={user} 
           userProfile={userDoc} 
@@ -703,6 +703,20 @@ export default function ProfilePage() {
           areProductsLoading={areProductsLoading}
         />
       )}
+       {role === 'baker' && bakerProfile && (bakerProfile.approvalStatus === 'pending' || bakerProfile.approvalStatus === 'rejected') && (
+        <BakerProfileDashboard 
+          user={user} 
+          userProfile={userDoc} 
+          bakerProfile={bakerProfile} 
+          userDocRef={userDocRef!} 
+          bakerDocRef={bakerDocRef!}
+          orders={null}
+          areOrdersLoading={false}
+          products={null}
+          areProductsLoading={false}
+        />
+      )}
+
 
       {/* Customer Dashboard */}
       {role === 'customer' && customerProfile && customerDocRef && user && userDoc && (
