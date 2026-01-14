@@ -27,7 +27,7 @@ function ProductCardSkeleton() {
 }
 
 // Card prodotto con carrello
-function ProductCard({ product }: { product: any }) {
+function ProductCard({ product, bakery }: { product: any; bakery: any }) {
     const { addToCart } = useCart();
     const { toast } = useToast();
     const { user } = useUser();
@@ -64,7 +64,8 @@ function ProductCard({ product }: { product: any }) {
           name: product.name, 
           price: priceNumber,
           imageUrl: product.imageUrl,
-          bakerId: product.bakerId,
+          bakerId: bakery.id,
+          bakerName: bakery.companyName
       });
 
       toast({
@@ -218,7 +219,7 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
             {products ? (
               products.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                  {products.map((product) => <ProductCard key={product.id} product={product} />)}
+                  {products.map((product) => <ProductCard key={product.id} product={product} bakery={bakery} />)}
                 </div>
               ) : (
                 <p className="py-8 text-center text-muted-foreground">Questo panettiere non ha ancora aggiunto prodotti.</p>
@@ -259,5 +260,3 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
     </div>
   );
 }
-
-    

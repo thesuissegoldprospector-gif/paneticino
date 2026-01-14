@@ -9,8 +9,8 @@ export type Product = {
   price: number;
   quantity?: number;
   imageUrl?: string;
-  bakerId?: string;
-  bakerName?: string;
+  bakerId: string;
+  bakerName: string;
 };
 
 interface CartState {
@@ -96,5 +96,3 @@ export const useCart = create<CartState>()(
     }
   )
 );
-
-    
