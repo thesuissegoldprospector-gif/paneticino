@@ -63,12 +63,8 @@ export default function BakeryDetailPage({ params }: { params: { id: string } })
     );
   }
 
-  if (!bakery) {
-    notFound();
-  }
-
-  // A baker's profile should only be visible if they are approved
-  if (bakery.approvalStatus !== 'approved') {
+  // If loading is finished and we still have no bakery, or the bakery is not approved, show 404.
+  if (!bakery || bakery.approvalStatus !== 'approved') {
     notFound();
   }
 
