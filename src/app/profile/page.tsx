@@ -8,7 +8,7 @@ import { useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, DocumentData, Firestore } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import Link from 'next/link';
-import { Button } from '../ui/button';
+import { Button } from '@/components/ui/button';
 
 function useBakerProfile(firestore: Firestore, userId: string | undefined) {
   const bakerRef = useMemoFirebase(() => {
