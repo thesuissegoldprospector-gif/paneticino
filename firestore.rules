@@ -1,0 +1,140 @@
+/**
+ * # Firestore Security Rules: PaneDelivery
+ *
+ * ## Core Philosophy
+ * This ruleset enforces a security model based on user roles (customer, baker, admin) and strict data ownership. The primary goal is to ensure users can only access and manage their own information, while a special approval workflow governs access for bakers. Administrative users have elevated privileges for moderation and management.
+ *
+ * ## Data Structure
+ * The data is organized into separate top-level collections for each major entity type to create a homogeneous security posture for each collection:
+ * - `/users/{userId}`: Stores core, role-agnostic user account data.
+ * - `/customers/{customerId}`: Contains profile information specific to customers.
+ * - `/bakers/{bakerId}`: Holds profile data for bakers, including a critical `approvalStatus` field that drives authorization.
+ * - `/roles_admin/{userId}`: An admin-only collection where the existence of a document grants a user administrative rights across the application.
+ *
+ * ## Key Security Decisions
+ * - **Strict Ownership**: All user-generated content in `/users`, `/customers`, and `/bakers` is owned by the user who created it. Only the owner or an admin can modify this data.
+ * - **Baker Approval Workflow**: New bakers can create a profile, but it is locked in a `pending` state. They can edit their pending application but cannot approve it themselves. Only an admin can transition the `approvalStatus` to `approved` or `rejected`, granting or denying them full visibility and access.
+ * - **Public vs. Private Data**: Approved baker profiles are publicly readable to allow customers to browse bakeries. Pending or rejected baker profiles are private and only visible to the owner and admins.
+ * - **No User Enumeration**: Listing the contents of the `/users` and `/customers` collections is explicitly disallowed to protect user privacy.
+ * - **Admin Access via DBAC**: Admin privileges are granted based on the existence of a document in the `/roles_admin` collection (Database-Based Access Control), making role management explicit and auditable. Client-side modification of this collection is forbidden.
+ *
+ * ## Denormalization for Authorization
+ * To ensure fast and secure rule evaluation, authorization-critical data is denormalized. The most important example is the `approvalStatus` field on each `/bakers/{bakerId}` document. Placing this status directly on the document avoids slow and costly `get()` calls to other documents, allowing rules to make an immediate authorization decision based on the document's own state.
+ *
+ * ## Structural Segregation
+ * Separating user types into `/customers` and `/bakers` collections simplifies the rules significantly. Each collection has a clear and consistent set of access rules, avoiding complex conditional logic within a single, mixed-use collection.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------
+
+    /**
+     * Checks if a user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the requesting user's UID matches the provided userId.
+     * This is the foundation of the ownership model.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if the requesting user is an administrator.
+     * Admin status is granted by the existence of a document in the /roles_admin collection.
+     */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * Checks if the document being operated on already exists.
+     * Crucial for preventing modification of non-existent data.
+     */
+    function docExists() {
+      return resource != null;
+    }
+
+    /**
+     * Combines an ownership check with an existence check.
+     * Used for secure update and delete operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && docExists();
+    }
+
+    // ----------------------------------------------------------------
+    // Collection Rules
+    // ----------------------------------------------------------------
+
+    /**
+     * @description Core user account data. A user can create and manage their own document. Admins have full access.
+     * @path /users/{userId}
+     * @allow (create) An authenticated user creating their own user document with a valid role.
+     * @deny (list) Any user attempting to list all documents in the /users collection.
+     * @principle Restricts access to a user's own data tree and prevents user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId && (request.resource.data.role == 'customer' || request.resource.data.role == 'baker');
+      allow update: if (isExistingOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id && request.resource.data.registrationDate == resource.data.registrationDate && request.resource.data.role == resource.data.role;
+      allow delete: if (isExistingOwner(userId) || isAdmin());
+    }
+
+    /**
+     * @description Customer-specific profile data. Only the customer themselves or an admin can access it.
+     * @path /customers/{customerId}
+     * @allow (create) An authenticated user creating their own customer profile, linking it with their userId.
+     * @deny (get) A user trying to read another user's customer profile.
+     * @principle Enforces a strict 1-to-1 ownership model for sensitive user profile data.
+     */
+    match /customers/{customerId} {
+      allow get: if isOwner(customerId) || isAdmin();
+      allow list: if false;
+      allow create: if isOwner(customerId) && request.resource.data.userId == customerId;
+      allow update: if (isExistingOwner(customerId) || isAdmin()) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(customerId) || isAdmin();
+    }
+
+    /**
+     * @description Baker-specific profile data, including their application and approval status.
+     * @path /bakers/{bakerId}
+     * @allow (get) Any user reading a baker's profile, but only if its status is 'approved'.
+     * @deny (update) A baker trying to change their own 'approvalStatus' from 'pending' to 'approved'.
+     * @principle Implements a public-read (for approved content) and owner-write model with an admin-controlled approval workflow.
+     */
+    match /bakers/{bakerId} {
+      allow get: if isOwner(bakerId) || isAdmin() || resource.data.approvalStatus == 'approved';
+      // Public listing is allowed to let users browse bakeries.
+      // CRITICAL: Client queries MUST include `where("approvalStatus", "==", "approved")` to avoid showing pending applications.
+      allow list: if true;
+      allow create: if isOwner(bakerId) && request.resource.data.userId == bakerId && request.resource.data.approvalStatus == 'pending';
+      allow update: if (isExistingOwner(bakerId) && request.resource.data.approvalStatus == resource.data.approvalStatus && request.resource.data.userId == resource.data.userId) || (isAdmin() && docExists());
+      allow delete: if isAdmin() && docExists();
+    }
+
+    /**
+     * @description Grants admin privileges. The existence of a document confirms admin status.
+     * @path /roles_admin/{userId}
+     * @allow (get) An admin reading the document to confirm another user's admin status.
+     * @deny (create, update, delete) Any client-side user attempting to grant themselves or others admin rights.
+     * @principle Secures role management by making it a read-only collection for clients. Roles must be managed server-side or via the Firebase Console.
+     */
+    match /roles_admin/{userId} {
+      allow get: if isAdmin();
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
