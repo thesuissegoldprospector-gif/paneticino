@@ -42,18 +42,18 @@ function ProductCard({ product }: { product: any }) {
 }
 
 
-export default function BakeryDetailPage({ params }: { params: { id: string } }) {
+export default function BakeryDetailPage({ params: { id } }: { params: { id: string } }) {
   const firestore = useFirestore();
   
   const bakeryRef = useMemoFirebase(() => {
-    if (!firestore || !params.id) return null;
-    return doc(firestore, 'bakers', params.id);
-  }, [firestore, params.id]);
+    if (!firestore || !id) return null;
+    return doc(firestore, 'bakers', id);
+  }, [firestore, id]);
   
   const productsQuery = useMemoFirebase(() => {
-    if (!firestore || !params.id) return null;
-    return query(collection(firestore, 'products'), where('bakerId', '==', params.id));
-  }, [firestore, params.id]);
+    if (!firestore || !id) return null;
+    return query(collection(firestore, 'products'), where('bakerId', '==', id));
+  }, [firestore, id]);
 
   const { data: bakery, isLoading: isBakeryLoading } = useDoc(bakeryRef);
   const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
