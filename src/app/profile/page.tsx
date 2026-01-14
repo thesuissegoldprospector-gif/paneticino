@@ -7,16 +7,17 @@ import { useUser, useDoc, useMemoFirebase, useFirestore, updateDocumentNonBlocki
 import { doc, DocumentData, Firestore, DocumentReference, collection, query, where } from 'firebase/firestore';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, forwardRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
+import { useForm, useController } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 
 function useUserDoc(firestore: Firestore, userId: string | undefined) {
@@ -60,7 +61,7 @@ const productFormSchema = z.object({
     name: z.string().min(2, "Il nome del prodotto è obbligatorio."),
     description: z.string().min(5, "La descrizione è obbligatoria."),
     price: z.string().min(1, "Il prezzo è obbligatorio."),
-    imageUrl: z.string().url({ message: 'Inserisci un URL valido per l\'immagine.' }).or(z.literal('')),
+    imageUrl: z.string().url({ message: 'Carica un\'immagine valida.' }).or(z.literal('')),
 });
 
 
@@ -247,7 +248,6 @@ function UpdateImageDialog({ onUpdate, fieldName, currentUrl, children }: { onUp
     }
 
     const handleSubmit = (values: z.infer<typeof ImageUrlFormSchema>) => {
-        // The URL in the form can be a web URL or a local base64 Data URL
         onUpdate(fieldName, values.url);
         setOpen(false);
         form.reset();
@@ -265,15 +265,19 @@ function UpdateImageDialog({ onUpdate, fieldName, currentUrl, children }: { onUp
                     </DialogDescription>
                 </DialogHeader>
                 
-                {preview && (
-                    <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-md">
+                <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-md bg-muted">
+                    {preview ? (
                         <Image src={preview} alt="Anteprima immagine" layout="fill" objectFit="cover" />
-                    </div>
-                )}
+                     ) : (
+                        <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+                            Anteprima immagine
+                        </div>
+                     )}
+                </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
                     <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                        <Upload className="mr-2" /> Carica
+                        <Upload className="mr-2" /> Carica File
                     </Button>
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
 
@@ -291,7 +295,12 @@ function UpdateImageDialog({ onUpdate, fieldName, currentUrl, children }: { onUp
                                 <FormItem>
                                     <FormLabel>Oppure incolla un URL</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="https://esempio.com/immagine.jpg" {...field} />
+                                        <Input placeholder="https://esempio.com/immagine.jpg" {...field} 
+                                          onChange={(e) => {
+                                            field.onChange(e);
+                                            setPreview(e.target.value);
+                                          }}
+                                        />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -307,6 +316,77 @@ function UpdateImageDialog({ onUpdate, fieldName, currentUrl, children }: { onUp
     );
 }
 
+const ImagePicker = forwardRef<HTMLInputElement, any>(
+  ({ value, onChange, className, ...props }, ref) => {
+    const [preview, setPreview] = useState(value);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { toast } = useToast();
+
+    useEffect(() => {
+      setPreview(value);
+    }, [value]);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const dataUrl = reader.result as string;
+          setPreview(dataUrl);
+          onChange(dataUrl);
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    
+    const handleCameraClick = () => {
+        toast({
+            title: "Funzione in arrivo!",
+            description: "La possibilità di usare la fotocamera sarà disponibile a breve.",
+        });
+    }
+
+    const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const url = event.target.value;
+      setPreview(url);
+      onChange(url);
+    };
+
+    return (
+      <div className={cn("space-y-2", className)}>
+        <div className="relative aspect-video w-full max-w-sm overflow-hidden rounded-md border bg-muted">
+            {preview ? (
+                <Image src={preview} alt="Anteprima immagine prodotto" layout="fill" objectFit="cover" />
+            ) : (
+                <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+                    Anteprima
+                </div>
+            )}
+        </div>
+         <div className="flex gap-2">
+             <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload /> Carica
+            </Button>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+             <Button type="button" variant="outline" size="sm" onClick={handleCameraClick}>
+                <Camera /> Fotocamera
+            </Button>
+        </div>
+        <div>
+            <Input
+                type="text"
+                placeholder="Oppure incolla un URL"
+                value={value || ''}
+                onChange={handleUrlChange}
+                className="mt-2"
+                {...props}
+            />
+        </div>
+      </div>
+    );
+  }
+);
+ImagePicker.displayName = 'ImagePicker';
 
 function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDocRef }: { userProfile: DocumentData, bakerProfile: DocumentData, userDocRef: DocumentReference<DocumentData>, bakerDocRef: DocumentReference<DocumentData> }) {
   
@@ -337,8 +417,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
         defaultValues: { name: '', description: '', price: '', imageUrl: '' },
     });
     
-    const [coverPhotoUrl, setCoverPhotoUrl] = useState(bakerProfile.coverPhotoUrl || '');
-    const [profilePictureUrl, setProfilePictureUrl] = useState(bakerProfile.profilePictureUrl || '');
+    const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
 
     useEffect(() => {
         if (userProfile && bakerProfile) {
@@ -349,8 +428,6 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                 address: bakerProfile.address || '',
                 deliveryZones: (bakerProfile.deliveryZones || []).join(', '),
             });
-            setCoverPhotoUrl(bakerProfile.coverPhotoUrl || '');
-            setProfilePictureUrl(bakerProfile.profilePictureUrl || '');
         }
     }, [userProfile, bakerProfile, profileForm]);
 
@@ -374,6 +451,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
         await addDocumentNonBlocking(productsCollection, { ...values, bakerId: user.uid });
         toast({ title: 'Prodotto aggiunto!', description: `${values.name} è stato aggiunto al tuo listino.` });
         productForm.reset();
+        setIsProductDialogOpen(false);
       }
     
     const handleDeleteProduct = (productId: string) => {
@@ -384,11 +462,6 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
     };
 
     const handleImageUpdate = (fieldName: string, url: string) => {
-        if (fieldName === 'coverPhotoUrl') {
-            setCoverPhotoUrl(url);
-        } else if (fieldName === 'profilePictureUrl') {
-            setProfilePictureUrl(url);
-        }
         updateDocumentNonBlocking(bakerDocRef, { [fieldName]: url });
         toast({ title: 'Immagine aggiornata!' });
     };
@@ -429,24 +502,24 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                     <Card>
                         <CardContent className="p-0">
                             <div className="relative h-48 w-full bg-muted group">
-                                {coverPhotoUrl ? (
-                                <Image key={coverPhotoUrl} src={coverPhotoUrl} alt="Immagine di copertina" fill objectFit="cover" className="rounded-t-lg" />
+                                {bakerProfile.coverPhotoUrl ? (
+                                <Image key={bakerProfile.coverPhotoUrl} src={bakerProfile.coverPhotoUrl} alt="Immagine di copertina" fill objectFit="cover" className="rounded-t-lg" />
                                 ) : (
                                 <div className="flex h-full items-center justify-center rounded-t-lg text-muted-foreground">Immagine di copertina</div>
                                 )}
-                                 <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="coverPhotoUrl" currentUrl={coverPhotoUrl}>
+                                 <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="coverPhotoUrl" currentUrl={bakerProfile.coverPhotoUrl || ''}>
                                     <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 opacity-50 group-hover:opacity-100 transition-opacity">
                                         <Camera className="h-4 w-4" />
                                     </Button>
                                 </UpdateImageDialog>
                                 <div className="absolute -bottom-16 left-6">
                                 <div className="relative h-32 w-32 rounded-full border-4 border-card bg-muted flex items-center justify-center group">
-                                    {profilePictureUrl ? (
-                                    <Image key={profilePictureUrl} src={profilePictureUrl} alt="Immagine profilo" fill objectFit="cover" className="rounded-full" />
+                                    {bakerProfile.profilePictureUrl ? (
+                                    <Image key={bakerProfile.profilePictureUrl} src={bakerProfile.profilePictureUrl} alt="Immagine profilo" fill objectFit="cover" className="rounded-full" />
                                     ) : (
                                     <span className="text-center text-xs text-muted-foreground">Immagine profilo</span>
                                     )}
-                                    <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="profilePictureUrl" currentUrl={profilePictureUrl}>
+                                    <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="profilePictureUrl" currentUrl={bakerProfile.profilePictureUrl || ''}>
                                         <Button variant="outline" size="icon" className="absolute bottom-1 right-1 z-10 h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity rounded-full">
                                             <Camera className="h-4 w-4" />
                                         </Button>
@@ -490,40 +563,52 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
             </Form>
 
             <Card>
-                <CardHeader><CardTitle>I Miei Prodotti</CardTitle><CardDescription>Aggiungi e gestisci i prodotti del tuo panificio.</CardDescription></CardHeader>
-                <CardContent>
-                    <div className="mb-8 rounded-lg border p-4">
-                        <h3 className="mb-4 text-lg font-semibold">Aggiungi un nuovo prodotto</h3>
-                        <Form {...productForm}>
-                            <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <FormField control={productForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Prodotto</FormLabel><FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo</FormLabel><FormControl><Input placeholder="€4.50" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                </div>
-                                <FormField control={productForm.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Textarea placeholder="Breve descrizione del prodotto" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                <FormField control={productForm.control} name="imageUrl" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Immagine Prodotto</FormLabel>
-                                    <FormControl>
-                                        <div className="relative">
-                                        <Input placeholder="https://esempio.com/immagine.jpg" {...field} className="pr-24" />
-                                        <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground"><Upload className="h-4 w-4" /></Button>
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground"><Camera className="h-4 w-4" /></Button>
-                                        </div>
-                                        </div>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )} />
-                                <Button type="submit" disabled={productForm.formState.isSubmitting}>
-                                {productForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle />}
-                                Aggiungi Prodotto
-                                </Button>
-                            </form>
-                        </Form>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>I Miei Prodotti</CardTitle>
+                        <CardDescription>Aggiungi e gestisci i prodotti del tuo panificio.</CardDescription>
                     </div>
-
+                     <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button><PlusCircle /> Aggiungi Prodotto</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                             <DialogHeader>
+                                <DialogTitle>Aggiungi un nuovo prodotto</DialogTitle>
+                             </DialogHeader>
+                             <Form {...productForm}>
+                                <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
+                                     <FormField control={productForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Prodotto</FormLabel><FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                     <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo</FormLabel><FormControl><Input placeholder="€4.50" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                     <FormField control={productForm.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Textarea placeholder="Breve descrizione del prodotto" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                     <FormField
+                                        control={productForm.control}
+                                        name="imageUrl"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Immagine Prodotto</FormLabel>
+                                                <FormControl>
+                                                    <ImagePicker
+                                                        value={field.value}
+                                                        onChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <DialogFooter>
+                                        <Button type="submit" disabled={productForm.formState.isSubmitting}>
+                                            {productForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle />}
+                                            Aggiungi Prodotto
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </Form>
+                        </DialogContent>
+                    </Dialog>
+                </CardHeader>
+                <CardContent>
                     {areProductsLoading ? (
                         <div className="flex justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
                     ) : products && products.length > 0 ? (
@@ -640,9 +725,5 @@ function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, 
     </div>
   );
 }
-
-    
-
-    
 
     
