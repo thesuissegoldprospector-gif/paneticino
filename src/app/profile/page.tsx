@@ -2,13 +2,18 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText } from 'lucide-react';
-import { useUser, useDoc, useMemoFirebase } from '@/firebase';
+import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle } from 'lucide-react';
+import { useUser, useDoc, useMemoFirebase, useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { doc, DocumentData, Firestore } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useToast } from '@/hooks/use-toast';
 
 function useBakerProfile(firestore: Firestore, userId: string | undefined) {
   const bakerRef = useMemoFirebase(() => {
@@ -34,13 +39,29 @@ function useUserDoc(firestore: Firestore, userId: string | undefined) {
   return useDoc(userRef);
 }
 
+const profileFormSchema = z.object({
+  firstName: z.string().min(1, 'Il nome è obbligatorio.'),
+  lastName: z.string().min(1, 'Il cognome è obbligatorio.'),
+});
+
 export default function ProfilePage() {
-  const { user, isUserLoading, userError } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  const { data: userDoc, isLoading: isUserDocLoading } = useUserDoc(firestore, user?.uid);
+  const { data: userDoc, isLoading: isUserDocLoading, ref: userDocRef } = useUserDoc(firestore, user?.uid);
   const { data: bakerProfile, isLoading: isBakerLoading } = useBakerProfile(firestore, user?.uid);
-  const { data: customerProfile, isLoading: isCustomerLoading } = useCustomerProfile(firestore, user?.uid);
+  const { data: customerProfile, isLoading: isCustomerLoading, ref: customerDocRef } = useCustomerProfile(firestore, user?.uid);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof profileFormSchema>>({
+    resolver: zodResolver(profileFormSchema),
+    values: {
+      firstName: userDoc?.firstName || '',
+      lastName: userDoc?.lastName || '',
+    }
+  });
 
   const isLoading = isUserLoading || isUserDocLoading || isBakerLoading || isCustomerLoading;
 
@@ -52,7 +73,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (userError || !user) {
+  if (!user) {
     return (
       <div className="container mx-auto flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
         <AlertTriangle className="h-12 w-12 text-destructive" />
@@ -67,28 +88,85 @@ export default function ProfilePage() {
     );
   }
 
+  const handleEditSubmit = (values: z.infer<typeof profileFormSchema>) => {
+    if (!userDocRef) return;
+    updateDocumentNonBlocking(userDocRef, values);
+    toast({ title: 'Profilo aggiornato!' });
+    setIsEditing(false);
+  };
+
   const role = userDoc?.role;
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="mb-8 flex flex-col items-center">
-        <Avatar className="mb-4 h-24 w-24">
-          <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} data-ai-hint="profile person" />
-          <AvatarFallback>
-            {userDoc?.firstName?.[0]}
-            {userDoc?.lastName?.[0]}
-          </AvatarFallback>
-        </Avatar>
-        <h1 className="text-3xl font-bold">{userDoc?.firstName} {userDoc?.lastName}</h1>
-        <p className="text-muted-foreground">{user.email}</p>
-      </div>
+    <div className="container mx-auto max-w-4xl px-4 py-6">
+      <Card className="mb-8">
+        <CardContent className="p-6">
+          <div className="flex flex-col items-center gap-4 sm:flex-row">
+            <Avatar className="h-24 w-24">
+              <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} data-ai-hint="profile person" />
+              <AvatarFallback>
+                {userDoc?.firstName?.[0]}
+                {userDoc?.lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 text-center sm:text-left">
+              {!isEditing ? (
+                <>
+                  <h1 className="text-3xl font-bold">{userDoc?.firstName} {userDoc?.lastName}</h1>
+                  <p className="text-muted-foreground">{user.email}</p>
+                </>
+              ) : (
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleEditSubmit)} className="space-y-4">
+                     <div className="flex flex-col gap-4 sm:flex-row">
+                        <FormField
+                          control={form.control}
+                          name="firstName"
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormLabel>Nome</FormLabel>
+                              <FormControl><Input {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="lastName"
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormLabel>Cognome</FormLabel>
+                              <FormControl><Input {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                         <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>Annulla</Button>
+                         <Button type="submit">Salva</Button>
+                      </div>
+                  </form>
+                </Form>
+              )}
+            </div>
+            {!isEditing && (
+              <Button variant="outline" size="icon" onClick={() => setIsEditing(true)}>
+                <Pencil className="h-4 w-4" />
+                <span className="sr-only">Modifica Profilo</span>
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
 
       {role === 'baker' && bakerProfile && (
         <BakerProfileDashboard profile={bakerProfile} />
       )}
 
-      {role === 'customer' && customerProfile && (
-        <CustomerProfileDashboard profile={customerProfile} />
+      {role === 'customer' && customerProfile && customerDocRef && (
+        <CustomerProfileDashboard profile={customerProfile} docRef={customerDocRef} />
       )}
     </div>
   );
@@ -135,10 +213,13 @@ function BakerProfileDashboard({ profile }: { profile: DocumentData }) {
             <CardTitle>Dashboard Panettiere</CardTitle>
             <CardDescription>Gestisci i tuoi prodotti, ordini e profilo.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <p>Stato: <span className='font-bold text-primary'>{profile.approvalStatus}</span></p>
+          <CardContent className="space-y-4">
+            <p>Stato: <span className='font-bold capitalize text-primary'>{profile.approvalStatus}</span></p>
             <p>Nome attività: {profile.companyName}</p>
             <p>Indirizzo: {profile.address}</p>
+             <Button asChild>
+                <Link href="/profile/edit-bakery">Modifica Profilo Attività</Link>
+            </Button>
           </CardContent>
         </Card>
      </div>
@@ -146,7 +227,29 @@ function BakerProfileDashboard({ profile }: { profile: DocumentData }) {
 }
 
 
-function CustomerProfileDashboard({ profile }: { profile: DocumentData }) {
+function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, docRef: DocumentData}) {
+  const [newAddress, setNewAddress] = useState('');
+  const { toast } = useToast();
+
+  const handleAddAddress = () => {
+    if (newAddress.trim() === '') {
+      toast({ variant: 'destructive', title: 'Indirizzo non valido' });
+      return;
+    }
+    const currentAddresses = profile.deliveryAddresses || [];
+    const updatedAddresses = [...currentAddresses, newAddress];
+    updateDocumentNonBlocking(docRef, { deliveryAddresses: updatedAddresses });
+    setNewAddress('');
+    toast({ title: 'Indirizzo aggiunto!' });
+  };
+  
+  const handleRemoveAddress = (addressToRemove: string) => {
+    const updatedAddresses = profile.deliveryAddresses.filter((addr: string) => addr !== addressToRemove);
+    updateDocumentNonBlocking(docRef, { deliveryAddresses: updatedAddresses });
+    toast({ title: 'Indirizzo rimosso!' });
+  };
+
+
   return (
     <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
       <Card>
@@ -159,9 +262,24 @@ function CustomerProfileDashboard({ profile }: { profile: DocumentData }) {
         <CardContent>
           <div className="space-y-2">
             {profile.deliveryAddresses && profile.deliveryAddresses.length > 0 ? (
-                profile.deliveryAddresses.map((addr: string, i: number) => <p key={i}>{addr}</p>)
-            ) : <p className='text-muted-foreground'>Nessun indirizzo salvato.</p>}
+                profile.deliveryAddresses.map((addr: string, i: number) => 
+                  <div key={i} className="flex items-center justify-between gap-2 rounded-md bg-muted/50 p-2">
+                    <span>{addr}</span>
+                    <Button variant="ghost" size="icon" onClick={() => handleRemoveAddress(addr)} className="h-6 w-6">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )
+            ) : <p className='text-sm text-muted-foreground'>Nessun indirizzo salvato.</p>}
           </div>
+           <div className="mt-4 flex gap-2">
+              <Input 
+                value={newAddress} 
+                onChange={(e) => setNewAddress(e.target.value)} 
+                placeholder="Nuovo indirizzo" 
+              />
+              <Button onClick={handleAddAddress}><PlusCircle className="mr-2" /> Aggiungi</Button>
+           </div>
         </CardContent>
       </Card>
 
@@ -176,7 +294,7 @@ function CustomerProfileDashboard({ profile }: { profile: DocumentData }) {
           <ul className="list-inside list-disc">
              {profile.favoriteBakeries && profile.favoriteBakeries.length > 0 ? (
                 profile.favoriteBakeries.map((b: string, i: number) => <li key={i}>{b}</li>)
-            ) : <p className='text-muted-foreground'>Nessun panettiere preferito.</p>}
+            ) : <p className='text-sm text-muted-foreground'>Nessun panettiere preferito.</p>}
           </ul>
         </CardContent>
       </Card>

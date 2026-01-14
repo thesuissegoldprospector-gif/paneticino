@@ -22,6 +22,7 @@ export interface UseDocResult<T> {
   data: WithId<T> | null; // Document data with ID, or null.
   isLoading: boolean;       // True if loading.
   error: FirestoreError | Error | null; // Error object, or null.
+  ref: DocumentReference<DocumentData> | null; // The original document reference.
 }
 
 /**
@@ -89,5 +90,5 @@ export function useDoc<T = any>(
     return () => unsubscribe();
   }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
 
-  return { data, isLoading, error };
+  return { data, isLoading, error, ref: memoizedDocRef };
 }
