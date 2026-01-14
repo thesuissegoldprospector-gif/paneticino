@@ -6,9 +6,8 @@ import { useEffect } from 'react';
 import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import type { StateCreator } from 'zustand';
 
-// Define the type for a cart item
 export interface CartItem {
-  id: string; // Corresponds to productId
+  id: string;
   name: string;
   price: string;
   quantity: number;
@@ -17,10 +16,8 @@ export interface CartItem {
   bakerName: string;
 }
 
-// Define the type for the input of the addItem function.
 type AddItemInput = Omit<CartItem, 'quantity'> & { quantity?: number };
 
-// Define the state structure for the cart store
 interface CartState {
   items: CartItem[];
   isLoading: boolean;
@@ -32,7 +29,6 @@ interface CartState {
   clearCart: () => Promise<void>;
 }
 
-// Extracted store logic into a standalone function to avoid parsing errors.
 const cartStateCreator: StateCreator<CartState> = (set, get) => ({
   items: [],
   isLoading: true,
@@ -55,7 +51,6 @@ const cartStateCreator: StateCreator<CartState> = (set, get) => ({
       const newItem = { ...itemToAdd, quantity: itemToAdd.quantity || 1 };
       const newItems = [...items, newItem];
       get().setItems(newItems);
-      // Also update in Firestore
       const { user, firestore } = useUser.getState();
       if (user && firestore) {
         const cartItemRef = doc(firestore, 'users', user.uid, 'cart', newItem.id);
@@ -66,7 +61,6 @@ const cartStateCreator: StateCreator<CartState> = (set, get) => ({
   removeItem: (itemId) => {
     const newItems = get().items.filter((item) => item.id !== itemId);
     get().setItems(newItems);
-    // Also remove from Firestore
     const { user, firestore } = useUser.getState();
     if (user && firestore) {
       const cartItemRef = doc(firestore, 'users', user.uid, 'cart', itemId);
@@ -82,7 +76,6 @@ const cartStateCreator: StateCreator<CartState> = (set, get) => ({
       item.id === itemId ? { ...item, quantity } : item
     );
     get().setItems(newItems);
-    // Also update in Firestore
     const { user, firestore } = useUser.getState();
     if (user && firestore) {
       const cartItemRef = doc(firestore, 'users', user.uid, 'cart', itemId);
@@ -105,8 +98,6 @@ const cartStateCreator: StateCreator<CartState> = (set, get) => ({
 
 const useCartStore = create<CartState>(cartStateCreator);
 
-
-// A wrapper hook to sync Firestore with the Zustand store
 export const useCart = () => {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -123,12 +114,10 @@ export const useCart = () => {
     if (!isLoading && cartItems) {
       setItems(cartItems);
     } else if (!user) {
-      // Clear cart on logout
       setItems([]);
     }
   }, [cartItems, isLoading, setItems, user]);
   
-  // Pass user and firestore to the store for actions
   useEffect(() => {
     useUser.setState({ user, firestore });
   }, [user, firestore]);
@@ -136,8 +125,7 @@ export const useCart = () => {
   return { ...cartState, items: cartState.items, isLoading: cartState.isLoading };
 };
 
-// Provider component to initialize the hook
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
-  useCart(); // Initialize the hook
+  useCart();
   return <>{children}</>;
 };
