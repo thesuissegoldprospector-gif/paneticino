@@ -1,145 +1,189 @@
 'use client';
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPin, Info, ShoppingBag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
-import { useUser } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/firebase";
 
-
-// ----------------------
-// Product Card Skeleton
-// ----------------------
+// Skeleton dei prodotti
 function ProductCardSkeleton() {
   return (
-    <Card className="flex h-full flex-col overflow-hidden">
-        <div className="aspect-[4/3] w-full animate-pulse bg-muted" />
-        <CardContent className="flex flex-1 flex-col justify-between p-4">
-          <div className="space-y-2">
+    <Card className="flex h-full flex-col overflow-hidden animate-pulse">
+      <div className="aspect-[4/3] w-full bg-muted" />
+      <CardContent className="flex flex-1 flex-col justify-between p-4">
+        <div className="space-y-2">
             <div className="h-5 w-3/4 animate-pulse rounded bg-muted-foreground/20" />
             <div className="h-8 w-full animate-pulse rounded bg-muted-foreground/20" />
-          </div>
-          <div className="mt-4 h-5 w-1/4 animate-pulse rounded bg-muted-foreground/20" />
-        </CardContent>
-      </Card>
-  );
-}
-
-// ----------------------
-// Product Card
-// ----------------------
-function ProductCard({ product, bakery }: { product: any, bakery: any }) {
-  const { user } = useUser();
-  const { addToCart } = useCart();
-  const { toast } = useToast();
-
-  const handleAddToCart = () => {
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Accesso richiesto",
-        description: "Devi effettuare l'accesso per aggiungere prodotti al carrello.",
-      });
-      return;
-    }
-
-    const priceString = String(product.price || '0').replace('€', '').trim();
-    const price = parseFloat(priceString);
-
-    if (isNaN(price)) {
-        toast({
-            variant: "destructive",
-            title: "Prezzo non valido",
-            description: "Questo prodotto non può essere aggiunto al carrello.",
-        });
-        return;
-    }
-
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: price,
-      imageUrl: product.imageUrl || '',
-      bakerId: bakery.id,
-      bakerName: bakery.companyName
-    });
-
-     toast({
-        title: "Prodotto aggiunto!",
-        description: `${product.name} è stato aggiunto al carrello.`,
-      });
-  };
-
-  return (
-    <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
-      <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
-        {product.imageUrl ? (
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            width={400}
-            height={300}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
-            <ShoppingBag className="h-12 w-12" />
-          </div>
-        )}
-      </div>
-      <CardContent className="flex flex-1 flex-col justify-between p-4">
-        <div>
-          <h3 className="font-semibold text-base">{product.name}</h3>
-          <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-          <p className="mt-1 font-bold text-sm text-accent-foreground">{product.price}</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-2 w-full border-accent text-accent-foreground hover:bg-accent/10"
-          onClick={handleAddToCart}
-        >
-          Aggiungi
-        </Button>
+        <div className="mt-4 h-5 w-1/4 animate-pulse rounded bg-muted-foreground/20" />
       </CardContent>
     </Card>
   );
 }
 
-// ----------------------
-// Bakery Detail Client
-// ----------------------
-export default function BakeryDetailClient({ bakery, products }: { bakery: any; products: any[] | null }) {
-  // Skeleton per il profilo del panettiere
-  if (!bakery) {
+// Card prodotto con carrello
+function ProductCard({ product }: { product: any }) {
+    const { addToCart } = useCart();
+    const { toast } = useToast();
+    const { user } = useUser();
+    const [adding, setAdding] = useState(false);
+  
+    const handleAdd = () => {
+      if (!user) {
+        toast({
+          variant: "destructive",
+          title: "Accesso richiesto",
+          description: "Devi effettuare l'accesso per aggiungere prodotti al carrello.",
+        });
+        return;
+      }
+      
+      setAdding(true);
+
+      // Convert price string to number, removing currency symbol
+      const priceString = String(product.price || '0').replace('€', '').trim();
+      const priceNumber = parseFloat(priceString);
+
+      if (isNaN(priceNumber)) {
+        toast({
+            variant: "destructive",
+            title: "Prezzo non valido",
+            description: "Questo prodotto non può essere aggiunto al carrello.",
+        });
+        setAdding(false);
+        return;
+    }
+
+      addToCart({ 
+          id: product.id, 
+          name: product.name, 
+          price: priceNumber,
+          imageUrl: product.imageUrl,
+          bakerId: product.bakerId,
+      });
+
+      toast({
+        title: "Prodotto aggiunto!",
+        description: `${product.name} è stato aggiunto al carrello.`,
+      });
+
+      setTimeout(() => {
+        setAdding(false);
+      }, 500);
+    };
+  
     return (
-      <div className="container mx-auto px-4 py-6 animate-pulse">
-        <div className="h-48 w-full bg-muted mb-4 rounded" />
-        <div className="relative -mt-24">
-            <div className="h-32 w-32 mx-auto rounded-full bg-muted mb-4 border-4 border-background"/>
+      <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
+        <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              width={400}
+              height={300}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+              <ShoppingBag className="h-12 w-12" />
+            </div>
+          )}
         </div>
-        <div className="h-8 w-1/3 mx-auto bg-muted rounded" />
-        <div className="h-4 w-1/4 mx-auto bg-muted rounded mt-2" />
-      </div>
+        <CardContent className="flex flex-1 flex-col justify-between p-4">
+          <div>
+            <h3 className="font-semibold text-base">{product.name}</h3>
+            <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+            <p className="mt-1 font-bold text-sm text-accent-foreground">{product.price}</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full border-accent text-accent-foreground hover:bg-accent/10"
+            onClick={handleAdd}
+            disabled={adding}
+          >
+            {adding ? "Aggiungendo..." : "Aggiungi"}
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
+  
+// Componente Carrello rapido in overlay
+function CartOverlay() {
+    const { cart, removeFromCart, clearCart, total } = useCart();
+    const { toast } = useToast();
+    const router = useRouter();
+
+    if (cart.length === 0) return null;
+
+    const handleCheckout = () => {
+        toast({
+            title: "Ordine Inviato!",
+            description: "Il tuo ordine è stato simulato con successo."
+        });
+        clearCart();
+        router.push('/');
+    };
+
+    return (
+        <div className="fixed bottom-4 right-4 w-80 max-w-[calc(100vw-2rem)] bg-card shadow-lg rounded-lg p-4 z-50 border hidden md:block">
+            <h3 className="font-semibold mb-2 text-lg">Riepilogo Carrello</h3>
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                {cart.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center text-sm">
+                        <div>
+                            <p className="font-medium">{item.name}</p>
+                            <p className="text-muted-foreground">
+                                {item.quantity} × {item.price.toFixed(2)}€
+                            </p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFromCart(item.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                    </div>
+                ))}
+            </div>
+            <p className="mt-4 font-bold text-right text-lg">Totale: {total.toFixed(2)}€</p>
+            <Button asChild className="w-full mt-3">
+                <Link href="/checkout">Vai al Checkout</Link>
+            </Button>
+        </div>
+    );
+}
+
+import { useRouter } from 'next/navigation';
+import { Trash2 } from 'lucide-react';
+import Link from 'next/link';
+
+// ------------------------
+// Bakery Detail Client
+// ------------------------
+export default function BakeryDetailClient({ bakery, products }: { bakery: any; products: any[] | null }) {
+    if (!bakery) {
+        return (
+          <div className="container mx-auto px-4 py-6 animate-pulse">
+            <div className="h-48 w-full bg-muted mb-4 rounded" />
+            <div className="relative -mt-24">
+                <div className="h-32 w-32 mx-auto rounded-full bg-muted mb-4 border-4 border-background"/>
+            </div>
+            <div className="h-8 w-1/3 mx-auto bg-muted rounded" />
+            <div className="h-4 w-1/4 mx-auto bg-muted rounded mt-2" />
+          </div>
+        );
+      }
 
   return (
     <div>
       {/* Cover */}
       <div className="relative h-48 w-full bg-muted">
         {bakery.coverPhotoUrl ? (
-          <Image
-            src={bakery.coverPhotoUrl}
-            alt={`Cover image for ${bakery.companyName}`}
-            fill
-            className="object-cover"
-            priority
-          />
+          <Image src={bakery.coverPhotoUrl} alt={`Cover ${bakery.companyName}`} fill className="object-cover" />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-t from-background to-muted" />
         )}
@@ -151,12 +195,7 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
         <div className="flex flex-col items-center text-center">
           <div className="relative h-32 w-32 rounded-full border-4 border-background bg-background ring-1 ring-border flex items-center justify-center">
             {bakery.profilePictureUrl ? (
-              <Image
-                src={bakery.profilePictureUrl}
-                alt={`Profile of ${bakery.companyName}`}
-                fill
-                className="rounded-full object-cover"
-              />
+              <Image src={bakery.profilePictureUrl} alt={`Profile ${bakery.companyName}`} fill className="rounded-full object-cover" />
             ) : (
               <span className="text-3xl font-bold text-muted-foreground">{bakery.companyName?.[0]}</span>
             )}
@@ -175,34 +214,22 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
             <TabsTrigger value="info">Info</TabsTrigger>
           </TabsList>
 
-          {/* ------------------ */}
-          {/* Prodotti Tab */}
-          {/* ------------------ */}
           <TabsContent value="products" className="mt-6">
             {products ? (
               products.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                  {products.map((product) => (
-                    <ProductCard key={product.id} product={product} bakery={bakery} />
-                  ))}
+                  {products.map((product) => <ProductCard key={product.id} product={product} />)}
                 </div>
               ) : (
-                <p className="py-8 text-center text-muted-foreground">
-                  Questo panettiere non ha ancora aggiunto nessun prodotto.
-                </p>
+                <p className="py-8 text-center text-muted-foreground">Questo panettiere non ha ancora aggiunto prodotti.</p>
               )
             ) : (
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <ProductCardSkeleton key={i} />
-                ))}
+                {Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)}
               </div>
             )}
           </TabsContent>
 
-          {/* ------------------ */}
-          {/* Info Tab */}
-          {/* ------------------ */}
           <TabsContent value="info" className="mt-6">
             <div className="mx-auto max-w-2xl rounded-lg border bg-card p-6">
               <h3 className="mb-4 font-headline text-2xl">Informazioni</h3>
@@ -220,6 +247,9 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Carrello overlay */}
+      <CartOverlay />
     </div>
   );
 }
