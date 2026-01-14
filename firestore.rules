@@ -26,10 +26,9 @@ service cloud.firestore {
       return isOwner(userId) && docExists();
     }
     
-    function isApprovedBaker(uid) {
-        return get(/databases/$(database)/documents/bakers/$(uid)).data.approvalStatus == 'approved';
+    function isApprovedBaker() {
+        return get(/databases/$(database)/documents/bakers/$(request.auth.uid)).data.approvalStatus == 'approved';
     }
-
 
     // ----------------------------------------------------------------
     // USERS
@@ -130,8 +129,10 @@ service cloud.firestore {
         && request.resource.data.total == resource.data.total;
 
       // Allow customers and bakers to list ONLY their own orders
-      allow list: if isSignedIn() && 
-      (request.query.where.customerId == request.auth.uid || request.query.where.bakerId == request.auth.uid);
+      allow list: if isSignedIn() && (
+        request.query.where.bakerId == request.auth.uid ||
+        request.query.where.customerId == request.auth.uid
+      );
       
       // Orders cannot be deleted.
       allow delete: if false;
@@ -142,8 +143,8 @@ service cloud.firestore {
     // ADMIN ROLES
     // ----------------------------------------------------------------
     match /roles_admin/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if false;
+      allow get: if isAdmin();
+      allow list: if isAdmin();
       allow create, update, delete: if false;
     }
   }
