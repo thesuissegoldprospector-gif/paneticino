@@ -14,18 +14,26 @@ const findImage = (id: string) => {
             height: 200,
         }
     }
-    throw new Error(`Image with id "${id}" not found.`);
+     // Return a default image if not found, instead of throwing an error
+    return {
+      id: 'default',
+      description: 'Default placeholder image',
+      imageUrl: 'https://picsum.photos/seed/default/1080/720',
+      imageHint: 'placeholder',
+      width: 1080,
+      height: 720,
+    };
   }
 
   // Extract width and height from unsplash URL
   const url = new URL(image.imageUrl);
-  const width = url.searchParams.get("w");
-  const height = url.searchParams.get("h");
+  const widthStr = url.searchParams.get("w");
+  const heightStr = url.searchParams.get("h");
 
   return { 
     ...image, 
-    width: width ? parseInt(width, 10) : 1080, // Default or parsed width
-    height: height ? parseInt(height, 10) : 720 // Default or parsed height
+    width: widthStr ? parseInt(widthStr, 10) : 1080, // Default or parsed width
+    height: heightStr ? parseInt(heightStr, 10) : 720 // Default or parsed height
   };
 };
 
