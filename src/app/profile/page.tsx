@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 
 function useUserDoc(firestore: Firestore, userId: string | undefined) {
@@ -226,6 +226,9 @@ function UpdateImageDialog({ onUpdate, fieldName, children }: { onUpdate: (field
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Aggiorna immagine</DialogTitle>
+                    <DialogDescription>
+                        Incolla un nuovo URL per l'immagine. In futuro potrai caricarla direttamente dal tuo dispositivo.
+                    </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -282,7 +285,6 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
         defaultValues: { name: '', description: '', price: '', imageUrl: '' },
     });
     
-    // State for image URLs to force re-render
     const [coverPhotoUrl, setCoverPhotoUrl] = useState(bakerProfile.coverPhotoUrl || '');
     const [profilePictureUrl, setProfilePictureUrl] = useState(bakerProfile.profilePictureUrl || '');
 
@@ -454,8 +456,8 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                                         <div className="relative">
                                         <Input placeholder="https://esempio.com/immagine.jpg" {...field} className="pr-24" />
                                         <div className="absolute inset-y-0 right-0 flex items-center pr-2">
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground"><Upload /></Button>
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground"><Camera /></Button>
+                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground"><Upload className="h-4 w-4" /></Button>
+                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground"><Camera className="h-4 w-4" /></Button>
                                         </div>
                                         </div>
                                     </FormControl>
@@ -586,6 +588,8 @@ function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, 
     </div>
   );
 }
+
+    
 
     
 
