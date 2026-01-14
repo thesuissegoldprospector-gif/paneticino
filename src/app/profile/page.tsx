@@ -7,7 +7,7 @@ import { useUser, useDoc, useMemoFirebase, useFirestore, updateDocumentNonBlocki
 import { doc, DocumentData, Firestore, DocumentReference, collection, query, where } from 'firebase/firestore';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
@@ -207,17 +207,51 @@ const ImageUrlFormSchema = z.object({
     url: z.string().url({ message: "Inserisci un URL valido." }).or(z.literal('')),
 });
 
-function UpdateImageDialog({ onUpdate, fieldName, children }: { onUpdate: (fieldName: string, url: string) => void; fieldName: 'profilePictureUrl' | 'coverPhotoUrl'; children: React.ReactNode }) {
+function UpdateImageDialog({ onUpdate, fieldName, currentUrl, children }: { onUpdate: (fieldName: string, url: string) => void; fieldName: 'profilePictureUrl' | 'coverPhotoUrl'; currentUrl: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(false);
+    const [preview, setPreview] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { toast } = useToast();
+
     const form = useForm<z.infer<typeof ImageUrlFormSchema>>({
         resolver: zodResolver(ImageUrlFormSchema),
         defaultValues: { url: '' },
     });
 
+    useEffect(() => {
+        if (open) {
+            setPreview(currentUrl);
+            form.setValue('url', currentUrl);
+        }
+    }, [open, currentUrl, form]);
+
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const dataUrl = reader.result as string;
+                setPreview(dataUrl);
+                form.setValue('url', dataUrl);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleCameraClick = () => {
+        toast({
+            title: "Funzione in arrivo!",
+            description: "La possibilità di usare la fotocamera sarà disponibile a breve.",
+        });
+    }
+
     const handleSubmit = (values: z.infer<typeof ImageUrlFormSchema>) => {
+        // The URL in the form can be a web URL or a local base64 Data URL
         onUpdate(fieldName, values.url);
         setOpen(false);
         form.reset();
+        setPreview(null);
     };
 
     return (
@@ -227,17 +261,35 @@ function UpdateImageDialog({ onUpdate, fieldName, children }: { onUpdate: (field
                 <DialogHeader>
                     <DialogTitle>Aggiorna immagine</DialogTitle>
                     <DialogDescription>
-                        Incolla un nuovo URL per l'immagine. In futuro potrai caricarla direttamente dal tuo dispositivo.
+                        Carica un'immagine dal tuo dispositivo, usa la fotocamera o incolla un URL.
                     </DialogDescription>
                 </DialogHeader>
+                
+                {preview && (
+                    <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-md">
+                        <Image src={preview} alt="Anteprima immagine" layout="fill" objectFit="cover" />
+                    </div>
+                )}
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="mr-2" /> Carica
+                    </Button>
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+
+                    <Button variant="outline" onClick={handleCameraClick}>
+                        <Camera className="mr-2" /> Fotocamera
+                    </Button>
+                </div>
+                
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-4">
                         <FormField
                             control={form.control}
                             name="url"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>URL Immagine</FormLabel>
+                                    <FormLabel>Oppure incolla un URL</FormLabel>
                                     <FormControl>
                                         <Input placeholder="https://esempio.com/immagine.jpg" {...field} />
                                     </FormControl>
@@ -382,7 +434,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                                 ) : (
                                 <div className="flex h-full items-center justify-center rounded-t-lg text-muted-foreground">Immagine di copertina</div>
                                 )}
-                                 <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="coverPhotoUrl">
+                                 <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="coverPhotoUrl" currentUrl={coverPhotoUrl}>
                                     <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 opacity-50 group-hover:opacity-100 transition-opacity">
                                         <Camera className="h-4 w-4" />
                                     </Button>
@@ -394,7 +446,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                                     ) : (
                                     <span className="text-center text-xs text-muted-foreground">Immagine profilo</span>
                                     )}
-                                    <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="profilePictureUrl">
+                                    <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="profilePictureUrl" currentUrl={profilePictureUrl}>
                                         <Button variant="outline" size="icon" className="absolute bottom-1 right-1 z-10 h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity rounded-full">
                                             <Camera className="h-4 w-4" />
                                         </Button>
