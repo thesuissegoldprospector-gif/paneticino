@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, DocumentData, Firestore, collection, query, where, orderBy } from 'firebase/firestore';
+import { doc, DocumentReference, Firestore, collection, query, where, orderBy, DocumentData } from 'firebase/firestore';
 import { getAuth, signOut, updateProfile, User } from 'firebase/auth';
-import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check } from 'lucide-react';
+import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link2 } from 'lucide-react';
 import Image from 'next/image';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -24,8 +24,18 @@ import { Form, FormItem, FormLabel, FormControl, FormMessage, FormField } from '
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+
+const placeholderImages = [
+    'https://picsum.photos/seed/bread1/400/300',
+    'https://picsum.photos/seed/bread2/400/300',
+    'https://picsum.photos/seed/bread3/400/300',
+    'https://picsum.photos/seed/bread4/400/300',
+];
+
 
 // ------------------ HOOKS ------------------
 function useUserDoc(firestore: Firestore | null, userId?: string) {
@@ -133,33 +143,89 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
   );
 }
 
-
-function UpdateImageDialog({ onUpdate, fieldName, currentUrl, children }: { onUpdate: (fieldName: string, url: string) => void; fieldName: 'profilePictureUrl' | 'coverPhotoUrl'; currentUrl: string; children: React.ReactNode }) {
+function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url: string) => void; currentUrl?: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(false);
     const [url, setUrl] = useState('');
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const { toast } = useToast();
 
     useEffect(() => {
         if(open) {
             setUrl(currentUrl || '');
         }
+        return () => {
+            if (videoRef.current?.srcObject) {
+                const stream = videoRef.current.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
     }, [open, currentUrl]);
     
+    const handleCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (err) {
+            toast({ variant: 'destructive', title: 'Camera non accessibile', description: 'Permesso negato o camera non trovata.' });
+        }
+    };
+
+    const handleCapture = () => {
+        if (videoRef.current && canvasRef.current) {
+            const context = canvasRef.current.getContext('2d');
+            if (context) {
+                canvasRef.current.width = videoRef.current.videoWidth;
+                canvasRef.current.height = videoRef.current.videoHeight;
+                context.drawImage(videoRef.current, 0, 0, videoRef.current.videoWidth, videoRef.current.videoHeight);
+                const dataUrl = canvasRef.current.toDataURL('image/jpeg');
+                setUrl(dataUrl);
+                
+                // Stop camera stream
+                 const stream = videoRef.current.srcObject as MediaStream;
+                 stream.getTracks().forEach(track => track.stop());
+                 videoRef.current.srcObject = null;
+            }
+        }
+    };
+    
     const handleSubmit = () => {
-        onUpdate(fieldName, url);
+        onUpdate(url);
         setOpen(false);
     };
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Aggiorna immagine URL</DialogTitle>
-                </DialogHeader>
-                <div className="py-4">
-                    <Input placeholder="https://esempio.com/immagine.jpg" value={url} onChange={(e) => setUrl(e.target.value)} />
-                    {url && <Image src={url} alt="Anteprima" width={200} height={200} className="mt-4 rounded-md object-cover" />}
-                </div>
+            <DialogContent className="max-w-xl">
+                <DialogHeader><DialogTitle>Aggiorna immagine</DialogTitle></DialogHeader>
+                <Tabs defaultValue="url">
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="url"><Link2 />URL</TabsTrigger>
+                        <TabsTrigger value="gallery"><ImageIcon />Galleria</TabsTrigger>
+                        <TabsTrigger value="camera" onClick={handleCamera}><Camera />Camera</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="url" className="py-4 space-y-4">
+                        <Input placeholder="https://esempio.com/immagine.jpg" value={url} onChange={(e) => setUrl(e.target.value)} />
+                        {url && <Image src={url} alt="Anteprima" width={200} height={200} className="rounded-md object-cover mx-auto" />}
+                    </TabsContent>
+                    <TabsContent value="gallery" className="py-4">
+                        <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
+                            {placeholderImages.map(imgUrl => (
+                                <div key={imgUrl} className="relative aspect-video cursor-pointer" onClick={() => setUrl(imgUrl)}>
+                                    <Image src={imgUrl} alt="Placeholder" fill objectFit="cover" className={cn("rounded-md", url === imgUrl && "ring-2 ring-primary ring-offset-2")}/>
+                                </div>
+                            ))}
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="camera" className="py-4 space-y-4">
+                        <video ref={videoRef} className="w-full aspect-video bg-muted rounded-md" autoPlay playsInline muted />
+                        <canvas ref={canvasRef} className="hidden"/>
+                        <Button onClick={handleCapture} disabled={!videoRef.current?.srcObject}>Scatta Foto</Button>
+                    </TabsContent>
+                </Tabs>
                 <DialogFooter><Button type="button" onClick={handleSubmit}>Salva</Button></DialogFooter>
             </DialogContent>
         </Dialog>
@@ -286,7 +352,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
         toast({ title: 'Prodotto eliminato', variant: 'destructive' });
     };
 
-    const handleImageUpdate = (fieldName: string, url: string) => {
+    const handleImageUpdate = (fieldName: 'profilePictureUrl' | 'coverPhotoUrl', url: string) => {
         updateDocumentNonBlocking(bakerDocRef, { [fieldName]: url });
         toast({ title: 'Immagine aggiornata!' });
     };
@@ -306,11 +372,11 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
                         <CardContent className="p-0">
                              <div className="relative h-48 w-full group">
                                 {bakerProfile.coverPhotoUrl ? <Image src={bakerProfile.coverPhotoUrl} alt="Immagine di copertina" fill objectFit="cover" className="rounded-t-lg" /> : <div className="flex h-full items-center justify-center rounded-t-lg text-muted-foreground bg-muted">Immagine di copertina</div>}
-                                <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="coverPhotoUrl" currentUrl={bakerProfile.coverPhotoUrl || ''}><Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 opacity-50 group-hover:opacity-100 transition-opacity"><Camera className="h-4 w-4" /></Button></UpdateImageDialog>
+                                <UpdateImageDialog onUpdate={(url) => handleImageUpdate('coverPhotoUrl', url)} currentUrl={bakerProfile.coverPhotoUrl || ''}><Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 opacity-50 group-hover:opacity-100 transition-opacity"><Camera className="h-4 w-4" /></Button></UpdateImageDialog>
                                 <div className="absolute -bottom-16 left-6">
                                     <div className="relative h-32 w-32 rounded-full border-4 border-card bg-muted flex items-center justify-center group">
                                         {bakerProfile.profilePictureUrl ? <Image src={bakerProfile.profilePictureUrl} alt="Immagine profilo" fill objectFit="cover" className="rounded-full" /> : <span className="text-center text-xs text-muted-foreground">Immagine profilo</span>}
-                                        <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="profilePictureUrl" currentUrl={bakerProfile.profilePictureUrl || ''}><Button variant="outline" size="icon" className="absolute bottom-1 right-1 z-10 h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity rounded-full"><Camera className="h-4 w-4" /></Button></UpdateImageDialog>
+                                        <UpdateImageDialog onUpdate={(url) => handleImageUpdate('profilePictureUrl', url)} currentUrl={bakerProfile.profilePictureUrl || ''}><Button variant="outline" size="icon" className="absolute bottom-1 right-1 z-10 h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity rounded-full"><Camera className="h-4 w-4" /></Button></UpdateImageDialog>
                                     </div>
                                 </div>
                             </div>
@@ -352,7 +418,28 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
                                     <FormField control={productForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Prodotto</FormLabel><FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo</FormLabel><FormControl><Input placeholder="€4.50" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={productForm.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Textarea placeholder="Breve descrizione..." {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={productForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel>Immagine Prodotto (URL)</FormLabel><FormControl><Input placeholder="https://..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    
+                                    <FormField
+                                        control={productForm.control}
+                                        name="imageUrl"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Immagine Prodotto</FormLabel>
+                                                <FormControl>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="relative h-24 w-24 rounded-md bg-muted flex items-center justify-center overflow-hidden">
+                                                            {field.value ? <Image src={field.value} alt="Anteprima prodotto" fill objectFit="cover" /> : <ImageIcon className="h-8 w-8 text-muted-foreground" />}
+                                                        </div>
+                                                        <UpdateImageDialog onUpdate={(url) => field.onChange(url)} currentUrl={field.value}>
+                                                            <Button type="button" variant="outline">Cambia Immagine</Button>
+                                                        </UpdateImageDialog>
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+
                                     <DialogFooter><Button type="submit" disabled={productForm.formState.isSubmitting}>{productForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : <PlusCircle />} Aggiungi</Button></DialogFooter>
                                 </form>
                             </Form>
