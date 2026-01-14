@@ -62,7 +62,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   auth,
 }) => {
   const [userAuthState, setUserAuthState] = useState<UserAuthState>({
-    user: null,
+    user: auth.currentUser, // Initialize with currentUser
     isUserLoading: true, // Start loading until first auth event
     userError: null,
   });
@@ -74,7 +74,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       return;
     }
 
-    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
+    // Set loading to true initially
+    setUserAuthState(current => ({...current, isUserLoading: true}));
 
     const unsubscribe = onAuthStateChanged(
       auth,
@@ -131,16 +132,17 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     firestore: context.firestore,
     auth: context.auth,
     user: context.user,
-    isUserLoading: context.isUserLoading,
+isUserLoading: context.isUserLoading,
     userError: context.userError,
   };
 };
 
 /** Hook to access Firebase Auth instance. */
-export const useAuth = (): Auth => {
-  const { auth } = useFirebase();
-  return auth;
+export const useAuth = (): Auth & UserHookResult => {
+  const { auth, user, isUserLoading, userError } = useFirebase();
+  return { ...auth, user, isUserLoading, userError };
 };
+
 
 /** Hook to access Firestore instance. */
 export const useFirestore = (): Firestore => {

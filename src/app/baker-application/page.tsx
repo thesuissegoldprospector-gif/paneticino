@@ -13,6 +13,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   companyName: z.string().min(2, { message: 'Il nome della ditta è obbligatorio.' }),
@@ -22,7 +23,7 @@ const formSchema = z.object({
 });
 
 export default function BakerApplicationPage() {
-  const { user } = useAuth();
+  const { user, isUserLoading } = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
@@ -68,6 +69,14 @@ export default function BakerApplicationPage() {
     });
 
     router.push('/profile');
+  }
+  
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex h-full min-h-[400px] w-full items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
