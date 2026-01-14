@@ -104,12 +104,10 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /products/{productId} {
 
-      allow get, list: if true;
+      allow read: if true;
       
-      // A baker can only create products for themselves. They don't need to be approved to add products,
-      // but the products will only be visible once the baker profile is approved.
-      // We cannot use get() in a query rule, so isApprovedBaker() cannot be used here.
-      // Instead, we trust the bakerId from the client, as only the owner can write it.
+      // A baker can only create products for themselves. 
+      // The product data must contain the baker's ID.
       allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid;
       
       // Only the baker who owns the product can update or delete it.
