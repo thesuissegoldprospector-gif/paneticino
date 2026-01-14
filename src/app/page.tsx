@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import Image from 'next/image';
@@ -50,13 +50,17 @@ function BakeryCard({ bakery }: { bakery: any }) {
 
 export default function Home() {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
   const featuredBakersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // Wait until auth state is determined before creating the query
+    if (isUserLoading || !firestore) return null;
     return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'));
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: featuredBakeries, isLoading: isLoadingBakeries } = useCollection(featuredBakersQuery);
+  
+  const showLoading = isLoadingBakeries || isUserLoading;
 
 
   return (
@@ -70,7 +74,7 @@ export default function Home() {
             </Link>
           </Button>
         </div>
-        {isLoadingBakeries ? (
+        {showLoading ? (
           <div className="flex h-48 w-full items-center justify-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
           </div>

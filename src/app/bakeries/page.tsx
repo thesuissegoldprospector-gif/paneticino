@@ -1,6 +1,6 @@
 'use client';
 
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
@@ -49,15 +49,20 @@ function BakeryCard({ bakery }: { bakery: any }) {
 
 export default function BakeriesPage() {
   const firestore = useFirestore();
+  const { isUserLoading } = useUser();
 
   const approvedBakersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    // Wait until auth state is determined before creating the query
+    if (isUserLoading || !firestore) return null;
     return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'));
-  }, [firestore]);
+  }, [firestore, isUserLoading]);
 
   const { data: bakeries, isLoading } = useCollection(approvedBakersQuery);
+  
+  const showLoading = isLoading || isUserLoading;
 
-  if (isLoading) {
+
+  if (showLoading) {
     return (
       <div className="flex h-full min-h-[400px] w-full items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
