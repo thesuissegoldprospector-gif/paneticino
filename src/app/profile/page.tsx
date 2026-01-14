@@ -597,9 +597,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
         return query(collection(firestore, 'products'), where('bakerId', '==', user.uid));
     }, [firestore, user]);
 
-    const { data: products, isLoading: areProductsLoading } = productsQuery
-        ? useCollection(productsQuery)
-        : { data: null, isLoading: false };
+    const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
     
     const profileForm = useForm<z.infer<typeof bakerProfileFormSchema>>({
         resolver: zodResolver(bakerProfileFormSchema),
@@ -959,7 +957,7 @@ function BakerOrdersDashboard({ user }: { user: User }) {
     const { data: userDoc } = useUserDoc(firestore, user.uid);
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!firestore || !user || userDoc?.role !== 'baker') return null;
+        if (!firestore || !user || !userDoc || userDoc.role !== 'baker') return null;
         return query(
             collection(firestore, 'orders'),
             where('bakerId', '==', user.uid),
@@ -967,7 +965,7 @@ function BakerOrdersDashboard({ user }: { user: User }) {
         );
     }, [firestore, user, userDoc]);
 
-    const { data: orders, isLoading } = ordersQuery ? useCollection(ordersQuery) : { data: null, isLoading: false};
+    const { data: orders, isLoading } = useCollection(ordersQuery);
 
     const handleUpdateStatus = (orderId: string, newStatus: string) => {
         if (!firestore) return;
@@ -1045,7 +1043,7 @@ function CustomerOrdersDashboard({ user }: { user: User }) {
     const { data: userDoc } = useUserDoc(firestore, user.uid);
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!firestore || !user || userDoc?.role !== 'customer') return null;
+        if (!firestore || !user || !userDoc || userDoc.role !== 'customer') return null;
         return query(
             collection(firestore, 'orders'),
             where('customerId', '==', user.uid),
@@ -1053,7 +1051,7 @@ function CustomerOrdersDashboard({ user }: { user: User }) {
         );
     }, [firestore, user, userDoc]);
 
-    const { data: orders, isLoading } = ordersQuery ? useCollection(ordersQuery) : { data: null, isLoading: false };
+    const { data: orders, isLoading } = useCollection(ordersQuery);
 
     return (
         <Card className="md:col-span-2">
@@ -1105,4 +1103,5 @@ function CustomerOrdersDashboard({ user }: { user: User }) {
     
 
     
+
 

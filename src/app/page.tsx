@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, limit } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
@@ -50,18 +50,14 @@ function BakeryCard({ bakery }: { bakery: any }) {
 
 export default function Home() {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
 
   const featuredBakersQuery = useMemoFirebase(() => {
-    // Wait until auth state is determined before creating the query
-    if (isUserLoading || !firestore) return null;
-    return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'));
-  }, [firestore, isUserLoading]);
+    if (!firestore) return null;
+    return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'), limit(5));
+  }, [firestore]);
 
   const { data: featuredBakeries, isLoading: isLoadingBakeries } = useCollection(featuredBakersQuery);
   
-  const showLoading = isLoadingBakeries || isUserLoading;
-
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-12">
@@ -74,7 +70,7 @@ export default function Home() {
             </Link>
           </Button>
         </div>
-        {showLoading ? (
+        {isLoadingBakeries ? (
           <div className="flex h-48 w-full items-center justify-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
           </div>

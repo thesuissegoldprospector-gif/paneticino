@@ -45,10 +45,11 @@ export function useDoc<T = any>(
   type StateDataType = WithId<T> | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true); // Start loading if docRef might be valid
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    // If the docRef is not provided, reset state and do nothing.
     if (!memoizedDocRef) {
       setData(null);
       setIsLoading(false);
@@ -58,7 +59,6 @@ export function useDoc<T = any>(
 
     setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
@@ -69,31 +69,31 @@ export function useDoc<T = any>(
           // Document does not exist
           setData(null);
         }
-        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
+        setError(null); // Clear any previous error on successful snapshot
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-
         if (error.code === 'permission-denied') {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('Firestore permission denied for document:', memoizedDocRef.path);
-            setData(null);
-            setIsLoading(false);
-            setError(null); // Set error to null to avoid throwing
-            return;
-          }
+           if (process.env.NODE_ENV === 'development') {
+                console.warn(`Firestore permission denied for document: "${memoizedDocRef.path}". The query will return no data.`);
+                setData(null);
+                setIsLoading(false);
+                setError(null); // Clear the error to prevent crashes in dev
+                return;
+           }
         }
-
+        
+        // For other errors, or in production, propagate the error.
         const contextualError = new FirestorePermissionError({
           operation: 'get',
           path: memoizedDocRef.path,
-        })
+        });
 
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
 
-        // trigger global error propagation
+        // Trigger global error propagation
         errorEmitter.emit('permission-error', contextualError);
       }
     );

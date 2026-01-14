@@ -49,20 +49,16 @@ function BakeryCard({ bakery }: { bakery: any }) {
 
 export default function BakeriesPage() {
   const firestore = useFirestore();
-  const { isUserLoading } = useUser();
 
   const approvedBakersQuery = useMemoFirebase(() => {
-    // Wait until auth state is determined before creating the query
-    if (isUserLoading || !firestore) return null;
+    if (!firestore) return null;
     return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'));
-  }, [firestore, isUserLoading]);
+  }, [firestore]);
 
   const { data: bakeries, isLoading } = useCollection(approvedBakersQuery);
-  
-  const showLoading = isLoading || isUserLoading;
 
 
-  if (showLoading) {
+  if (isLoading) {
     return (
       <div className="flex h-full min-h-[400px] w-full items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
