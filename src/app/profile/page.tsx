@@ -956,7 +956,9 @@ function BakerOrdersDashboard({ user, userDoc }: { user: User, userDoc: Document
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!firestore || !user || !userDoc || userDoc.role !== 'baker') return null;
+        if (!firestore || !user || !userDoc || userDoc.role !== 'baker') {
+            return null;
+        }
         return query(
             collection(firestore, 'orders'),
             where('bakerId', '==', user.uid),
@@ -1041,7 +1043,9 @@ function CustomerOrdersDashboard({ user, userDoc }: { user: User, userDoc: Docum
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!firestore || !user || !userDoc || userDoc.role !== 'customer') return null;
+        if (!firestore || !user || !userDoc || userDoc.role !== 'customer') {
+            return null;
+        }
         return query(
             collection(firestore, 'orders'),
             where('customerId', '==', user.uid),

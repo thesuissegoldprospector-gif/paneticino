@@ -12,7 +12,7 @@ const navItems = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/bakeries', label: 'Panettieri', icon: Store },
   { href: '/near-me', label: 'Vicino a te', icon: MapPin },
-  { href: '/profile', label: 'Profilo', icon: User, auth: true },
+  { href: '/profile', label: 'Profilo', auth: true },
 ];
 
 function AdminNav() {
