@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle, Upload, Camera, Trash2 } from 'lucide-react';
+import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle, Upload, Camera, Trash2, LogOut } from 'lucide-react';
 import { useUser, useDoc, useMemoFirebase, useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { doc, DocumentData, Firestore, DocumentReference, collection, query, where } from 'firebase/firestore';
 import Link from 'next/link';
@@ -18,6 +18,8 @@ import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { getAuth, signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 
 function useUserDoc(firestore: Firestore, userId: string | undefined) {
@@ -68,6 +70,7 @@ const productFormSchema = z.object({
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const router = useRouter();
 
   const { data: userDoc, isLoading: isUserDocLoading, ref: userDocRef } = useUserDoc(firestore, user?.uid);
   const { data: bakerProfile, isLoading: isBakerLoading, ref: bakerDocRef } = useBakerProfile(firestore, user?.uid);
@@ -75,6 +78,11 @@ export default function ProfilePage() {
 
   const isLoading = isUserLoading || isUserDocLoading || isBakerLoading || isCustomerLoading;
   
+  const handleLogout = async () => {
+    await signOut(getAuth());
+    router.push('/');
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-full min-h-[400px] w-full items-center justify-center">
@@ -117,6 +125,13 @@ export default function ProfilePage() {
       ) : (
          <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
       )}
+      
+      <div className="flex justify-center pt-8">
+          <Button variant="destructive" onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Esci
+          </Button>
+      </div>
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { getAuth, signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
 import React from 'react';
@@ -34,10 +33,6 @@ export function Header() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
 
-  const handleLogout = async () => {
-    await signOut(getAuth());
-    router.push('/');
-  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 border-b bg-background/80 backdrop-blur-sm">
@@ -56,7 +51,6 @@ export function Header() {
                   <Link href="/profile">Profilo</Link>
                 </Button>
                 <CartSheet />
-                <Button onClick={handleLogout}>Esci</Button>
               </>
             ) : (
               <>
