@@ -552,7 +552,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                                
                              </div>
                             <FormField control={profileForm.control} name="deliveryZones" render={({ field }) => (
-                                <FormItem><FormLabel>Zone di Consegna (separate da virgola)</FormLabel><FormControl><Textarea placeholder="Elenca le aree, i CAP o le città" {...field} /></FormControl><FormMessage /></Item>
+                                <FormItem><FormLabel>Zone di Consegna (separate da virgola)</FormLabel><FormControl><Textarea placeholder="Elenca le aree, i CAP o le città" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
                              <div className="flex justify-end gap-2">
                                 <Button type="submit" disabled={profileForm.formState.isSubmitting}>{profileForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salva Modifiche</Button>
