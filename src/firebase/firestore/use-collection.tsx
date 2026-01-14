@@ -82,20 +82,6 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        if (error.code === 'permission-denied') {
-          if (process.env.NODE_ENV === 'development') {
-            const path = memoizedTargetRefOrQuery.type === 'collection'
-              ? (memoizedTargetRefOrQuery as CollectionReference).path
-              : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString();
-            console.warn(`Firestore permission denied for collection query: "${path}". The query will return no data.`);
-            setData(null);
-            setIsLoading(false);
-            setError(null); // Clear the error to prevent crashes in dev
-            return;
-          }
-        }
-        
-        // For other errors, or in production, propagate the error.
         const path = memoizedTargetRefOrQuery.type === 'collection'
             ? (memoizedTargetRefOrQuery as CollectionReference).path
             : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
