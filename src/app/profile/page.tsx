@@ -640,20 +640,19 @@ export default function ProfilePage() {
   
   const role = userDoc?.role;
 
-  // This query is now safe because it will only be constructed and passed to
-  // useCollection when all dependencies, including the user's role, are defined.
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !role) {
-      return null; // Query is null until user and role are loaded
+    if (!firestore || !user || !userDoc) {
+      return null; 
     }
+    const role = userDoc.role;
     if (role === 'baker') {
       return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
     if (role === 'customer') {
       return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
-    return null; // Default to null if role is not recognized
-  }, [firestore, user, role]);
+    return null; 
+  }, [firestore, user, userDoc]);
 
   const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
