@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, DocumentReference, Firestore, collection, query, where, orderBy } from 'firebase/firestore';
+import { doc, DocumentReference, Firestore, collection, query, where, orderBy, DocumentData } from 'firebase/firestore';
 import { getAuth, signOut, updateProfile, User } from 'firebase/auth';
 import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check } from 'lucide-react';
 import Image from 'next/image';
@@ -28,17 +28,17 @@ import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, updateDo
 
 // ------------------ HOOKS ------------------
 function useUserDoc(firestore: Firestore | null, userId?: string) {
-  const userRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'users', userId) : undefined), [firestore, userId]);
+  const userRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'users', userId) : null), [firestore, userId]);
   return useDoc(userRef);
 }
 
 function useBakerProfile(firestore: Firestore | null, userId?: string) {
-  const bakerRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'bakers', userId) : undefined), [firestore, userId]);
+  const bakerRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'bakers', userId) : null), [firestore, userId]);
   return useDoc(bakerRef);
 }
 
 function useCustomerProfile(firestore: Firestore | null, userId?: string) {
-  const customerRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'customers', userId) : undefined), [firestore, userId]);
+  const customerRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'customers', userId) : null), [firestore, userId]);
   return useDoc(customerRef);
 }
 
