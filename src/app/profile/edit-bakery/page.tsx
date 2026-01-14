@@ -12,7 +12,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Loader2, Trash2, PlusCircle } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle, Camera, Upload } from 'lucide-react';
 import { useEffect } from 'react';
 import Image from 'next/image';
 
@@ -138,29 +138,29 @@ export default function EditBakerProfilePage() {
   const companyName = watch('companyName');
   
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-8 space-y-8">
+    <div className="container mx-auto max-w-5xl space-y-8 px-4 py-8">
       <Card>
-          <CardContent className="p-0">
-             <div className="relative h-48 w-full bg-muted">
-                {coverPhotoUrl ? (
-                    <Image src={coverPhotoUrl} alt="Immagine di copertina" layout="fill" objectFit="cover" className="rounded-t-lg" />
+        <CardContent className="p-0">
+          <div className="relative h-48 w-full bg-muted">
+            {coverPhotoUrl ? (
+              <Image key={coverPhotoUrl} src={coverPhotoUrl} alt="Immagine di copertina" fill objectFit="cover" className="rounded-t-lg" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">Immagine di copertina</div>
+            )}
+            <div className="absolute -bottom-12 left-6">
+              <div className="relative h-24 w-24 rounded-full border-4 border-card bg-muted flex items-center justify-center">
+                {profilePictureUrl ? (
+                  <Image key={profilePictureUrl} src={profilePictureUrl} alt="Immagine profilo" fill objectFit="cover" className="rounded-full" />
                 ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground">Immagine di copertina</div>
+                  <span className="text-center text-xs text-muted-foreground">Immagine profilo</span>
                 )}
-                <div className="absolute -bottom-12 left-6">
-                    <div className="relative h-24 w-24 rounded-full border-4 border-card bg-muted flex items-center justify-center">
-                         {profilePictureUrl ? (
-                            <Image src={profilePictureUrl} alt="Immagine profilo" layout="fill" objectFit="cover" className="rounded-full" />
-                        ) : (
-                             <span className="text-xs text-center text-muted-foreground">Immagine profilo</span>
-                        )}
-                    </div>
-                </div>
-             </div>
-             <div className="pt-16 px-6 pb-6">
-                <h1 className="text-3xl font-bold">{companyName || "Nome Attività"}</h1>
-             </div>
-          </CardContent>
+              </div>
+            </div>
+          </div>
+          <div className="px-6 pb-6 pt-16">
+            <h1 className="text-3xl font-bold">{companyName || "Nome Attività"}</h1>
+          </div>
+        </CardContent>
       </Card>
     
       <Card>
@@ -173,7 +173,7 @@ export default function EditBakerProfilePage() {
         <CardContent>
           <Form {...profileForm}>
             <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                  <FormField control={profileForm.control} name="companyName" render={({ field }) => (
                    <FormItem>
                      <FormLabel>Nome Ditta</FormLabel>
@@ -196,7 +196,7 @@ export default function EditBakerProfilePage() {
                   <FormMessage />
                 </FormItem>
               )} />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <FormField control={profileForm.control} name="profilePictureUrl" render={({ field }) => (
                   <FormItem>
                     <FormLabel>URL Foto Profilo</FormLabel>
@@ -227,11 +227,11 @@ export default function EditBakerProfilePage() {
           <CardDescription>Aggiungi e gestisci i prodotti del tuo panificio.</CardDescription>
         </CardHeader>
         <CardContent>
-           <div className="mb-8 p-4 border rounded-lg">
-             <h3 className="text-lg font-semibold mb-4">Aggiungi un nuovo prodotto</h3>
+           <div className="mb-8 rounded-lg border p-4">
+             <h3 className="mb-4 text-lg font-semibold">Aggiungi un nuovo prodotto</h3>
               <Form {...productForm}>
                 <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <FormField control={productForm.control} name="name" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Nome Prodotto</FormLabel>
@@ -256,8 +256,16 @@ export default function EditBakerProfilePage() {
                   )} />
                   <FormField control={productForm.control} name="imageUrl" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>URL Immagine</FormLabel>
-                      <FormControl><Input placeholder="https://esempio.com/immagine-prodotto.jpg" {...field} /></FormControl>
+                      <FormLabel>Immagine Prodotto</FormLabel>
+                       <FormControl>
+                        <div className="relative">
+                          <Input placeholder="https://esempio.com/immagine.jpg" {...field} className="pr-24" />
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground"><Upload /></Button>
+                             <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground"><Camera /></Button>
+                          </div>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
@@ -270,15 +278,15 @@ export default function EditBakerProfilePage() {
            </div>
 
             {products && products.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {products.map((product) => (
-                    <Card key={product.id} className="overflow-hidden relative group">
-                        <Image src={product.imageUrl || 'https://placehold.co/400x300'} alt={product.name} width={400} height={300} className="w-full h-32 object-cover" />
+                    <Card key={product.id} className="group relative overflow-hidden">
+                        <Image src={product.imageUrl || 'https://placehold.co/400x300'} alt={product.name} width={400} height={300} className="h-32 w-full object-cover" />
                         <CardContent className="p-3">
-                            <h4 className="font-bold truncate">{product.name}</h4>
-                            <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-                            <p className="font-bold mt-2">{product.price}</p>
-                            <Button variant="destructive" size="icon" className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDeleteProduct(product.id)}>
+                            <h4 className="truncate font-bold">{product.name}</h4>
+                            <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
+                            <p className="mt-2 font-bold">{product.price}</p>
+                            <Button variant="destructive" size="icon" className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100" onClick={() => handleDeleteProduct(product.id)}>
                                 <Trash2 className="h-4 w-4"/>
                             </Button>
                         </CardContent>
@@ -286,7 +294,7 @@ export default function EditBakerProfilePage() {
                 ))}
                 </div>
             ) : (
-                <p className="text-center text-muted-foreground py-8">Non hai ancora aggiunto nessun prodotto.</p>
+                <p className="py-8 text-center text-muted-foreground">Non hai ancora aggiunto nessun prodotto.</p>
             )}
 
         </CardContent>
