@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, DocumentData } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -81,7 +80,7 @@ export function DeliveryZoneChecker() {
   const { data: bakeries, isLoading } = useCollection(bakeriesQuery);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setSearchTerm(values.location);
+    setSearchTerm(values.location.trim().toLowerCase());
   }
 
   return (

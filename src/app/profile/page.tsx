@@ -22,25 +22,25 @@ import { getAuth, signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 
-function useUserDoc(firestore: Firestore, userId: string | undefined) {
+function useUserDoc(firestore: Firestore | null, userId: string | undefined) {
   const userRef = useMemoFirebase(() => {
-    if (!userId) return null;
+    if (!firestore || !userId) return null;
     return doc(firestore, 'users', userId);
   }, [firestore, userId]);
   return useDoc(userRef);
 }
 
-function useBakerProfile(firestore: Firestore, userId: string | undefined) {
+function useBakerProfile(firestore: Firestore | null, userId: string | undefined) {
     const bakerRef = useMemoFirebase(() => {
-      if (!userId) return null;
+      if (!firestore || !userId) return null;
       return doc(firestore, 'bakers', userId);
     }, [firestore, userId]);
     return useDoc(bakerRef);
   }
   
-function useCustomerProfile(firestore: Firestore, userId: string | undefined) {
+function useCustomerProfile(firestore: Firestore | null, userId: string | undefined) {
   const customerRef = useMemoFirebase(() => {
-    if (!userId) return null;
+    if (!firestore || !userId) return null;
     return doc(firestore, 'customers', userId);
   }, [firestore, userId]);
   return useDoc(customerRef);
@@ -117,10 +117,10 @@ export default function ProfilePage() {
             userDocRef={userDocRef} 
             bakerDocRef={bakerDocRef} 
         />
-      ) : role === 'customer' && customerProfile && customerDocRef && userDocRef ? (
+      ) : role === 'customer' && customerProfile && userDocRef ? (
         <>
             <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
-            <CustomerProfileDashboard profile={customerProfile} docRef={customerDocRef} />
+            {customerProfile && customerDocRef && <CustomerProfileDashboard profile={customerProfile} docRef={customerDocRef} />}
         </>
       ) : (
          <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
@@ -136,7 +136,7 @@ export default function ProfilePage() {
   );
 }
 
-function UserProfileCard({user, userDoc, userDocRef}: {user: DocumentData, userDoc: DocumentData, userDocRef: DocumentReference<DocumentData> | null}) {
+function UserProfileCard({user, userDoc, userDocRef}: {user: DocumentData, userDoc: DocumentData | null, userDocRef: DocumentReference<DocumentData> | null}) {
     const [isEditing, setIsEditing] = useState(false);
     const { toast } = useToast();
     
@@ -410,7 +410,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
     const { toast } = useToast();
     
     const productsQuery = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
         return query(collection(firestore, 'products'), where('bakerId', '==', user.uid));
     }, [firestore, user]);
 
@@ -447,13 +447,14 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
     }, [userProfile, bakerProfile, profileForm]);
 
     async function onProfileSubmit(values: z.infer<typeof bakerProfileFormSchema>) {
+        if (!userDocRef || !bakerDocRef) return;
         const { firstName, lastName, ...bakerData } = values;
 
         await Promise.all([
             updateDocumentNonBlocking(userDocRef, { firstName, lastName }),
             updateDocumentNonBlocking(bakerDocRef, {
                 ...bakerData,
-                deliveryZones: bakerData.deliveryZones.split(',').map(zone => zone.trim()),
+                deliveryZones: bakerData.deliveryZones.split(',').map(zone => zone.trim().toLowerCase()),
             })
         ]);
         
@@ -461,7 +462,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
     }
 
     async function onProductSubmit(values: z.infer<typeof productFormSchema>) {
-        if (!user) return;
+        if (!user || !firestore) return;
         const productsCollection = collection(firestore, 'products');
         await addDocumentNonBlocking(productsCollection, { ...values, bakerId: user.uid });
         toast({ title: 'Prodotto aggiunto!', description: `${values.name} è stato aggiunto al tuo listino.` });
@@ -470,13 +471,14 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
       }
     
     const handleDeleteProduct = (productId: string) => {
-        if (!user) return;
+        if (!user || !firestore) return;
         const productRef = doc(firestore, 'products', productId);
         deleteDocumentNonBlocking(productRef);
         toast({ title: 'Prodotto eliminato', variant: 'destructive' });
     };
 
     const handleImageUpdate = (fieldName: string, url: string) => {
+        if (!bakerDocRef) return;
         updateDocumentNonBlocking(bakerDocRef, { [fieldName]: url });
         toast({ title: 'Immagine aggiornata!' });
     };
@@ -516,11 +518,11 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                 <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-8">
                     <Card>
                         <CardContent className="p-0">
-                            <div className="relative h-48 w-full bg-muted group">
+                            <div className="relative h-48 w-full group">
                                 {bakerProfile.coverPhotoUrl ? (
                                 <Image key={bakerProfile.coverPhotoUrl} src={bakerProfile.coverPhotoUrl} alt="Immagine di copertina" fill objectFit="cover" className="rounded-t-lg" />
                                 ) : (
-                                <div className="flex h-full items-center justify-center rounded-t-lg text-muted-foreground">Immagine di copertina</div>
+                                <div className="flex h-full items-center justify-center rounded-t-lg text-muted-foreground bg-muted">Immagine di copertina</div>
                                 )}
                                  <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="coverPhotoUrl" currentUrl={bakerProfile.coverPhotoUrl || ''}>
                                     <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 opacity-50 group-hover:opacity-100 transition-opacity">

@@ -39,11 +39,11 @@ export default function BakerApplicationPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) {
+    if (!user || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Errore',
-        description: 'Devi essere loggato per inviare la richiesta.',
+        description: 'Devi essere loggato e il servizio deve essere disponibile per inviare la richiesta.',
       });
       return;
     }
@@ -53,7 +53,7 @@ export default function BakerApplicationPage() {
       companyName: values.companyName,
       address: values.address,
       companyNumber: values.companyNumber,
-      deliveryZones: values.deliveryZones.split(',').map(zone => zone.trim()),
+      deliveryZones: values.deliveryZones.split(',').map(zone => zone.trim().toLowerCase()),
       approvalStatus: 'pending',
       // Add empty fields for profilePictureUrl and coverPhotoUrl
       profilePictureUrl: '',
@@ -149,7 +149,8 @@ export default function BakerApplicationPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Invia Richiesta
               </Button>
             </form>
