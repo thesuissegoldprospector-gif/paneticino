@@ -51,9 +51,10 @@ export default function BakeryDetailPage({ params }: Props) {
 
   const firestore = useFirestore();
   
-  const bakeryRef = useMemoFirebase(() => {
+  const bakeryQuery = useMemoFirebase(() => {
     if (!firestore || !id) return null;
-    return doc(firestore, 'bakers', id);
+    // Query for the baker document where the userId matches the id from the route
+    return query(collection(firestore, 'bakers'), where('userId', '==', id));
   }, [firestore, id]);
   
   const productsQuery = useMemoFirebase(() => {
@@ -61,15 +62,13 @@ export default function BakeryDetailPage({ params }: Props) {
     return query(collection(firestore, 'products'), where('bakerId', '==', id));
   }, [firestore, id]);
 
-  const { data: bakery, isLoading: isBakeryLoading } = useDoc(bakeryRef);
+  const { data: bakeries, isLoading: isBakeryLoading } = useCollection(bakeryQuery);
   const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
 
   const isLoading = isBakeryLoading || areProductsLoading;
-
-  // DEBUG LOGS
-  console.log("ID FROM ROUTE:", id);
-  console.log("BAKERY DOC:", bakery);
-
+  
+  // The bakery is the first document in the returned collection (should be only one)
+  const bakery = bakeries?.[0];
 
   if (isLoading) {
     return (
