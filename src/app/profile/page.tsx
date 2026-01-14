@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle, Upload, Camera } from 'lucide-react';
+import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle, Upload, Camera, Trash2 } from 'lucide-react';
 import { useUser, useDoc, useMemoFirebase, useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { doc, DocumentData, Firestore, DocumentReference, collection, query, where } from 'firebase/firestore';
 import Link from 'next/link';
@@ -219,6 +219,15 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
     
     const profileForm = useForm<z.infer<typeof bakerProfileFormSchema>>({
         resolver: zodResolver(bakerProfileFormSchema),
+        defaultValues: {
+            firstName: '',
+            lastName: '',
+            companyName: '',
+            address: '',
+            deliveryZones: '',
+            profilePictureUrl: '',
+            coverPhotoUrl: '',
+        }
     });
 
     const productForm = useForm<z.infer<typeof productFormSchema>>({
@@ -227,15 +236,17 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
     });
     
     useEffect(() => {
-        profileForm.reset({
-            firstName: userProfile.firstName || '',
-            lastName: userProfile.lastName || '',
-            companyName: bakerProfile.companyName || '',
-            address: bakerProfile.address || '',
-            deliveryZones: (bakerProfile.deliveryZones || []).join(', '),
-            profilePictureUrl: bakerProfile.profilePictureUrl || '',
-            coverPhotoUrl: bakerProfile.coverPhotoUrl || '',
-        });
+        if (userProfile && bakerProfile) {
+            profileForm.reset({
+                firstName: userProfile.firstName || '',
+                lastName: userProfile.lastName || '',
+                companyName: bakerProfile.companyName || '',
+                address: bakerProfile.address || '',
+                deliveryZones: (bakerProfile.deliveryZones || []).join(', '),
+                profilePictureUrl: bakerProfile.profilePictureUrl || '',
+                coverPhotoUrl: bakerProfile.coverPhotoUrl || '',
+            });
+        }
     }, [userProfile, bakerProfile, profileForm]);
 
     async function onProfileSubmit(values: z.infer<typeof bakerProfileFormSchema>) {
@@ -296,7 +307,6 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
     const { watch } = profileForm;
     const coverPhotoUrl = watch('coverPhotoUrl');
     const profilePictureUrl = watch('profilePictureUrl');
-    const companyName = watch('companyName');
 
     return (
         <div className="space-y-8">
@@ -511,3 +521,5 @@ function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, 
     </div>
   );
 }
+
+    
