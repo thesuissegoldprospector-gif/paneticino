@@ -1,45 +1,107 @@
-import { getBakeryBySlug, getProductsByBakeryId } from '@/lib/data';
+'use client';
+
+import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, collection, query, where } from 'firebase/firestore';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ProductCard } from '@/components/product-card';
-import { MapPin, Info } from 'lucide-react';
+import { MapPin, Info, Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+function ProductCard({ product }: { product: any }) {
+  return (
+    <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
+      <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
+        {product.imageUrl && (
+            <Image
+            src={product.imageUrl}
+            alt={product.name}
+            width={400}
+            height={300}
+            className="h-full w-full object-cover"
+            />
+        )}
+      </div>
+      <CardContent className="flex flex-1 flex-col justify-between p-4">
+        <div>
+          <h3 className="font-semibold text-base">{product.name}</h3>
+          <p className="font-bold text-sm text-accent-foreground">{product.price}</p>
+        </div>
+        <Button variant="outline" size="sm" className="mt-2 w-full border-accent text-accent-foreground hover:bg-accent/10">
+          Aggiungi
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function BakeryDetailPage({ params }: { params: { slug: string } }) {
-  const bakery = getBakeryBySlug(params.slug);
+  const firestore = useFirestore();
+  
+  const bakeryRef = useMemoFirebase(() => {
+    if (!firestore || !params.slug) return null;
+    return doc(firestore, 'bakers', params.slug);
+  }, [firestore, params.slug]);
+  
+  const productsQuery = useMemoFirebase(() => {
+    if (!firestore || !params.slug) return null;
+    return query(collection(firestore, 'products'), where('bakerId', '==', params.slug));
+  }, [firestore, params.slug]);
+
+  const { data: bakery, isLoading: isBakeryLoading } = useDoc(bakeryRef);
+  const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
+
+  const isLoading = isBakeryLoading || areProductsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full min-h-[600px] w-full items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!bakery) {
     notFound();
   }
 
-  const products = getProductsByBakeryId(bakery.id);
+  // A baker's profile should only be visible if they are approved
+  if (bakery.approvalStatus !== 'approved') {
+    notFound();
+  }
 
   return (
     <div>
-      <div className="relative h-48 w-full">
-        <Image
-          src={bakery.coverImage.imageUrl}
-          alt={`Cover image for ${bakery.name}`}
-          fill
-          className="object-cover"
-          data-ai-hint={bakery.coverImage.imageHint}
-          priority
-        />
+      <div className="relative h-48 w-full bg-muted">
+        {bakery.coverPhotoUrl && (
+            <Image
+            src={bakery.coverPhotoUrl}
+            alt={`Cover image for ${bakery.companyName}`}
+            fill
+            className="object-cover"
+            priority
+            />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
       </div>
 
       <div className="container mx-auto -mt-16 px-4 pb-8">
         <div className="flex flex-col items-center text-center">
-          <Image
-            src={bakery.profileImage.imageUrl}
-            alt={`Profile of ${bakery.name}`}
-            width={128}
-            height={128}
-            className="h-32 w-32 rounded-full border-4 border-background object-cover bg-background ring-1 ring-border"
-            data-ai-hint={bakery.profileImage.imageHint}
-          />
-          <h1 className="mt-4 font-headline text-4xl">{bakery.name}</h1>
-          <p className="mt-2 max-w-2xl text-muted-foreground">{bakery.description}</p>
+          <div className="relative h-32 w-32 rounded-full border-4 border-background bg-background ring-1 ring-border flex items-center justify-center">
+            {bakery.profilePictureUrl ? (
+                <Image
+                src={bakery.profilePictureUrl}
+                alt={`Profile of ${bakery.companyName}`}
+                fill
+                className="rounded-full object-cover"
+                />
+            ) : (
+                <span className="text-3xl text-muted-foreground">{bakery.companyName?.[0]}</span>
+            )}
+           </div>
+          <h1 className="mt-4 font-headline text-4xl">{bakery.companyName}</h1>
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-4 w-4" />
             <span>{bakery.address}</span>
@@ -52,12 +114,15 @@ export default function BakeryDetailPage({ params }: { params: { slug: string } 
             <TabsTrigger value="info">Info</TabsTrigger>
           </TabsList>
           <TabsContent value="products" className="mt-6">
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-            {products.length === 0 && <p className="py-8 text-center text-muted-foreground">Nessun prodotto disponibile per questo panettiere.</p>}
+            {products && products.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                    {products.map((product) => (
+                        <ProductCard key={product.id} product={product} />
+                    ))}
+                </div>
+            ) : (
+                <p className="py-8 text-center text-muted-foreground">Nessun prodotto disponibile per questo panettiere.</p>
+            )}
           </TabsContent>
           <TabsContent value="info" className="mt-6">
             <div className="mx-auto max-w-2xl rounded-lg border bg-card p-6">
@@ -65,7 +130,7 @@ export default function BakeryDetailPage({ params }: { params: { slug: string } 
               <div className="space-y-4 text-card-foreground">
                 <div className="flex items-start gap-3">
                   <Info className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
-                  <p>{bakery.description}</p>
+                  <p>Zone di consegna: {(bakery.deliveryZones || []).join(', ')}</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <MapPin className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
