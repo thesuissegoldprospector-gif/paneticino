@@ -39,10 +39,16 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if false;
 
+      // Allow creation if user is signing up themselves
+      // For email/pass, the role is provided in the request
+      // For Google, role can be set to 'customer' by default as a safe option
       allow create: if isOwner(userId)
         && request.resource.data.id == userId
         && (request.resource.data.role == 'customer'
-            || request.resource.data.role == 'baker');
+            || request.resource.data.role == 'baker'
+            // Check for Google provider during initial signup
+            || request.auth.token.firebase.sign_in_provider == "google.com");
+
 
       allow update: if (isExistingOwner(userId) || isAdmin())
         && request.resource.data.id == resource.data.id
