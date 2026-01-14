@@ -137,27 +137,28 @@ service cloud.firestore {
     // ORDERS
     // ----------------------------------------------------------------
     match /orders/{orderId} {
-        // Customer can create their own order
-        allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      // ✅ A customer can create their own order
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
-        // Customer who made it, baker who fulfills it, or admin can read
-        allow get: if isSignedIn() && (
-            resource.data.customerId == request.auth.uid ||
-            resource.data.bakerId == request.auth.uid ||
-            isAdmin()
-        );
-        
-        // Users can only list their own orders (enforced by client-side query)
-        allow list: if isSignedIn();
+      // ✅ A customer can read their own order
+      // ✅ A baker can read an order assigned to them
+      // ✅ An admin can read any order
+      allow get: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.bakerId == request.auth.uid ||
+        isAdmin()
+      );
+      
+      // ✅ Only the baker can update the status
+      allow update: if isSignedIn()
+        && resource.data.bakerId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status']);
 
-        // Only the assigned baker can update the status
-        allow update: if isSignedIn()
-          && resource.data.bakerId == request.auth.uid
-          && request.resource.data.keys().hasOnly(['status']);
+      // ❌ No generic list operations
+      allow list: if false;
 
-
-        // No one can delete orders for now
-        allow delete: if false;
+      // ❌ No client-side deletes
+      allow delete: if false;
     }
 
 
