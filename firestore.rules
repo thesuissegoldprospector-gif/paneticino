@@ -130,7 +130,7 @@ service cloud.firestore {
      * @principle Secures role management by making it a read-only collection for clients. Roles must be managed server-side or via the Firebase Console.
      */
     match /roles_admin/{userId} {
-      allow get: if isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if false;
       allow create: if false;
       allow update: if false;
