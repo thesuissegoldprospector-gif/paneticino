@@ -53,7 +53,7 @@ export default function Home() {
 
   const featuredBakersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved')); // Simplified for now
+    return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'));
   }, [firestore]);
 
   const { data: featuredBakeries, isLoading: isLoadingBakeries } = useCollection(featuredBakersQuery);

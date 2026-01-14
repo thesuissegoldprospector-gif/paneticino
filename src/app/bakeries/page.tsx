@@ -52,7 +52,6 @@ export default function BakeriesPage() {
 
   const approvedBakersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // According to the security rules, non-admin users can only list approved bakers.
     return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'));
   }, [firestore]);
 
