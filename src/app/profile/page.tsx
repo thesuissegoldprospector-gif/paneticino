@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { getAuth, signOut } from 'firebase/auth';
+import { getAuth, signOut, updateProfile } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 
@@ -118,13 +118,13 @@ export default function ProfilePage() {
             userDocRef={userDocRef} 
             bakerDocRef={bakerDocRef} 
         />
-      ) : role === 'customer' && customerProfile && userDocRef ? (
+      ) : role === 'customer' && customerProfile && userDocRef && user ? (
         <>
             <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
             {customerProfile && customerDocRef && <CustomerProfileDashboard profile={customerProfile} docRef={customerDocRef} />}
         </>
       ) : (
-         <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
+         user && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
       )}
       
       <div className="flex justify-center pt-8">
@@ -135,6 +135,179 @@ export default function ProfilePage() {
       </div>
     </div>
   );
+}
+
+const updateUserProfileAndAuth = async (user: any, userDocRef: DocumentReference, data: any) => {
+    if (!user || !userDocRef) return;
+
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+  
+    if (currentUser) {
+        // Prepare updates for Auth and Firestore
+        const authUpdates: { displayName?: string; photoURL?: string } = {};
+        const firestoreUpdates: { firstName?: string; lastName?: string; photoURL?: string } = {};
+
+        if (data.firstName && data.lastName) {
+            const newDisplayName = `${data.firstName} ${data.lastName}`;
+            if (currentUser.displayName !== newDisplayName) {
+                 authUpdates.displayName = newDisplayName;
+            }
+            firestoreUpdates.firstName = data.firstName;
+            firestoreUpdates.lastName = data.lastName;
+        }
+
+        if (data.photoURL && currentUser.photoURL !== data.photoURL) {
+            authUpdates.photoURL = data.photoURL;
+            firestoreUpdates.photoURL = data.photoURL;
+        }
+
+        // Perform updates
+        if (Object.keys(authUpdates).length > 0) {
+            await updateProfile(currentUser, authUpdates);
+        }
+        if (Object.keys(firestoreUpdates).length > 0) {
+            updateDocumentNonBlocking(userDocRef, firestoreUpdates);
+        }
+    }
+}
+
+function UpdateAvatarDialog({ user, userDocRef, children }: { user: any, userDocRef: DocumentReference | null, children: React.ReactNode}) {
+    const [open, setOpen] = useState(false);
+    const [step, setStep] = useState<'select' | 'camera' | 'preview'>('select');
+    const [imageSrc, setImageSrc] = useState<string | null>(null);
+    const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+    
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        let stream: MediaStream;
+        const getCameraPermission = async () => {
+            if (step !== 'camera') return;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                setHasCameraPermission(true);
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                setHasCameraPermission(false);
+                toast({
+                    variant: 'destructive',
+                    title: 'Accesso Fotocamera Negato',
+                    description: 'Abilita i permessi per la fotocamera nelle impostazioni del browser.',
+                });
+                setStep('select');
+            }
+        };
+
+        getCameraPermission();
+
+        return () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [step, toast]);
+
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImageSrc(reader.result as string);
+                setStep('preview');
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleTakePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/png');
+            setImageSrc(dataUrl);
+            setStep('preview');
+        }
+    };
+    
+    const handleSave = async () => {
+        if (imageSrc && user && userDocRef) {
+            await updateUserProfileAndAuth(user, userDocRef, { photoURL: imageSrc });
+            toast({ title: 'Avatar aggiornato con successo!' });
+            setOpen(false);
+            // Reset state
+            setTimeout(() => {
+                 setStep('select');
+                 setImageSrc(null);
+            }, 300);
+        }
+    };
+    
+    const handleOpenChange = (isOpen: boolean) => {
+        setOpen(isOpen);
+        if (!isOpen) {
+            setTimeout(() => {
+                setStep('select');
+                setImageSrc(null);
+                setHasCameraPermission(null);
+            }, 300);
+        }
+    }
+
+    return (
+         <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogTrigger asChild>{children}</DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Aggiorna Foto Profilo</DialogTitle>
+                </DialogHeader>
+
+                {step === 'select' && (
+                    <div className="grid grid-cols-2 gap-4 py-4">
+                        <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                            <Upload className="mr-2" /> Carica File
+                        </Button>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+
+                        <Button variant="outline" onClick={() => setStep('camera')}>
+                            <Camera className="mr-2" /> Usa Fotocamera
+                        </Button>
+                    </div>
+                )}
+                
+                {step === 'camera' && (
+                    <div>
+                        <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay playsInline muted />
+                        <canvas ref={canvasRef} className="hidden" />
+                         <DialogFooter className="mt-4">
+                            <Button onClick={handleTakePhoto} disabled={hasCameraPermission === false}>Scatta Foto</Button>
+                        </DialogFooter>
+                    </div>
+                )}
+
+                {step === 'preview' && imageSrc && (
+                    <div>
+                        <Image src={imageSrc} alt="Anteprima" width={400} height={300} className="w-full aspect-video rounded-md object-cover" />
+                        <DialogFooter className="mt-4 gap-2">
+                             <Button variant="ghost" onClick={() => setStep('select')}>Annulla</Button>
+                            <Button onClick={handleSave}>Salva Foto</Button>
+                        </DialogFooter>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function UserProfileCard({user, userDoc, userDocRef}: {user: DocumentData, userDoc: DocumentData | null, userDocRef: DocumentReference<DocumentData> | null}) {
@@ -149,9 +322,9 @@ function UserProfileCard({user, userDoc, userDocRef}: {user: DocumentData, userD
         }
     });
 
-    const handleEditSubmit = (values: z.infer<typeof profileFormSchema>) => {
-        if (!userDocRef) return;
-        updateDocumentNonBlocking(userDocRef, values);
+    const handleEditSubmit = async (values: z.infer<typeof profileFormSchema>) => {
+        if (!userDocRef || !user) return;
+        await updateUserProfileAndAuth(user, userDocRef, values);
         toast({ title: 'Profilo aggiornato!' });
         setIsEditing(false);
     };
@@ -160,13 +333,20 @@ function UserProfileCard({user, userDoc, userDocRef}: {user: DocumentData, userD
         <Card className="mb-8">
             <CardContent className="p-6">
             <div className="flex flex-col items-center gap-4 sm:flex-row">
-                <Avatar className="h-24 w-24">
-                <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} data-ai-hint="profile person" />
-                <AvatarFallback>
-                    {userDoc?.firstName?.[0]}
-                    {userDoc?.lastName?.[0]}
-                </AvatarFallback>
-                </Avatar>
+                 <UpdateAvatarDialog user={user} userDocRef={userDocRef}>
+                    <div className="relative group cursor-pointer">
+                        <Avatar className="h-24 w-24">
+                            <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`} data-ai-hint="profile person" />
+                            <AvatarFallback>
+                                {userDoc?.firstName?.[0]}
+                                {userDoc?.lastName?.[0]}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="text-white h-8 w-8" />
+                        </div>
+                    </div>
+                 </UpdateAvatarDialog>
                 <div className="flex-1 text-center sm:text-left">
                 {!isEditing ? (
                     <>
@@ -450,17 +630,16 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
     }, [userProfile, bakerProfile, profileForm]);
 
     async function onProfileSubmit(values: z.infer<typeof bakerProfileFormSchema>) {
-        if (!userDocRef || !bakerDocRef) return;
+        if (!userDocRef || !bakerDocRef || !user) return;
         const { firstName, lastName, ...bakerData } = values;
 
-        await Promise.all([
-            updateDocumentNonBlocking(userDocRef, { firstName, lastName }),
-            updateDocumentNonBlocking(bakerDocRef, {
-                ...bakerData,
-                deliveryZones: bakerData.deliveryZones.split(',').map(zone => zone.trim().toLowerCase()),
-                deliveryConditions: bakerData.deliveryConditions || '',
-            })
-        ]);
+        await updateUserProfileAndAuth(user, userDocRef, { firstName, lastName });
+        
+        updateDocumentNonBlocking(bakerDocRef, {
+            ...bakerData,
+            deliveryZones: bakerData.deliveryZones.split(',').map(zone => zone.trim().toLowerCase()),
+            deliveryConditions: bakerData.deliveryConditions || '',
+        });
         
         toast({ title: 'Profilo aggiornato!', description: 'Le modifiche sono state salvate.' });
     }

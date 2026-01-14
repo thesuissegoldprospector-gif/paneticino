@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useFirebase } from '@/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase';
 import { Button } from '@/components/ui/button';
@@ -59,6 +59,11 @@ export default function SignUpPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
+      // Update Firebase Auth profile
+      await updateProfile(user, {
+          displayName: `${values.firstName} ${values.lastName}`
+      });
+
       const userDocRef = doc(firestore, 'users', user.uid);
       const userData = {
         id: user.uid,
@@ -67,6 +72,7 @@ export default function SignUpPage() {
         registrationDate: new Date().toISOString(),
         firstName: values.firstName,
         lastName: values.lastName,
+        photoURL: user.photoURL,
       };
       setDocumentNonBlocking(userDocRef, userData, { merge: true });
 
@@ -231,5 +237,3 @@ export default function SignUpPage() {
     </div>
   );
 }
-
-    
