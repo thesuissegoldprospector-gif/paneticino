@@ -16,6 +16,8 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+
 
 function useUserDoc(firestore: Firestore, userId: string | undefined) {
   const userRef = useMemoFirebase(() => {
@@ -52,8 +54,6 @@ const bakerProfileFormSchema = z.object({
     companyName: z.string().min(2, { message: 'Il nome della ditta è obbligatorio.' }),
     address: z.string().min(5, { message: 'L\'indirizzo è obbligatorio.' }),
     deliveryZones: z.string().min(2, { message: 'Inserisci almeno una zona di consegna.' }),
-    profilePictureUrl: z.string().url({ message: 'Inserisci un URL valido.' }).optional().or(z.literal('')),
-    coverPhotoUrl: z.string().url({ message: 'Inserisci un URL valido.' }).optional().or(z.literal('')),
 });
 
 const productFormSchema = z.object({
@@ -203,6 +203,55 @@ function UserProfileCard({user, userDoc, userDocRef}: {user: DocumentData, userD
     );
 }
 
+const ImageUrlFormSchema = z.object({
+    url: z.string().url({ message: "Inserisci un URL valido." }).or(z.literal('')),
+});
+
+function UpdateImageDialog({ onUpdate, fieldName, children }: { onUpdate: (fieldName: string, url: string) => void; fieldName: 'profilePictureUrl' | 'coverPhotoUrl'; children: React.ReactNode }) {
+    const [open, setOpen] = useState(false);
+    const form = useForm<z.infer<typeof ImageUrlFormSchema>>({
+        resolver: zodResolver(ImageUrlFormSchema),
+        defaultValues: { url: '' },
+    });
+
+    const handleSubmit = (values: z.infer<typeof ImageUrlFormSchema>) => {
+        onUpdate(fieldName, values.url);
+        setOpen(false);
+        form.reset();
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>{children}</DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Aggiorna immagine</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="url"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>URL Immagine</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="https://esempio.com/immagine.jpg" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <DialogFooter>
+                            <Button type="submit">Salva</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 
 function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDocRef }: { userProfile: DocumentData, bakerProfile: DocumentData, userDocRef: DocumentReference<DocumentData>, bakerDocRef: DocumentReference<DocumentData> }) {
   
@@ -225,8 +274,6 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
             companyName: '',
             address: '',
             deliveryZones: '',
-            profilePictureUrl: '',
-            coverPhotoUrl: '',
         }
     });
 
@@ -235,6 +282,10 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
         defaultValues: { name: '', description: '', price: '', imageUrl: '' },
     });
     
+    // State for image URLs to force re-render
+    const [coverPhotoUrl, setCoverPhotoUrl] = useState(bakerProfile.coverPhotoUrl || '');
+    const [profilePictureUrl, setProfilePictureUrl] = useState(bakerProfile.profilePictureUrl || '');
+
     useEffect(() => {
         if (userProfile && bakerProfile) {
             profileForm.reset({
@@ -243,28 +294,30 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                 companyName: bakerProfile.companyName || '',
                 address: bakerProfile.address || '',
                 deliveryZones: (bakerProfile.deliveryZones || []).join(', '),
-                profilePictureUrl: bakerProfile.profilePictureUrl || '',
-                coverPhotoUrl: bakerProfile.coverPhotoUrl || '',
             });
+            setCoverPhotoUrl(bakerProfile.coverPhotoUrl || '');
+            setProfilePictureUrl(bakerProfile.profilePictureUrl || '');
         }
     }, [userProfile, bakerProfile, profileForm]);
 
     async function onProfileSubmit(values: z.infer<typeof bakerProfileFormSchema>) {
         const { firstName, lastName, ...bakerData } = values;
 
-        updateDocumentNonBlocking(userDocRef, { firstName, lastName });
-        updateDocumentNonBlocking(bakerDocRef, {
-            ...bakerData,
-            deliveryZones: bakerData.deliveryZones.split(',').map(zone => zone.trim()),
-        });
-
+        await Promise.all([
+            updateDocumentNonBlocking(userDocRef, { firstName, lastName }),
+            updateDocumentNonBlocking(bakerDocRef, {
+                ...bakerData,
+                deliveryZones: bakerData.deliveryZones.split(',').map(zone => zone.trim()),
+            })
+        ]);
+        
         toast({ title: 'Profilo aggiornato!', description: 'Le modifiche sono state salvate.' });
     }
 
     async function onProductSubmit(values: z.infer<typeof productFormSchema>) {
         if (!user) return;
         const productsCollection = collection(firestore, 'products');
-        addDocumentNonBlocking(productsCollection, { ...values, bakerId: user.uid });
+        await addDocumentNonBlocking(productsCollection, { ...values, bakerId: user.uid });
         toast({ title: 'Prodotto aggiunto!', description: `${values.name} è stato aggiunto al tuo listino.` });
         productForm.reset();
       }
@@ -275,6 +328,17 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
         deleteDocumentNonBlocking(productRef);
         toast({ title: 'Prodotto eliminato', variant: 'destructive' });
     };
+
+    const handleImageUpdate = (fieldName: string, url: string) => {
+        if (fieldName === 'coverPhotoUrl') {
+            setCoverPhotoUrl(url);
+        } else if (fieldName === 'profilePictureUrl') {
+            setProfilePictureUrl(url);
+        }
+        updateDocumentNonBlocking(bakerDocRef, { [fieldName]: url });
+        toast({ title: 'Immagine aggiornata!' });
+    };
+
 
     if (bakerProfile.approvalStatus === 'pending') {
         return (
@@ -304,29 +368,35 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
         );
     }
 
-    const { watch } = profileForm;
-    const coverPhotoUrl = watch('coverPhotoUrl');
-    const profilePictureUrl = watch('profilePictureUrl');
-
     return (
         <div className="space-y-8">
             <Form {...profileForm}>
                 <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-8">
                     <Card>
                         <CardContent className="p-0">
-                            <div className="relative h-48 w-full bg-muted">
+                            <div className="relative h-48 w-full bg-muted group">
                                 {coverPhotoUrl ? (
                                 <Image key={coverPhotoUrl} src={coverPhotoUrl} alt="Immagine di copertina" fill objectFit="cover" className="rounded-t-lg" />
                                 ) : (
-                                <div className="flex h-full items-center justify-center text-muted-foreground">Immagine di copertina</div>
+                                <div className="flex h-full items-center justify-center rounded-t-lg text-muted-foreground">Immagine di copertina</div>
                                 )}
+                                 <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="coverPhotoUrl">
+                                    <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 opacity-50 group-hover:opacity-100 transition-opacity">
+                                        <Camera className="h-4 w-4" />
+                                    </Button>
+                                </UpdateImageDialog>
                                 <div className="absolute -bottom-16 left-6">
-                                <div className="relative h-32 w-32 rounded-full border-4 border-card bg-muted flex items-center justify-center">
+                                <div className="relative h-32 w-32 rounded-full border-4 border-card bg-muted flex items-center justify-center group">
                                     {profilePictureUrl ? (
                                     <Image key={profilePictureUrl} src={profilePictureUrl} alt="Immagine profilo" fill objectFit="cover" className="rounded-full" />
                                     ) : (
                                     <span className="text-center text-xs text-muted-foreground">Immagine profilo</span>
                                     )}
+                                    <UpdateImageDialog onUpdate={handleImageUpdate} fieldName="profilePictureUrl">
+                                        <Button variant="outline" size="icon" className="absolute bottom-1 right-1 z-10 h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity rounded-full">
+                                            <Camera className="h-4 w-4" />
+                                        </Button>
+                                    </UpdateImageDialog>
                                 </div>
                                 </div>
                             </div>
@@ -352,12 +422,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                                 <FormField control={profileForm.control} name="address" render={({ field }) => (
                                     <FormItem><FormLabel>Indirizzo Completo</FormLabel><FormControl><Input placeholder="Via, numero civico, città, CAP" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                 <FormField control={profileForm.control} name="profilePictureUrl" render={({ field }) => (
-                                    <FormItem><FormLabel>URL Foto Profilo</FormLabel><FormControl><Input placeholder="https://esempio.com/immagine.jpg" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={profileForm.control} name="coverPhotoUrl" render={({ field }) => (
-                                    <FormItem><FormLabel>URL Foto Copertina</FormLabel><FormControl><Input placeholder="https://esempio.com/immagine.jpg" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                               
                              </div>
                             <FormField control={profileForm.control} name="deliveryZones" render={({ field }) => (
                                 <FormItem><FormLabel>Zone di Consegna (separate da virgola)</FormLabel><FormControl><Textarea placeholder="Elenca le aree, i CAP o le città" {...field} /></FormControl><FormMessage /></FormItem>
@@ -521,5 +586,7 @@ function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, 
     </div>
   );
 }
+
+    
 
     
