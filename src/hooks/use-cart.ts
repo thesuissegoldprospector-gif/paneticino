@@ -4,10 +4,10 @@ import { create } from 'zustand';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useEffect } from 'react';
 import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
-import type { StateCreator } from 'zustand';
+import React from 'react';
 
 export interface CartItem {
-  id: string;
+  id: string; 
   name: string;
   price: string;
   quantity: number;
@@ -16,7 +16,7 @@ export interface CartItem {
   bakerName: string;
 }
 
-type AddItemInput = Omit<CartItem, 'quantity'> & { quantity?: number };
+export type AddItemInput = Omit<CartItem, 'quantity'> & { quantity?: number };
 
 interface CartState {
   items: CartItem[];
@@ -29,28 +29,29 @@ interface CartState {
   clearCart: () => Promise<void>;
 }
 
-const cartStateCreator: StateCreator<CartState> = (set, get) => ({
+const useCartStore = create<CartState>((set, get) => ({
   items: [],
   isLoading: true,
   total: 0,
   setItems: (items) => {
-    const total = items.reduce((acc, item) => {
-        const priceString = item.price.replace('€', '').trim();
-        const price = parseFloat(priceString) || 0;
-        return acc + price * item.quantity;
+    const newTotal = items.reduce((acc, item) => {
+      const priceString = String(item.price || '0').replace('€', '').trim();
+      const price = parseFloat(priceString);
+      return acc + (isNaN(price) ? 0 : price * item.quantity);
     }, 0);
-    set({ items, total, isLoading: false });
+    set({ items, total: newTotal, isLoading: false });
   },
   addItem: (itemToAdd) => {
-    const items = get().items;
-    const existingItem = items.find((item) => item.id === itemToAdd.id);
+    const currentItems = get().items;
+    const existingItem = currentItems.find((item) => item.id === itemToAdd.id);
 
     if (existingItem) {
       get().updateItemQuantity(itemToAdd.id, existingItem.quantity + (itemToAdd.quantity || 1));
     } else {
       const newItem = { ...itemToAdd, quantity: itemToAdd.quantity || 1 };
-      const newItems = [...items, newItem];
+      const newItems = [...currentItems, newItem];
       get().setItems(newItems);
+      
       const { user, firestore } = useUser.getState();
       if (user && firestore) {
         const cartItemRef = doc(firestore, 'users', user.uid, 'cart', newItem.id);
@@ -61,6 +62,7 @@ const cartStateCreator: StateCreator<CartState> = (set, get) => ({
   removeItem: (itemId) => {
     const newItems = get().items.filter((item) => item.id !== itemId);
     get().setItems(newItems);
+
     const { user, firestore } = useUser.getState();
     if (user && firestore) {
       const cartItemRef = doc(firestore, 'users', user.uid, 'cart', itemId);
@@ -76,6 +78,7 @@ const cartStateCreator: StateCreator<CartState> = (set, get) => ({
       item.id === itemId ? { ...item, quantity } : item
     );
     get().setItems(newItems);
+
     const { user, firestore } = useUser.getState();
     if (user && firestore) {
       const cartItemRef = doc(firestore, 'users', user.uid, 'cart', itemId);
@@ -94,12 +97,10 @@ const cartStateCreator: StateCreator<CartState> = (set, get) => ({
     }
     get().setItems([]);
   },
-});
-
-const useCartStore = create<CartState>(cartStateCreator);
+}));
 
 export const useCart = () => {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { setItems, ...cartState } = useCartStore();
 
@@ -108,21 +109,24 @@ export const useCart = () => {
     return collection(firestore, 'users', user.uid, 'cart');
   }, [user, firestore]);
 
-  const { data: cartItems, isLoading } = useCollection<CartItem>(cartQuery);
+  const { data: cartItems, isLoading: isCartLoading } = useCollection<CartItem>(cartQuery);
 
   useEffect(() => {
-    if (!isLoading && cartItems) {
-      setItems(cartItems);
-    } else if (!user) {
+    if (!isUserLoading && !isCartLoading) {
+      setItems(cartItems || []);
+    }
+    if (!user && !isUserLoading) {
       setItems([]);
     }
-  }, [cartItems, isLoading, setItems, user]);
+  }, [cartItems, isCartLoading, isUserLoading, setItems, user]);
   
   useEffect(() => {
     useUser.setState({ user, firestore });
   }, [user, firestore]);
 
-  return { ...cartState, items: cartState.items, isLoading: cartState.isLoading };
+  const isLoading = cartState.isLoading || isUserLoading || isCartLoading;
+
+  return { ...cartState, isLoading };
 };
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
