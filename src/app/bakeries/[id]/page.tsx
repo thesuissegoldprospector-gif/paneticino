@@ -1,27 +1,27 @@
 'use client';
 
 import React from "react";
-import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, where } from 'firebase/firestore';
-import Image from 'next/image';
-import { notFound } from 'next/navigation';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Info, Loader2, ShoppingBag } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useFirestore, useDoc, useCollection, useMemoFirebase } from "@/firebase";
+import { doc, collection, query, where } from "firebase/firestore";
+import Image from "next/image";
+import { notFound } from "next/navigation";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MapPin, Info, Loader2, ShoppingBag } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 function ProductCard({ product }: { product: any }) {
   return (
     <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
       <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
         {product.imageUrl ? (
-            <Image
+          <Image
             src={product.imageUrl}
             alt={product.name}
             width={400}
             height={300}
             className="h-full w-full object-cover"
-            />
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
             <ShoppingBag className="h-12 w-12" />
@@ -47,28 +47,40 @@ type Props = {
 };
 
 export default function BakeryDetailPage({ params }: Props) {
-  const { id } = React.use(params);
-
+  const { id } = React.use(params); // srotola Next.js 15 params
   const firestore = useFirestore();
-  
-  const bakeryQuery = useMemoFirebase(() => {
+
+  // 1️⃣ prova a leggere il baker usando document ID
+  const bakeryRef = useMemoFirebase(() => {
     if (!firestore || !id) return null;
-    // Query for the baker document where the userId matches the id from the route
-    return query(collection(firestore, 'bakers'), where('userId', '==', id));
+    return doc(firestore, "bakers", id);
   }, [firestore, id]);
-  
+
+  const { data: bakeryDoc, isLoading: isBakeryDocLoading } = useDoc(bakeryRef);
+
+  // 2️⃣ fallback: se document ID non funziona, cerca per userId
+  const bakeryByUserIdQuery = useMemoFirebase(() => {
+    // Non eseguire questa query se la prima ha già trovato un documento
+    if (!firestore || !id || bakeryDoc) return null; 
+    return query(collection(firestore, "bakers"), where("userId", "==", id));
+  }, [firestore, id, bakeryDoc]);
+
+  const { data: bakeryByUserId, isLoading: isBakeryQueryLoading } = useCollection(bakeryByUserIdQuery);
+
+  // Scegli quale bakery usare
+  const bakery = bakeryDoc || (bakeryByUserId && bakeryByUserId.length > 0 ? bakeryByUserId[0] : null);
+
+  // Prodotti del panettiere
   const productsQuery = useMemoFirebase(() => {
-    if (!firestore || !id) return null;
-    return query(collection(firestore, 'products'), where('bakerId', '==', id));
-  }, [firestore, id]);
+    if (!firestore || !bakery?.id) return null;
+    // IMPORTANTE: I prodotti sono collegati all'ID del documento del panettiere, non al suo userId
+    return query(collection(firestore, "products"), where("bakerId", "==", bakery.id));
+  }, [firestore, bakery]);
 
-  const { data: bakeries, isLoading: isBakeryLoading } = useCollection(bakeryQuery);
   const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
-
-  const isLoading = isBakeryLoading || areProductsLoading;
   
-  // The bakery is the first document in the returned collection (should be only one)
-  const bakery = bakeries?.[0];
+  const isLoading = isBakeryDocLoading || isBakeryQueryLoading || areProductsLoading;
+
 
   if (isLoading) {
     return (
@@ -78,42 +90,44 @@ export default function BakeryDetailPage({ params }: Props) {
     );
   }
 
-  // If loading is finished and we still have no bakery, or the bakery is not approved, show 404.
-  if (!bakery || bakery.approvalStatus !== 'approved') {
+  // Se nessun bakery trovato o non approvato → 404
+  if (!bakery || bakery.approvalStatus !== "approved") {
     notFound();
   }
 
   return (
     <div>
+      {/* Cover */}
       <div className="relative h-48 w-full bg-muted">
         {bakery.coverPhotoUrl ? (
-            <Image
+          <Image
             src={bakery.coverPhotoUrl}
             alt={`Cover image for ${bakery.companyName}`}
             fill
             className="object-cover"
             priority
-            />
+          />
         ) : (
-           <div className="absolute inset-0 bg-gradient-to-t from-background to-muted" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background to-muted" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
       </div>
 
+      {/* Profile */}
       <div className="container mx-auto -mt-16 px-4 pb-8">
         <div className="flex flex-col items-center text-center">
           <div className="relative h-32 w-32 rounded-full border-4 border-background bg-background ring-1 ring-border flex items-center justify-center">
             {bakery.profilePictureUrl ? (
-                <Image
+              <Image
                 src={bakery.profilePictureUrl}
                 alt={`Profile of ${bakery.companyName}`}
                 fill
                 className="rounded-full object-cover"
-                />
+              />
             ) : (
-                <span className="text-3xl font-bold text-muted-foreground">{bakery.companyName?.[0]}</span>
+              <span className="text-3xl font-bold text-muted-foreground">{bakery.companyName?.[0]}</span>
             )}
-           </div>
+          </div>
           <h1 className="mt-4 font-headline text-4xl">{bakery.companyName}</h1>
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-4 w-4" />
@@ -121,6 +135,7 @@ export default function BakeryDetailPage({ params }: Props) {
           </div>
         </div>
 
+        {/* Tabs */}
         <Tabs defaultValue="products" className="mt-8">
           <TabsList className="mx-auto grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="products">Prodotti</TabsTrigger>
@@ -128,13 +143,15 @@ export default function BakeryDetailPage({ params }: Props) {
           </TabsList>
           <TabsContent value="products" className="mt-6">
             {products && products.length > 0 ? (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                    {products.map((product) => (
-                        <ProductCard key={product.id} product={product} />
-                    ))}
-                </div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                {products.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
             ) : (
-                <p className="py-8 text-center text-muted-foreground">Questo panettiere non ha ancora aggiunto nessun prodotto.</p>
+              <p className="py-8 text-center text-muted-foreground">
+                Questo panettiere non ha ancora aggiunto nessun prodotto.
+              </p>
             )}
           </TabsContent>
           <TabsContent value="info" className="mt-6">
@@ -143,7 +160,7 @@ export default function BakeryDetailPage({ params }: Props) {
               <div className="space-y-4 text-card-foreground">
                 <div className="flex items-start gap-3">
                   <Info className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
-                  <p>Zone di consegna: {(bakery.deliveryZones || []).join(', ')}</p>
+                  <p>Zone di consegna: {(bakery.deliveryZones || []).join(", ")}</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <MapPin className="mt-1 h-5 w-5 flex-shrink-0 text-primary" />
