@@ -28,17 +28,17 @@ import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, updateDo
 
 // ------------------ HOOKS ------------------
 function useUserDoc(firestore: Firestore | null, userId?: string) {
-  const userRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'users', userId) : undefined), [firestore, userId]);
+  const userRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'users', userId) : null), [firestore, userId]);
   return useDoc(userRef);
 }
 
 function useBakerProfile(firestore: Firestore | null, userId?: string) {
-  const bakerRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'bakers', userId) : undefined), [firestore, userId]);
+  const bakerRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'bakers', userId) : null), [firestore, userId]);
   return useDoc(bakerRef);
 }
 
 function useCustomerProfile(firestore: Firestore | null, userId?: string) {
-  const customerRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'customers', userId) : undefined), [firestore, userId]);
+  const customerRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'customers', userId) : null), [firestore, userId]);
   return useDoc(customerRef);
 }
 
@@ -414,7 +414,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
     const { toast } = useToast();
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
 
-    const productsQuery = useMemoFirebase(() => (firestore && user ? query(collection(firestore, 'products'), where('bakerId', '==', user.uid)) : undefined), [firestore, user]);
+    const productsQuery = useMemoFirebase(() => (firestore && user ? query(collection(firestore, 'products'), where('bakerId', '==', user.uid)) : null), [firestore, user]);
     const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
 
     const profileForm = useForm<z.infer<typeof bakerProfileFormSchema>>({
@@ -634,7 +634,11 @@ function OrderStatusBadge({ status }: { status: string }) {
 
 function BakerOrdersDashboard({ user, userDoc }: { user: User, userDoc: any }) {
     const firestore = useFirestore();
-    const ordersQuery = useMemoFirebase(() => (firestore && user && userDoc?.role === 'baker' ? query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc')) : undefined), [firestore, user, userDoc]);
+    const ordersQuery = useMemoFirebase(() => (
+        (firestore && user && userDoc?.role === 'baker')
+            ? query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'))
+            : null
+    ), [firestore, user, userDoc]);
     const { data: orders, isLoading } = useCollection(ordersQuery);
 
     const handleUpdateStatus = (orderId: string, newStatus: string) => {
@@ -692,7 +696,11 @@ function BakerOrdersDashboard({ user, userDoc }: { user: User, userDoc: any }) {
 
 function CustomerOrdersDashboard({ user, userDoc }: { user: User, userDoc: any }) {
     const firestore = useFirestore();
-    const ordersQuery = useMemoFirebase(() => (firestore && user && userDoc?.role === 'customer' ? query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc')) : undefined), [firestore, user, userDoc]);
+    const ordersQuery = useMemoFirebase(() => (
+        (firestore && user && userDoc?.role === 'customer')
+            ? query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'))
+            : null
+    ), [firestore, user, userDoc]);
     const { data: orders, isLoading } = useCollection(ordersQuery);
 
     return (
@@ -727,4 +735,72 @@ function CustomerOrdersDashboard({ user, userDoc }: { user: User, userDoc: any }
             </CardContent>
         </Card>
     );
+}
+
+// ------------------ MAIN PAGE ------------------
+export default function ProfilePage() {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const router = useRouter();
+
+  const { data: userDoc, isLoading: isUserDocLoading, ref: userDocRef } = useUserDoc(firestore, user?.uid);
+  const { data: bakerProfile, isLoading: isBakerLoading, ref: bakerDocRef } = useBakerProfile(firestore, user?.uid);
+  const { data: customerProfile, isLoading: isCustomerLoading, ref: customerDocRef } = useCustomerProfile(firestore, user?.uid);
+
+  const isLoading = isUserLoading || isUserDocLoading || isBakerLoading || isCustomerLoading;
+
+  const handleLogout = async () => {
+    await signOut(getAuth());
+    router.push('/');
+  };
+
+  if (isLoading) return <div className="flex h-full min-h-[50vh] items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+
+  if (!user) {
+    return (
+      <div className="container mx-auto flex flex-col items-center justify-center gap-4 py-16 text-center">
+        <AlertTriangle className="h-12 w-12 text-destructive" />
+        <h2 className="text-2xl font-bold">Autenticazione richiesta</h2>
+        <p className="text-muted-foreground">Devi effettuare l'accesso per visualizzare il tuo profilo.</p>
+        <Button asChild><Link href="/login">Vai al Login</Link></Button>
+      </div>
+    );
+  }
+
+  const role = userDoc?.role;
+
+  return (
+    <div className="container mx-auto max-w-5xl space-y-8 px-4 py-8">
+      {/* User Profile */}
+      {user && userDocRef && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />}
+
+      {/* Baker Dashboard */}
+      {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user && userDoc && (
+        <BakerProfileDashboard 
+          user={user} 
+          userProfile={userDoc} 
+          bakerProfile={bakerProfile} 
+          userDocRef={userDocRef} 
+          bakerDocRef={bakerDocRef} 
+        />
+      )}
+
+      {/* Customer Dashboard */}
+      {role === 'customer' && customerProfile && customerDocRef && user && userDoc && (
+        <CustomerProfileDashboard 
+          user={user} 
+          userDoc={userDoc} 
+          profile={customerProfile} 
+          docRef={customerDocRef} 
+        />
+      )}
+
+      {/* Logout */}
+      <div className="flex justify-center pt-8">
+        <Button variant="destructive" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" /> Esci
+        </Button>
+      </div>
+    </div>
+  );
 }
