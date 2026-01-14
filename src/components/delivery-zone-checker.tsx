@@ -4,23 +4,64 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { checkDeliveryZoneAction } from '@/app/actions';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, where, DocumentData } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Search } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
 
 const formSchema = z.object({
   location: z.string().min(2, { message: 'Inserisci almeno 2 caratteri.' }),
 });
 
+function BakeryCard({ bakery }: { bakery: any }) {
+  return (
+    <Link href={`/bakeries/${bakery.id}`} className="block h-full w-full">
+      <Card className="h-full overflow-hidden transition-shadow hover:shadow-lg">
+        <div className="relative h-32 w-full bg-muted">
+            {bakery.coverPhotoUrl && (
+                <Image
+                    src={bakery.coverPhotoUrl}
+                    alt={`Cover image for ${bakery.companyName}`}
+                    fill
+                    className="object-cover"
+                />
+            )}
+        </div>
+        <CardContent className="p-4">
+          <div className="flex items-start gap-4">
+            <div className="relative mt-[-32px] h-12 w-12 flex-shrink-0 rounded-full border-2 border-background bg-muted object-cover ring-1 ring-border flex items-center justify-center">
+                {bakery.profilePictureUrl ? (
+                    <Image
+                    src={bakery.profilePictureUrl}
+                    alt={`Profile image for ${bakery.companyName}`}
+                    fill
+                    className="rounded-full object-cover"
+                    />
+                ) : (
+                    <span className="text-xs text-muted-foreground">{bakery.companyName?.[0]}</span>
+                )}
+            </div>
+            <div>
+              <h3 className="font-semibold leading-tight text-lg">{bakery.companyName}</h3>
+              <p className="line-clamp-2 text-sm text-muted-foreground">{bakery.address}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+
 export function DeliveryZoneChecker() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [bakeries, setBakeries] = useState<string[] | null>(null);
-  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState<string | null>(null);
+  const firestore = useFirestore();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -29,25 +70,22 @@ export function DeliveryZoneChecker() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
-    setBakeries(null);
-    const result = await checkDeliveryZoneAction(values);
-    setIsLoading(false);
+  const bakeriesQuery = useMemoFirebase(() => {
+    if (!firestore || !searchTerm) return null;
+    return query(
+      collection(firestore, "bakers"),
+      where("deliveryZones", "array-contains", searchTerm)
+    );
+  }, [firestore, searchTerm]);
 
-    if (result.error) {
-      toast({
-        variant: 'destructive',
-        title: 'Oh no! Qualcosa è andato storto.',
-        description: result.error,
-      });
-    } else {
-      setBakeries(result.data || []);
-    }
+  const { data: bakeries, isLoading } = useCollection(bakeriesQuery);
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setSearchTerm(values.location);
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="mx-auto max-w-4xl space-y-8">
       <Card>
         <CardContent className="p-6">
           <Form {...form}>
@@ -82,20 +120,18 @@ export function DeliveryZoneChecker() {
         </div>
       )}
 
-      {bakeries !== null && (
+      {bakeries !== null && !isLoading && (
         <Card>
           <CardHeader>
-            <CardTitle>Risultati della ricerca</CardTitle>
+            <CardTitle>Risultati per "{searchTerm}"</CardTitle>
           </CardHeader>
           <CardContent>
-            {bakeries.length > 0 ? (
-              <ul className="list-inside list-disc space-y-2">
-                {bakeries.map((bakery, index) => (
-                  <li key={index} className="text-foreground">
-                    {bakery}
-                  </li>
-                ))}
-              </ul>
+            {bakeries && bakeries.length > 0 ? (
+                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {bakeries.map((bakery) => (
+                        <BakeryCard key={bakery.id} bakery={bakery} />
+                    ))}
+                </div>
             ) : (
               <p className="py-4 text-center text-muted-foreground">
                 Nessun panettiere trovato che consegna in questa zona. Prova un'altra località.
