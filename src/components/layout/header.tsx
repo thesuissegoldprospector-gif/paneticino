@@ -7,6 +7,7 @@ import { getAuth, signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
 import React from 'react';
+import { CartSheet } from '@/components/cart/cart-sheet';
 
 function AdminNav() {
     const { user, isUserLoading } = useUser();
@@ -52,6 +53,7 @@ export function Header() {
                 <Button variant="ghost" asChild>
                   <Link href="/profile">Profilo</Link>
                 </Button>
+                <CartSheet />
                 <Button onClick={handleLogout}>Esci</Button>
               </>
             ) : (

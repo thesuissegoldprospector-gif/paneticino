@@ -1,0 +1,149 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    function docExists() {
+      return resource != null;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && docExists();
+    }
+
+    function isApprovedBaker(userId) {
+      let bakerDoc =
+        get(/databases/$(database)/documents/bakers/$(userId));
+      return bakerDoc.data.approvalStatus == 'approved';
+    }
+
+    // ----------------------------------------------------------------
+    // USERS
+    // ----------------------------------------------------------------
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false;
+
+      allow create: if isOwner(userId)
+        && request.resource.data.id == userId
+        && (request.resource.data.role == 'customer'
+            || request.resource.data.role == 'baker');
+
+      allow update: if (isExistingOwner(userId) || isAdmin())
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.registrationDate == resource.data.registrationDate;
+
+      allow delete: if isExistingOwner(userId) || isAdmin();
+
+      // Cart Subcollection
+      match /cart/{cartItemId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // CUSTOMERS
+    // ----------------------------------------------------------------
+    match /customers/{customerId} {
+      allow get: if isOwner(customerId) || isAdmin();
+      allow list: if false;
+
+      allow create: if isOwner(customerId)
+        && request.resource.data.userId == customerId;
+
+      allow update: if (isExistingOwner(customerId) || isAdmin())
+        && request.resource.data.userId == resource.data.userId;
+
+      allow delete: if isExistingOwner(customerId) || isAdmin();
+    }
+
+    // ----------------------------------------------------------------
+    // BAKERS
+    // ----------------------------------------------------------------
+    match /bakers/{bakerId} {
+
+      // ✅ allow list for everyone (client will filter for 'approved')
+      allow list: if true;
+
+      // ✅ profile readable if:
+      // - owner
+      // - admin
+      // - approved
+      allow get: if isOwner(bakerId)
+        || isAdmin()
+        || resource.data.approvalStatus == 'approved';
+
+      // ➕ baker application (pending)
+      allow create: if isOwner(bakerId)
+        && request.resource.data.userId == bakerId
+        && request.resource.data.approvalStatus == 'pending';
+
+      // ✏️ update:
+      // - baker cannot change approvalStatus
+      // - admin can do anything
+      allow update: if
+        (
+          isExistingOwner(bakerId)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.approvalStatus == resource.data.approvalStatus
+        )
+        || isAdmin();
+
+      // ❌ delete only admin
+      allow delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------------
+    // PRODUCTS
+    // ----------------------------------------------------------------
+    match /products/{productId} {
+
+      // 📖 public products
+      allow get, list: if true;
+
+      // ➕ only approved bakers
+      allow create: if isSignedIn()
+        && request.resource.data.bakerId == request.auth.uid
+        && isApprovedBaker(request.auth.uid);
+
+      // ✏️ only owner
+      allow update, delete: if isSignedIn()
+        && resource.data.bakerId == request.auth.uid;
+    }
+
+    // ----------------------------------------------------------------
+    // ORDERS
+    // ----------------------------------------------------------------
+    match /orders/{orderId} {
+        allow get: if isOwner(resource.data.userId) || isAdmin();
+        allow list: if isSignedIn(); // Users can only list their own orders, enforced by query
+        allow create: if isOwner(request.resource.data.userId);
+        allow update, delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------------
+    // ADMIN ROLES
+    // ----------------------------------------------------------------
+    match /roles_admin/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+  }
+}

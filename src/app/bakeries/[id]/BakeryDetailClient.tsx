@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MapPin, Info, ShoppingBag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useCart } from "@/hooks/use-cart";
+import { useUser } from "@/firebase";
 
 // ----------------------
 // Product Card Skeleton
@@ -28,7 +30,27 @@ function ProductCardSkeleton() {
 // ----------------------
 // Product Card
 // ----------------------
-function ProductCard({ product }: { product: any }) {
+function ProductCard({ product, bakery }: { product: any, bakery: any }) {
+  const { user } = useUser();
+  const { addItem } = useCart();
+
+  const handleAddToCart = () => {
+    if (!user) {
+      // Or redirect to login
+      alert("Devi effettuare l'accesso per aggiungere prodotti al carrello.");
+      return;
+    }
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: 1,
+      imageUrl: product.imageUrl || '',
+      bakerId: bakery.id,
+      bakerName: bakery.companyName
+    });
+  };
+
   return (
     <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
       <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
@@ -56,6 +78,7 @@ function ProductCard({ product }: { product: any }) {
           variant="outline"
           size="sm"
           className="mt-2 w-full border-accent text-accent-foreground hover:bg-accent/10"
+          onClick={handleAddToCart}
         >
           Aggiungi
         </Button>
@@ -137,7 +160,7 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
               products.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                   {products.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                    <ProductCard key={product.id} product={product} bakery={bakery} />
                   ))}
                 </div>
               ) : (

@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Store, MapPin, User, LogOut, Shield } from 'lucide-react';
+import { Home, Store, MapPin, User, LogOut, Shield, ShoppingCart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
 import React from 'react';
+import { useCart } from '@/hooks/use-cart';
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
@@ -49,10 +50,13 @@ function AdminNav() {
 export function BottomNav() {
   const pathname = usePathname();
   const { user } = useUser();
+  const { items } = useCart();
 
   const handleLogout = async () => {
     await signOut(getAuth());
   };
+
+  const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 h-20 border-t bg-background/95 backdrop-blur-sm md:hidden">
@@ -77,7 +81,27 @@ export function BottomNav() {
             </li>
           );
         })}
+
+        {user && (
+            <li>
+                <Link
+                    href="/checkout"
+                    className={cn('relative flex flex-col items-center gap-1 rounded-lg p-2 transition-colors duration-200',
+                        pathname === '/checkout' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                >
+                    <ShoppingCart className="h-6 w-6" />
+                    <span className="text-xs font-medium">Carrello</span>
+                    {totalItems > 0 && (
+                        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{totalItems}</span>
+                    )}
+                </Link>
+            </li>
+        )}
+
+
         {user && <AdminNav />}
+        
         {user ? (
           <li>
             <button
