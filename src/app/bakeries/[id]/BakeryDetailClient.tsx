@@ -132,7 +132,7 @@ function CartOverlay() {
     };
 
     return (
-        <div className="fixed bottom-4 right-4 w-80 max-w-[calc(100vw-2rem)] bg-card shadow-lg rounded-lg p-4 z-50 border hidden md:block">
+        <div className="fixed top-20 right-4 w-80 max-w-[calc(100vw-2rem)] bg-card shadow-lg rounded-lg p-4 z-50 border hidden md:block">
             <h3 className="font-semibold mb-2 text-lg">Riepilogo Carrello</h3>
             <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
                 {cart.map((item) => (
