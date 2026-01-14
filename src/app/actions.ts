@@ -8,8 +8,9 @@ export async function checkDeliveryZoneAction(
   try {
     const result = await checkDeliveryZone(input);
     return { data: result.deliveringBakeries };
-  } catch (e) {
+  } catch (e: any) {
     console.error(e);
-    return { error: 'Si è verificato un errore durante la verifica della zona di consegna. Riprova più tardi.' };
+    // Return the specific error message instead of a generic one.
+    return { error: e.message || 'Si è verificato un errore durante la verifica della zona di consegna. Riprova più tardi.' };
   }
 }
