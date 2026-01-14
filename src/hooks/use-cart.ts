@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { useUser, useFirestore, useCollection } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useEffect, useMemo } from 'react';
 import { collection, doc, deleteDoc, setDoc } from 'firebase/firestore';
 
@@ -35,7 +35,7 @@ const useCartStore = create<CartState>((set, get) => ({
   setItems: (items) => {
     const total = items.reduce((acc, item) => {
         // remove currency symbol and parse
-        const price = parseFloat(item.price.replace(/[^0-9.-]+/g,""));
+        const price = parseFloat(item.price.replace(new RegExp('[^0-9.-]+', 'g'), ''));
         return acc + price * item.quantity;
     }, 0);
     set({ items, total, isLoading: false });
@@ -105,7 +105,7 @@ export const useCart = () => {
   const firestore = useFirestore();
   const { setItems, ...cartState } = useCartStore();
 
-  const cartQuery = useMemo(() => {
+  const cartQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
     return collection(firestore, 'users', user.uid, 'cart');
   }, [user, firestore]);
