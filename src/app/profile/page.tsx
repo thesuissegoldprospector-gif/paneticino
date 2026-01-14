@@ -118,7 +118,7 @@ export default function ProfilePage() {
     <div className="container mx-auto max-w-5xl space-y-8 px-4 py-8">
       {user && userDocRef && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />}
       
-      {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user ? (
+      {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user && userDoc ? (
         <BakerProfileDashboard 
             user={user}
             userProfile={userDoc} 
@@ -126,8 +126,8 @@ export default function ProfilePage() {
             userDocRef={userDocRef} 
             bakerDocRef={bakerDocRef} 
         />
-      ) : role === 'customer' && customerProfile && customerDocRef && user ? (
-        <CustomerProfileDashboard user={user} profile={customerProfile} docRef={customerDocRef} />
+      ) : role === 'customer' && customerProfile && customerDocRef && user && userDoc ? (
+        <CustomerProfileDashboard user={user} userDoc={userDoc} profile={customerProfile} docRef={customerDocRef} />
       ) : null }
       
       <div className="flex justify-center pt-8">
@@ -767,7 +767,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
                 </form>
             </Form>
 
-            <BakerOrdersDashboard user={user} />
+            <BakerOrdersDashboard user={user} userDoc={userProfile} />
 
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
@@ -849,7 +849,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
     );
 }
 
-function CustomerProfileDashboard({ user, profile, docRef }: { user: User, profile: DocumentData, docRef: DocumentReference<DocumentData> | null}) {
+function CustomerProfileDashboard({ user, userDoc, profile, docRef }: { user: User, userDoc: DocumentData, profile: DocumentData, docRef: DocumentReference<DocumentData> | null}) {
   const [newAddress, setNewAddress] = useState('');
   const { toast } = useToast();
 
@@ -922,7 +922,7 @@ function CustomerProfileDashboard({ user, profile, docRef }: { user: User, profi
         </CardContent>
       </Card>
 
-      <CustomerOrdersDashboard user={user} />
+      <CustomerOrdersDashboard user={user} userDoc={userDoc} />
     </div>
   );
 }
@@ -952,9 +952,8 @@ function OrderStatusBadge({ status }: { status: string }) {
     );
 }
 
-function BakerOrdersDashboard({ user }: { user: User }) {
+function BakerOrdersDashboard({ user, userDoc }: { user: User, userDoc: DocumentData | null }) {
     const firestore = useFirestore();
-    const { data: userDoc } = useUserDoc(firestore, user.uid);
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user || !userDoc || userDoc.role !== 'baker') return null;
@@ -1038,9 +1037,8 @@ function BakerOrdersDashboard({ user }: { user: User }) {
 }
 
 
-function CustomerOrdersDashboard({ user }: { user: User }) {
+function CustomerOrdersDashboard({ user, userDoc }: { user: User, userDoc: DocumentData | null }) {
     const firestore = useFirestore();
-    const { data: userDoc } = useUserDoc(firestore, user.uid);
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user || !userDoc || userDoc.role !== 'customer') return null;
@@ -1099,9 +1097,3 @@ function CustomerOrdersDashboard({ user }: { user: User }) {
         </Card>
     );
 }
-
-    
-
-    
-
-
