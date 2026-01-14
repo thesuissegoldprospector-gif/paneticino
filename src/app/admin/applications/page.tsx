@@ -1,17 +1,19 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useFirestore, useCollection, useUser, updateDocumentNonBlocking, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useUser, updateDocumentNonBlocking, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc, DocumentData } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, ShieldCheck, ShieldX, UserCheck, UserX, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import React from 'react';
 
 function AdminDashboard() {
   const firestore = useFirestore();
 
   const pendingBakersQuery = useMemoFirebase(() => {
+    if(!firestore) return null;
     return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'pending'));
   }, [firestore]);
 
@@ -77,34 +79,11 @@ export default function AdminPage() {
   const firestore = useFirestore();
 
   const adminRef = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !firestore) return null;
     return doc(firestore, 'roles_admin', user.uid);
   }, [firestore, user]);
 
-  const { data: adminDoc, isLoading: isAdminLoading } = useMemo(() => {
-    // This custom hook logic is to check for document existence without real-time updates.
-    // A simplified useDoc that doesn't trigger re-renders on data change might be better.
-    // For now, we use a one-time getDoc inside a useEffect-like structure.
-    
-    // Stubbing useDoc response for existence check
-    const [adminData, setAdminData] = React.useState<{data: DocumentData | null, isLoading: boolean}>({data: null, isLoading: true});
-    
-    React.useEffect(() => {
-        if(adminRef) {
-            const { getDoc } = require("firebase/firestore");
-            getDoc(adminRef).then(docSnap => {
-                setAdminData({ data: docSnap.exists() ? docSnap.data() : null, isLoading: false });
-            }).catch(() => {
-                 setAdminData({ data: null, isLoading: false });
-            })
-        } else if (!isUserLoading) {
-            setAdminData({ data: null, isLoading: false });
-        }
-    }, [adminRef, isUserLoading]);
-
-    return adminData;
-
-  }, [adminRef, isUserLoading]);
+  const { data: adminDoc, isLoading: isAdminLoading } = useDoc(adminRef);
 
   const isLoading = isUserLoading || isAdminLoading;
 

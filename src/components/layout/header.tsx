@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
@@ -17,20 +17,9 @@ function AdminNav() {
         return doc(firestore, 'roles_admin', user.uid);
     }, [firestore, user]);
 
-    // Simplified existence check
-    const [isAdmin, setIsAdmin] = React.useState(false);
-    React.useEffect(() => {
-        if (adminRef) {
-            const { getDoc } = require("firebase/firestore");
-            getDoc(adminRef).then(docSnap => {
-                if (docSnap.exists()) {
-                    setIsAdmin(true);
-                }
-            });
-        }
-    }, [adminRef]);
+    const { data: adminDoc, isLoading: isAdminLoading } = useDoc(adminRef);
 
-    if (isUserLoading || !isAdmin) return null;
+    if (isUserLoading || isAdminLoading || !adminDoc) return null;
 
     return (
        <Button variant="ghost" asChild>

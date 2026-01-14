@@ -4,10 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Store, MapPin, User, LogOut, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
-import { useDoc } from '@/firebase/firestore/use-doc';
 import React from 'react';
 
 const navItems = [
@@ -26,21 +25,10 @@ function AdminNav() {
         if (!user) return null;
         return doc(firestore, 'roles_admin', user.uid);
     }, [firestore, user]);
+    
+    const { data: adminDoc, isLoading: isAdminLoading } = useDoc(adminRef);
 
-    // Simplified existence check without real-time updates
-    const [isAdmin, setIsAdmin] = React.useState(false);
-    React.useEffect(() => {
-        if (adminRef) {
-            const { getDoc } = require("firebase/firestore");
-            getDoc(adminRef).then(docSnap => {
-                if (docSnap.exists()) {
-                    setIsAdmin(true);
-                }
-            });
-        }
-    }, [adminRef]);
-
-    if (isUserLoading || !isAdmin) return null;
+    if (isUserLoading || isAdminLoading || !adminDoc) return null;
 
     return (
         <li>
