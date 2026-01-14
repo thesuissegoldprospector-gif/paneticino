@@ -1,7 +1,8 @@
 'use client';
+
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, DocumentReference, Firestore, collection, query, where, orderBy } from 'firebase/firestore';
+import { doc, DocumentData, Firestore, collection, query, where, orderBy } from 'firebase/firestore';
 import { getAuth, signOut, updateProfile, User } from 'firebase/auth';
 import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check } from 'lucide-react';
 import Image from 'next/image';
@@ -229,13 +230,10 @@ function UserProfileCard({ user, userDoc, userDocRef }: { user: User, userDoc: a
     );
 }
 
-function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, bakerDocRef, orders, areOrdersLoading }: { user: User, userProfile: any, bakerProfile: any, userDocRef: DocumentReference, bakerDocRef: DocumentReference, orders: any[] | null, areOrdersLoading: boolean }) {
+function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, bakerDocRef, orders, areOrdersLoading, products, areProductsLoading }: { user: User, userProfile: any, bakerProfile: any, userDocRef: DocumentReference, bakerDocRef: DocumentReference, orders: any[] | null, areOrdersLoading: boolean, products: any[] | null, areProductsLoading: boolean }) {
     const firestore = useFirestore();
     const { toast } = useToast();
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
-
-    const productsQuery = useMemoFirebase(() => (firestore && user ? query(collection(firestore, 'products'), where('bakerId', '==', user.uid)) : null), [firestore, user]);
-    const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
 
     const profileForm = useForm<z.infer<typeof bakerProfileFormSchema>>({
         resolver: zodResolver(bakerProfileFormSchema),
@@ -558,17 +556,24 @@ export default function ProfilePage() {
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !user || !role) return null;
 
-    if (role === 'baker') {
+    if (role === 'baker' && bakerProfile?.approvalStatus === 'approved') {
         return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
     if (role === 'customer') {
         return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
     return null;
-  }, [firestore, user, role]);
+  }, [firestore, user, role, bakerProfile]);
 
   const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
+  const productsQuery = useMemoFirebase(() => {
+    if (!firestore || !user || role !== 'baker' || bakerProfile?.approvalStatus !== 'approved') return null;
+    return query(collection(firestore, 'products'), where('bakerId', '==', user.uid));
+  }, [firestore, user, role, bakerProfile]);
+  
+  const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
+  
   const isLoading = isUserLoading || isUserDocLoading || isBakerLoading || isCustomerLoading;
 
   const handleLogout = async () => {
@@ -604,6 +609,8 @@ export default function ProfilePage() {
           bakerDocRef={bakerDocRef}
           orders={orders}
           areOrdersLoading={areOrdersLoading}
+          products={products}
+          areProductsLoading={areProductsLoading}
         />
       )}
 

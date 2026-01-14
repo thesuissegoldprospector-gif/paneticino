@@ -25,11 +25,11 @@ service cloud.firestore {
     function isExistingOwner(userId) {
       return isOwner(userId) && docExists();
     }
-
-    function isApprovedBaker(userId) {
-      let bakerDoc =
-        get(/databases/$(database)/documents/bakers/$(userId));
-      return bakerDoc.data.approvalStatus == 'approved';
+    
+    function isApprovedBaker() {
+      // IMPORTANT: This get() can only be used in rules for single-document operations (get, update, delete)
+      // on the resource itself. It cannot be used for list/query operations.
+      return get(/databases/$(database)/documents/bakers/$(request.auth.uid)).data.approvalStatus == 'approved';
     }
 
     // ----------------------------------------------------------------
@@ -39,16 +39,10 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if false;
 
-      // Allow creation if user is signing up themselves
-      // For email/pass, the role is provided in the request
-      // For Google, role can be set to 'customer' by default as a safe option
       allow create: if isOwner(userId)
         && request.resource.data.id == userId
         && (request.resource.data.role == 'customer'
-            || request.resource.data.role == 'baker'
-            // Check for Google provider during initial signup
-            || request.auth.token.firebase.sign_in_provider == "google.com");
-
+            || request.resource.data.role == 'baker');
 
       allow update: if (isExistingOwner(userId) || isAdmin())
         && request.resource.data.id == resource.data.id
@@ -84,25 +78,16 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /bakers/{bakerId} {
 
-      // ✅ allow list for everyone (client will filter for 'approved')
       allow list: if true;
 
-      // ✅ profile readable if:
-      // - owner
-      // - admin
-      // - approved
       allow get: if isOwner(bakerId)
         || isAdmin()
         || resource.data.approvalStatus == 'approved';
 
-      // ➕ baker application (pending)
       allow create: if isOwner(bakerId)
         && request.resource.data.userId == bakerId
         && request.resource.data.approvalStatus == 'pending';
 
-      // ✏️ update:
-      // - baker cannot change approvalStatus
-      // - admin can do anything
       allow update: if
         (
           isExistingOwner(bakerId)
@@ -111,7 +96,6 @@ service cloud.firestore {
         )
         || isAdmin();
 
-      // ❌ delete only admin
       allow delete: if isAdmin();
     }
 
@@ -120,44 +104,34 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /products/{productId} {
 
-      // 📖 public products
-      allow get, list: if true;
+      allow read: if request.auth != null && resource.data.bakerId == request.auth.uid;
+      
+      allow create: if request.auth != null && request.resource.data.bakerId == request.auth.uid;
 
-      // ➕ only approved bakers
-      allow create: if isSignedIn()
-        && request.resource.data.bakerId == request.auth.uid
-        && isApprovedBaker(request.auth.uid);
-
-      // ✏️ only owner
-      allow update, delete: if isSignedIn()
-        && resource.data.bakerId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.bakerId == request.auth.uid;
     }
-
+    
     // ----------------------------------------------------------------
     // ORDERS
     // ----------------------------------------------------------------
     match /orders/{orderId} {
-      // ✅ A customer can create their own order
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
-      // ✅ A customer can read their own order
-      // ✅ A baker can read an order assigned to them
-      // ✅ An admin can read any order
       allow get: if isSignedIn() && (
         resource.data.customerId == request.auth.uid ||
         resource.data.bakerId == request.auth.uid ||
         isAdmin()
       );
       
-      // ✅ Only the baker can update the status
       allow update: if isSignedIn()
         && resource.data.bakerId == request.auth.uid
-        && request.resource.data.keys().hasOnly(['status']);
+        && request.resource.data.customerId == resource.data.customerId
+        && request.resource.data.bakerId == resource.data.bakerId
+        && request.resource.data.items.size() == resource.data.items.size()
+        && request.resource.data.total == resource.data.total;
 
-      // ❌ No generic list operations
+
       allow list: if false;
-
-      // ❌ No client-side deletes
       allow delete: if false;
     }
 
