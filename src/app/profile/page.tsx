@@ -1,7 +1,7 @@
 'use client';
-import { useState, useEffect, useRef, forwardRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, DocumentData, Firestore, DocumentReference, collection, query, where, orderBy } from 'firebase/firestore';
+import { doc, DocumentReference, Firestore, collection, query, where, orderBy } from 'firebase/firestore';
 import { getAuth, signOut, updateProfile, User } from 'firebase/auth';
 import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check } from 'lucide-react';
 import Image from 'next/image';
@@ -58,14 +58,10 @@ const bakerProfileFormSchema = z.object({
 });
 
 const productFormSchema = z.object({
-  name: z.string().min(2),
-  description: z.string().min(5),
-  price: z.string().min(1),
-  imageUrl: z.string().url().or(z.literal('')),
-});
-
-const ImageUrlFormSchema = z.object({
-  url: z.string().url({ message: "Inserisci un URL valido." }).or(z.literal('')),
+  name: z.string().min(2, { message: "Il nome del prodotto è obbligatorio." }),
+  description: z.string().min(5, { message: "La descrizione è obbligatoria." }),
+  price: z.string().min(1, { message: "Il prezzo è obbligatorio." }),
+  imageUrl: z.string().url({ message: "L'URL dell'immagine non è valido." }).or(z.literal('')),
 });
 
 
@@ -92,107 +88,11 @@ async function updateUserProfileAndAuth(user: User, userDocRef: DocumentReferenc
 }
 
 
-// ------------------ ImagePicker Component (ForwardRef) ------------------
-const ImagePicker = forwardRef<HTMLInputElement, any>(
-  ({ value, onChange, className, ...props }, ref) => {
-    const [preview, setPreview] = useState(value);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const { toast } = useToast();
-
-    useEffect(() => {
-      setPreview(value);
-    }, [value]);
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const dataUrl = reader.result as string;
-          setPreview(dataUrl);
-          onChange(dataUrl);
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    const handleCameraClick = () => {
-      toast({ title: "Funzione in arrivo!", description: "La possibilità di usare la fotocamera sarà disponibile a breve.", });
-    };
-    
-    const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const url = event.target.value;
-        setPreview(url);
-        onChange(url);
-    };
-
-    return (
-      <div className={cn("space-y-2", className)}>
-        <div className="relative aspect-video w-full max-w-sm overflow-hidden rounded-md border bg-muted">
-          {preview ? (
-            <Image src={preview} alt="Anteprima immagine prodotto" fill objectFit="cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">Anteprima</div>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}><Upload /> Carica</Button>
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-          <Button type="button" variant="outline" size="sm" onClick={handleCameraClick}><Camera /> Fotocamera</Button>
-        </div>
-         <div>
-            <Input
-                type="text"
-                placeholder="Oppure incolla un URL"
-                value={value || ''}
-                onChange={handleUrlChange}
-                className="mt-2"
-                {...props}
-            />
-        </div>
-      </div>
-    );
-  }
-);
-ImagePicker.displayName = 'ImagePicker';
-
-
-
 // ------------------ DIALOGS ------------------
 function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDocRef: DocumentReference | null, children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<'select' | 'camera' | 'preview'>('select');
   const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-
-  useEffect(() => {
-    let stream: MediaStream;
-    const getCameraPermission = async () => {
-      if (step !== 'camera') return;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
-        toast({ variant: 'destructive', title: 'Accesso Fotocamera Negato', description: 'Abilita i permessi per la fotocamera nelle impostazioni del browser.', });
-        setStep('select');
-      }
-    };
-    getCameraPermission();
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [step, toast]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -200,23 +100,8 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
-        setStep('preview');
       };
       reader.readAsDataURL(file);
-    }
-  };
-  
-  const handleTakePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/png');
-      setImageSrc(dataUrl);
-      setStep('preview');
     }
   };
   
@@ -225,45 +110,23 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
       await updateUserProfileAndAuth(user, userDocRef, { photoURL: imageSrc });
       toast({ title: 'Avatar aggiornato con successo!' });
       setOpen(false);
-      setTimeout(() => { setStep('select'); setImageSrc(null); }, 300);
-    }
-  };
-
-  const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen);
-    if (!isOpen) {
-      setTimeout(() => { setStep('select'); setImageSrc(null); setHasCameraPermission(null); }, 300);
+      setImageSrc(null);
     }
   };
   
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Aggiorna Foto Profilo</DialogTitle></DialogHeader>
-        {step === 'select' && (
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2" /> Carica File</Button>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-            <Button variant="outline" onClick={() => setStep('camera')}><Camera className="mr-2" /> Usa Fotocamera</Button>
-          </div>
-        )}
-        {step === 'camera' && (
-          <div>
-            <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay playsInline muted />
-            <canvas ref={canvasRef} className="hidden" />
-            <DialogFooter className="mt-4"><Button onClick={handleTakePhoto} disabled={hasCameraPermission === false}>Scatta Foto</Button></DialogFooter>
-          </div>
-        )}
-        {step === 'preview' && imageSrc && (
-          <div>
-            <Image src={imageSrc} alt="Anteprima" width={400} height={300} className="w-full aspect-video rounded-md object-cover" />
-            <DialogFooter className="mt-4 gap-2">
-              <Button variant="ghost" onClick={() => setStep('select')}>Annulla</Button>
-              <Button onClick={handleSave}>Salva Foto</Button>
-            </DialogFooter>
-          </div>
-        )}
+        <div className="py-4">
+            <Input type="file" onChange={handleFileChange} accept="image/*" />
+            {imageSrc && <Image src={imageSrc} alt="Anteprima" width={200} height={200} className="mt-4 rounded-md" />}
+        </div>
+        <DialogFooter className="mt-4 gap-2">
+          <Button variant="ghost" onClick={() => setOpen(false)}>Annulla</Button>
+          <Button onClick={handleSave} disabled={!imageSrc}>Salva Foto</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -272,44 +135,17 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
 
 function UpdateImageDialog({ onUpdate, fieldName, currentUrl, children }: { onUpdate: (fieldName: string, url: string) => void; fieldName: 'profilePictureUrl' | 'coverPhotoUrl'; currentUrl: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(false);
-    const [preview, setPreview] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const { toast } = useToast();
+    const [url, setUrl] = useState('');
 
-    const form = useForm<z.infer<typeof ImageUrlFormSchema>>({
-        resolver: zodResolver(ImageUrlFormSchema),
-        defaultValues: { url: '' },
-    });
-    
     useEffect(() => {
-        if (open) {
-            setPreview(currentUrl);
-            form.setValue('url', currentUrl);
+        if(open) {
+            setUrl(currentUrl || '');
         }
-    }, [open, currentUrl, form]);
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const dataUrl = reader.result as string;
-                setPreview(dataUrl);
-                form.setValue('url', dataUrl);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+    }, [open, currentUrl]);
     
-    const handleCameraClick = () => {
-        toast({ title: "Funzione in arrivo!", description: "La possibilità di usare la fotocamera sarà disponibile a breve.", });
-    }
-
-    const handleSubmit = (values: z.infer<typeof ImageUrlFormSchema>) => {
-        onUpdate(fieldName, values.url);
+    const handleSubmit = () => {
+        onUpdate(fieldName, url);
         setOpen(false);
-        form.reset();
-        setPreview(null);
     };
 
     return (
@@ -317,29 +153,13 @@ function UpdateImageDialog({ onUpdate, fieldName, currentUrl, children }: { onUp
             <DialogTrigger asChild>{children}</DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Aggiorna immagine</DialogTitle>
-                    <DialogDescription>Carica un'immagine dal tuo dispositivo, usa la fotocamera o incolla un URL.</DialogDescription>
+                    <DialogTitle>Aggiorna immagine URL</DialogTitle>
                 </DialogHeader>
-                <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-md bg-muted">
-                    {preview ? (<Image src={preview} alt="Anteprima immagine" fill objectFit="cover" />) : (<div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">Anteprima immagine</div>)}
+                <div className="py-4">
+                    <Input placeholder="https://esempio.com/immagine.jpg" value={url} onChange={(e) => setUrl(e.target.value)} />
+                    {url && <Image src={url} alt="Anteprima" width={200} height={200} className="mt-4 rounded-md object-cover" />}
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="mr-2" /> Carica File</Button>
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                    <Button variant="outline" onClick={handleCameraClick}><Camera className="mr-2" /> Fotocamera</Button>
-                </div>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-4">
-                        <FormField control={form.control} name="url" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Oppure incolla un URL</FormLabel>
-                                <FormControl><Input placeholder="https://esempio.com/immagine.jpg" {...field} onChange={(e) => { field.onChange(e); setPreview(e.target.value); }} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <DialogFooter><Button type="submit">Salva</Button></DialogFooter>
-                    </form>
-                </Form>
+                <DialogFooter><Button type="button" onClick={handleSubmit}>Salva</Button></DialogFooter>
             </DialogContent>
         </Dialog>
     );
@@ -534,7 +354,7 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
                                     <FormField control={productForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Prodotto</FormLabel><FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo</FormLabel><FormControl><Input placeholder="€4.50" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={productForm.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Textarea placeholder="Breve descrizione..." {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={productForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel>Immagine Prodotto</FormLabel><FormControl><ImagePicker value={field.value} onChange={field.onChange} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={productForm.control} name="imageUrl" render={({ field }) => (<FormItem><FormLabel>Immagine Prodotto (URL)</FormLabel><FormControl><Input placeholder="https://..." {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <DialogFooter><Button type="submit" disabled={productForm.formState.isSubmitting}>{productForm.formState.isSubmitting ? <Loader2 className="animate-spin" /> : <PlusCircle />} Aggiungi</Button></DialogFooter>
                                 </form>
                             </Form>
@@ -654,7 +474,7 @@ function BakerOrdersDashboard({ user, userDoc, orders, isLoading }: { user: User
                                     <div className="flex justify-between w-full pr-4 items-center">
                                         <div className="text-left">
                                             <p className="font-semibold">Ordine da {order.customerName}</p>
-                                            <p className="text-sm text-muted-foreground">{format(order.createdAt.toDate(), 'dd MMM yyyy, HH:mm', { locale: it })}</p>
+                                            <p className="text-sm text-muted-foreground">{order.createdAt ? format(order.createdAt.toDate(), 'dd MMM yyyy, HH:mm', { locale: it }) : ''}</p>
                                         </div>
                                         <OrderStatusBadge status={order.status} />
                                     </div>
@@ -689,7 +509,6 @@ function BakerOrdersDashboard({ user, userDoc, orders, isLoading }: { user: User
 }
 
 function CustomerOrdersDashboard({ user, userDoc, orders, isLoading }: { user: User, userDoc: any, orders: any[] | null, isLoading: boolean }) {
-
     return (
         <Card className="md:col-span-2">
             <CardHeader><CardTitle className="flex items-center gap-2"><ShoppingBag /> Storico ordini</CardTitle><CardDescription>Rivedi i tuoi ordini.</CardDescription></CardHeader>
@@ -704,7 +523,7 @@ function CustomerOrdersDashboard({ user, userDoc, orders, isLoading }: { user: U
                                     <div className="flex justify-between w-full pr-4 items-center">
                                         <div className="text-left">
                                             <p className="font-semibold">Ordine da {order.bakerName || 'Panettiere'}</p>
-                                            <p className="text-sm text-muted-foreground">{format(order.createdAt.toDate(), 'dd MMM yyyy, HH:mm', { locale: it })}</p>
+                                            <p className="text-sm text-muted-foreground">{order.createdAt ? format(order.createdAt.toDate(), 'dd MMM yyyy, HH:mm', { locale: it }) : ''}</p>
                                         </div>
                                         <OrderStatusBadge status={order.status} />
                                     </div>
