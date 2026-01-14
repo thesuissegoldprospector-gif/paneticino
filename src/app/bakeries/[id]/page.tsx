@@ -5,7 +5,7 @@ import { doc, collection, query, where } from 'firebase/firestore';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MapPin, Info, Loader2 } from 'lucide-react';
+import { MapPin, Info, Loader2, ShoppingBag } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -13,7 +13,7 @@ function ProductCard({ product }: { product: any }) {
   return (
     <Card className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-lg">
       <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
-        {product.imageUrl && (
+        {product.imageUrl ? (
             <Image
             src={product.imageUrl}
             alt={product.name}
@@ -21,12 +21,17 @@ function ProductCard({ product }: { product: any }) {
             height={300}
             className="h-full w-full object-cover"
             />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+            <ShoppingBag className="h-12 w-12" />
+          </div>
         )}
       </div>
       <CardContent className="flex flex-1 flex-col justify-between p-4">
         <div>
           <h3 className="font-semibold text-base">{product.name}</h3>
-          <p className="font-bold text-sm text-accent-foreground">{product.price}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+          <p className="mt-1 font-bold text-sm text-accent-foreground">{product.price}</p>
         </div>
         <Button variant="outline" size="sm" className="mt-2 w-full border-accent text-accent-foreground hover:bg-accent/10">
           Aggiungi
@@ -71,7 +76,7 @@ export default function BakeryDetailPage({ params }: { params: { id: string } })
   return (
     <div>
       <div className="relative h-48 w-full bg-muted">
-        {bakery.coverPhotoUrl && (
+        {bakery.coverPhotoUrl ? (
             <Image
             src={bakery.coverPhotoUrl}
             alt={`Cover image for ${bakery.companyName}`}
@@ -79,6 +84,8 @@ export default function BakeryDetailPage({ params }: { params: { id: string } })
             className="object-cover"
             priority
             />
+        ) : (
+           <div className="absolute inset-0 bg-gradient-to-t from-background to-muted" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
       </div>
@@ -94,7 +101,7 @@ export default function BakeryDetailPage({ params }: { params: { id: string } })
                 className="rounded-full object-cover"
                 />
             ) : (
-                <span className="text-3xl text-muted-foreground">{bakery.companyName?.[0]}</span>
+                <span className="text-3xl font-bold text-muted-foreground">{bakery.companyName?.[0]}</span>
             )}
            </div>
           <h1 className="mt-4 font-headline text-4xl">{bakery.companyName}</h1>
@@ -117,7 +124,7 @@ export default function BakeryDetailPage({ params }: { params: { id: string } })
                     ))}
                 </div>
             ) : (
-                <p className="py-8 text-center text-muted-foreground">Nessun prodotto disponibile per questo panettiere.</p>
+                <p className="py-8 text-center text-muted-foreground">Questo panettiere non ha ancora aggiunto nessun prodotto.</p>
             )}
           </TabsContent>
           <TabsContent value="info" className="mt-6">

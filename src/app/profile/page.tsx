@@ -267,7 +267,7 @@ function UpdateImageDialog({ onUpdate, fieldName, currentUrl, children }: { onUp
                 
                 <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-md bg-muted">
                     {preview ? (
-                        <Image src={preview} alt="Anteprima immagine" layout="fill" objectFit="cover" />
+                        <Image src={preview} alt="Anteprima immagine" fill objectFit="cover" />
                      ) : (
                         <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
                             Anteprima immagine
@@ -356,7 +356,7 @@ const ImagePicker = forwardRef<HTMLInputElement, any>(
       <div className={cn("space-y-2", className)}>
         <div className="relative aspect-video w-full max-w-sm overflow-hidden rounded-md border bg-muted">
             {preview ? (
-                <Image src={preview} alt="Anteprima immagine prodotto" layout="fill" objectFit="cover" />
+                <Image src={preview} alt="Anteprima immagine prodotto" fill objectFit="cover" />
             ) : (
                 <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
                     Anteprima
@@ -552,7 +552,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                                
                              </div>
                             <FormField control={profileForm.control} name="deliveryZones" render={({ field }) => (
-                                <FormItem><FormLabel>Zone di Consegna (separate da virgola)</FormLabel><FormControl><Textarea placeholder="Elenca le aree, i CAP o le città" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Zone di Consegna (separate da virgola)</FormLabel><FormControl><Textarea placeholder="Elenca le aree, i CAP o le città" {...field} /></FormControl><FormMessage /></Item>
                             )} />
                              <div className="flex justify-end gap-2">
                                 <Button type="submit" disabled={profileForm.formState.isSubmitting}>{profileForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salva Modifiche</Button>
@@ -615,7 +615,13 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                         {products.map((product) => (
                             <Card key={product.id} className="group relative overflow-hidden">
-                                <Image src={product.imageUrl || 'https://placehold.co/400x300'} alt={product.name} width={400} height={300} className="h-32 w-full object-cover" />
+                                {product.imageUrl ? (
+                                    <Image src={product.imageUrl} alt={product.name} width={400} height={300} className="h-32 w-full object-cover" />
+                                ) : (
+                                    <div className="flex h-32 w-full items-center justify-center bg-muted text-muted-foreground">
+                                        <ShoppingBag className="h-8 w-8" />
+                                    </div>
+                                )}
                                 <CardContent className="p-3">
                                     <h4 className="truncate font-bold">{product.name}</h4>
                                     <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
