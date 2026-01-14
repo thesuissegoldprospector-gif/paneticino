@@ -2,10 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Store, MapPin, User, LogOut } from 'lucide-react';
+import { Home, Store, MapPin, User, LogOut, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
 import { getAuth, signOut } from 'firebase/auth';
+import { doc } from 'firebase/firestore';
+import { useDoc } from '@/firebase/firestore/use-doc';
+import React from 'react';
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
@@ -13,6 +16,47 @@ const navItems = [
   { href: '/near-me', label: 'Vicino a te', icon: MapPin },
   { href: '/profile', label: 'Profilo', icon: User, auth: true },
 ];
+
+function AdminNav() {
+    const { user, isUserLoading } = useUser();
+    const firestore = useFirestore();
+    const pathname = usePathname();
+
+    const adminRef = useMemoFirebase(() => {
+        if (!user) return null;
+        return doc(firestore, 'roles_admin', user.uid);
+    }, [firestore, user]);
+
+    // Simplified existence check without real-time updates
+    const [isAdmin, setIsAdmin] = React.useState(false);
+    React.useEffect(() => {
+        if (adminRef) {
+            const { getDoc } = require("firebase/firestore");
+            getDoc(adminRef).then(docSnap => {
+                if (docSnap.exists()) {
+                    setIsAdmin(true);
+                }
+            });
+        }
+    }, [adminRef]);
+
+    if (isUserLoading || !isAdmin) return null;
+
+    return (
+        <li>
+            <Link
+                href="/admin/applications"
+                className={cn(
+                    'flex flex-col items-center gap-1 rounded-lg p-2 transition-colors duration-200',
+                    pathname.startsWith('/admin') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                )}
+            >
+                <Shield className="h-6 w-6" />
+                <span className="text-xs font-medium">Admin</span>
+            </Link>
+        </li>
+    );
+}
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -45,6 +89,7 @@ export function BottomNav() {
             </li>
           );
         })}
+        {user && <AdminNav />}
         {user ? (
           <li>
             <button

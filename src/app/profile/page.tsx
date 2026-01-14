@@ -4,10 +4,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle } from 'lucide-react';
 import { useUser, useDoc, useMemoFirebase, useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
-import { doc, DocumentData, Firestore } from 'firebase/firestore';
+import { doc, DocumentData, Firestore, DocumentReference } from 'firebase/firestore';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -227,12 +227,12 @@ function BakerProfileDashboard({ profile }: { profile: DocumentData }) {
 }
 
 
-function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, docRef: DocumentData}) {
+function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, docRef: DocumentReference<DocumentData> | null}) {
   const [newAddress, setNewAddress] = useState('');
   const { toast } = useToast();
 
   const handleAddAddress = () => {
-    if (newAddress.trim() === '') {
+    if (!docRef || newAddress.trim() === '') {
       toast({ variant: 'destructive', title: 'Indirizzo non valido' });
       return;
     }
@@ -244,6 +244,7 @@ function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, 
   };
   
   const handleRemoveAddress = (addressToRemove: string) => {
+    if (!docRef) return;
     const updatedAddresses = profile.deliveryAddresses.filter((addr: string) => addr !== addressToRemove);
     updateDocumentNonBlocking(docRef, { deliveryAddresses: updatedAddresses });
     toast({ title: 'Indirizzo rimosso!' });
