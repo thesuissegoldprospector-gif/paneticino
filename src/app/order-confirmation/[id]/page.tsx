@@ -3,13 +3,14 @@
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
 
 export default function OrderConfirmationPage() {
   const params = useParams();
@@ -46,7 +47,7 @@ export default function OrderConfirmationPage() {
     );
   }
 
-  const orderDate = order.orderDate?.toDate();
+  const orderDate = order.createdAt?.toDate();
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-8">
@@ -63,8 +64,8 @@ export default function OrderConfirmationPage() {
         <CardContent className="space-y-6 text-left">
             <div className="rounded-md border bg-muted/50 p-4 text-sm">
                 <p><span className="font-semibold">Numero Ordine:</span> {order.id}</p>
-                {orderDate && <p><span className="font-semibold">Data Ordine:</span> {format(orderDate, 'dd/MM/yyyy HH:mm')}</p>}
-                <p><span className="font-semibold">Stato:</span> In preparazione</p>
+                {orderDate && <p><span className="font-semibold">Data Ordine:</span> {format(orderDate, 'dd MMM yyyy, HH:mm', {locale: it})}</p>}
+                <p><span className="font-semibold">Stato:</span> In attesa di conferma</p>
             </div>
           
           <div className="space-y-4">
@@ -82,14 +83,14 @@ export default function OrderConfirmationPage() {
                         <p className="text-sm text-muted-foreground">Quantità: {item.quantity}</p>
                     </div>
                 </div>
-                <p className="font-semibold">{item.price}</p>
+                <p className="font-semibold">{(item.price * item.quantity).toFixed(2)}€</p>
               </div>
             ))}
           </div>
           <Separator />
           <div className="flex justify-between font-bold text-lg">
             <p>Totale Pagato</p>
-            <p>{order.totalAmount.toFixed(2)}€</p>
+            <p>{order.total.toFixed(2)}€</p>
           </div>
         </CardContent>
         <CardFooter className='flex-col gap-4'>
@@ -104,3 +105,5 @@ export default function OrderConfirmationPage() {
     </div>
   );
 }
+
+    

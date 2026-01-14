@@ -1,10 +1,10 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle, Upload, Camera, Trash2, LogOut, Truck } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { MapPin, Heart, ShoppingBag, Loader2, AlertTriangle, FileText, Pencil, X, PlusCircle, Upload, Camera, Trash2, LogOut, Truck, Check, Package, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useUser, useDoc, useMemoFirebase, useFirestore, updateDocumentNonBlocking, setDocumentNonBlocking, useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { doc, DocumentData, Firestore, DocumentReference, collection, query, where } from 'firebase/firestore';
+import { doc, DocumentData, Firestore, DocumentReference, collection, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef, forwardRef } from 'react';
@@ -20,6 +20,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { cn } from '@/lib/utils';
 import { getAuth, signOut, updateProfile } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
 
 
 function useUserDoc(firestore: Firestore | null, userId: string | undefined) {
@@ -111,8 +115,9 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto max-w-5xl space-y-8 px-4 py-8">
-      {role === 'baker' && bakerProfile && bakerDocRef && userDocRef ? (
+      {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user ? (
         <BakerProfileDashboard 
+            user={user}
             userProfile={userDoc} 
             bakerProfile={bakerProfile} 
             userDocRef={userDocRef} 
@@ -121,7 +126,7 @@ export default function ProfilePage() {
       ) : role === 'customer' && customerProfile && userDocRef && user ? (
         <>
             <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
-            {customerProfile && customerDocRef && <CustomerProfileDashboard profile={customerProfile} docRef={customerDocRef} />}
+            {customerProfile && customerDocRef && <CustomerProfileDashboard user={user} profile={customerProfile} docRef={customerDocRef} />}
         </>
       ) : (
          user && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />
@@ -584,9 +589,8 @@ const ImagePicker = forwardRef<HTMLInputElement, any>(
 );
 ImagePicker.displayName = 'ImagePicker';
 
-function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDocRef }: { userProfile: DocumentData, bakerProfile: DocumentData, userDocRef: DocumentReference<DocumentData>, bakerDocRef: DocumentReference<DocumentData> }) {
+function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, bakerDocRef }: { user: User, userProfile: DocumentData, bakerProfile: DocumentData, userDocRef: DocumentReference<DocumentData>, bakerDocRef: DocumentReference<DocumentData> }) {
   
-    const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
     
@@ -765,6 +769,8 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
                 </form>
             </Form>
 
+            <BakerOrdersDashboard bakerId={user.uid} />
+
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
@@ -845,7 +851,7 @@ function BakerProfileDashboard({ userProfile, bakerProfile, userDocRef, bakerDoc
     );
 }
 
-function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, docRef: DocumentReference<DocumentData> | null}) {
+function CustomerProfileDashboard({ user, profile, docRef }: { user: User, profile: DocumentData, docRef: DocumentReference<DocumentData> | null}) {
   const [newAddress, setNewAddress] = useState('');
   const { toast } = useToast();
 
@@ -918,21 +924,186 @@ function CustomerProfileDashboard({ profile, docRef }: { profile: DocumentData, 
         </CardContent>
       </Card>
 
-      <Card className="md:col-span-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5 text-primary" /> Storico ordini
-          </CardTitle>
-          <CardDescription>Rivedi i tuoi ordini passati.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className='text-muted-foreground'>Nessuno storico ordini al momento.</p>
-          </div>
-        </CardContent>
-      </Card>
+      <CustomerOrdersDashboard customerId={user.uid} />
     </div>
   );
+}
+
+
+// ------------------------------------
+// ORDER DASHBOARDS
+// ------------------------------------
+
+const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+    pending: { label: 'In attesa', color: 'bg-yellow-500', icon: Loader2 },
+    accepted: { label: 'Accettato', color: 'bg-blue-500', icon: ThumbsUp },
+    preparing: { label: 'In preparazione', color: 'bg-indigo-500', icon: Package },
+    delivering: { label: 'In consegna', color: 'bg-purple-500', icon: Truck },
+    completed: { label: 'Completato', color: 'bg-green-500', icon: Check },
+    rejected: { label: 'Rifiutato', color: 'bg-red-500', icon: ThumbsDown },
+};
+
+function OrderStatusBadge({ status }: { status: string }) {
+    const config = statusConfig[status] || { label: 'Sconosciuto', color: 'bg-gray-500', icon: HelpCircle };
+    const Icon = config.icon;
+    return (
+        <Badge className={cn("text-white whitespace-nowrap", config.color)}>
+            <Icon className="mr-1 h-3 w-3" />
+            {config.label}
+        </Badge>
+    );
+}
+
+function BakerOrdersDashboard({ bakerId }: { bakerId: string }) {
+    const firestore = useFirestore();
+
+    const ordersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, 'orders'),
+            where('bakerId', '==', bakerId),
+            orderBy('createdAt', 'desc')
+        );
+    }, [firestore, bakerId]);
+
+    const { data: orders, isLoading } = useCollection(ordersQuery);
+
+    const handleUpdateStatus = (orderId: string, newStatus: string) => {
+        if (!firestore) return;
+        const orderRef = doc(firestore, 'orders', orderId);
+        updateDocumentNonBlocking(orderRef, { status: newStatus });
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Dashboard Ordini</CardTitle>
+                <CardDescription>Visualizza e gestisci gli ordini in arrivo.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoading && <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>}
+                {!isLoading && (!orders || orders.length === 0) && (
+                    <p className="text-center text-muted-foreground py-8">Nessun ordine ricevuto al momento.</p>
+                )}
+                {orders && orders.length > 0 && (
+                    <Accordion type="single" collapsible className="w-full">
+                        {orders.map(order => (
+                            <AccordionItem value={order.id} key={order.id}>
+                                <AccordionTrigger>
+                                    <div className="flex justify-between w-full pr-4 items-center">
+                                        <div className="text-left">
+                                            <p className="font-semibold">Ordine da {order.customerName}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {format(order.createdAt.toDate(), 'dd MMM yyyy, HH:mm', { locale: it })}
+                                            </p>
+                                        </div>
+                                        <OrderStatusBadge status={order.status} />
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="space-y-4">
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Dettagli Cliente</h4>
+                                        <p><strong>Cliente:</strong> {order.customerName}</p>
+                                        <p><strong>Indirizzo:</strong> {order.deliveryAddress}</p>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2">Articoli</h4>
+                                        <ul className="list-disc pl-5 space-y-1">
+                                            {order.items.map((item: any, index: number) => (
+                                                <li key={index}>
+                                                    {item.quantity}x {item.name} - {(item.price * item.quantity).toFixed(2)}€
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <p className="font-bold text-right mt-2">Totale: {order.total.toFixed(2)}€</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 justify-end pt-2 border-t">
+                                        {order.status === 'pending' && (
+                                            <>
+                                                <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(order.id, 'rejected')}><ThumbsDown /> Rifiuta</Button>
+                                                <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'accepted')}><ThumbsUp /> Accetta</Button>
+                                            </>
+                                        )}
+                                        {order.status === 'accepted' && <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'preparing')}><Package /> Prepara</Button>}
+                                        {order.status === 'preparing' && <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'delivering')}><Truck /> In Consegna</Button>}
+                                        {order.status === 'delivering' && <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'completed')}><Check /> Completato</Button>}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+
+function CustomerOrdersDashboard({ customerId }: { customerId: string }) {
+    const firestore = useFirestore();
+
+    const ordersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, 'orders'),
+            where('customerId', '==', customerId),
+            orderBy('createdAt', 'desc')
+        );
+    }, [firestore, customerId]);
+
+    const { data: orders, isLoading } = useCollection(ordersQuery);
+     const { data: bakerProfiles } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, 'bakers') : null, [firestore]));
+
+    const getBakerName = (bakerId: string) => {
+        return bakerProfiles?.find(b => b.id === bakerId)?.companyName || 'Panettiere';
+    }
+
+
+    return (
+        <Card className="md:col-span-2">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <ShoppingBag className="h-5 w-5 text-primary" /> Storico ordini
+                </CardTitle>
+                <CardDescription>Rivedi i tuoi ordini passati e segui il loro stato in tempo reale.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {isLoading && <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>}
+                {!isLoading && (!orders || orders.length === 0) && (
+                    <p className="text-center text-muted-foreground py-8">Nessun ordine effettuato al momento.</p>
+                )}
+                {orders && orders.length > 0 && (
+                     <Accordion type="single" collapsible className="w-full">
+                        {orders.map(order => (
+                            <AccordionItem value={order.id} key={order.id}>
+                                <AccordionTrigger>
+                                     <div className="flex justify-between w-full pr-4 items-center">
+                                        <div className="text-left">
+                                            <p className="font-semibold">Ordine da {getBakerName(order.bakerId)}</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                {format(order.createdAt.toDate(), 'dd MMM yyyy, HH:mm', { locale: it })}
+                                            </p>
+                                        </div>
+                                        <OrderStatusBadge status={order.status} />
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="space-y-2">
+                                     <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        {order.items.map((item: any, index: number) => (
+                                            <li key={index}>
+                                                {item.quantity}x {item.name}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <p className="font-bold text-right mt-2">Totale: {order.total.toFixed(2)}€</p>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                )}
+            </CardContent>
+        </Card>
+    );
 }
 
     

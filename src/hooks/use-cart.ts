@@ -16,13 +16,17 @@ export type Product = {
 interface CartState {
   cart: Product[];
   isLoading: boolean;
-  total: number;
   addToCart: (product: Product) => void;
   removeFromCart: (productId: string) => void;
   updateItemQuantity: (itemId: string, quantity: number) => void;
-  clearCart: () => void;
+  clearCart: (productId?: string) => void; // Optional productId
   _rehydrate: () => void;
+  total: number;
 }
+
+const calculateTotal = (cart: Product[]): number => {
+  return cart.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
+};
 
 export const useCart = create<CartState>()(
   persist(
@@ -32,7 +36,6 @@ export const useCart = create<CartState>()(
       total: 0,
       
       _rehydrate: () => {
-        // This is called by the provider to signal hydration is complete
         set({ isLoading: false });
       },
 
@@ -47,16 +50,14 @@ export const useCart = create<CartState>()(
           } else {
             newCart = [...state.cart, { ...product, quantity: 1 }];
           }
-          const newTotal = newCart.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
-          return { cart: newCart, total: newTotal };
+          return { cart: newCart, total: calculateTotal(newCart) };
         });
       },
 
       removeFromCart: (productId) => {
         set((state) => {
           const newCart = state.cart.filter((p) => p.id !== productId);
-          const newTotal = newCart.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
-          return { cart: newCart, total: newTotal };
+          return { cart: newCart, total: calculateTotal(newCart) };
         });
       },
 
@@ -67,13 +68,21 @@ export const useCart = create<CartState>()(
         }
         set((state) => {
           const newCart = state.cart.map((p) => (p.id === itemId ? { ...p, quantity } : p));
-          const newTotal = newCart.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
-          return { cart: newCart, total: newTotal };
+          return { cart: newCart, total: calculateTotal(newCart) };
         });
       },
 
-      clearCart: () => {
-        set({ cart: [], total: 0 });
+      clearCart: (productId) => {
+        if (productId) {
+            // Remove a single item by its ID
+             set(state => {
+                const newCart = state.cart.filter(item => item.id !== productId);
+                return { cart: newCart, total: calculateTotal(newCart) };
+            });
+        } else {
+            // Clear the entire cart
+            set({ cart: [], total: 0 });
+        }
       },
     }),
     {
@@ -81,10 +90,11 @@ export const useCart = create<CartState>()(
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
          if (state) {
-            // This will be called after the store is rehydrated
             state._rehydrate();
          }
       }
     }
   )
 );
+
+    

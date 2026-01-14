@@ -1,108 +1,217 @@
 'use client';
 
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShoppingCart } from "lucide-react";
+import { Loader2, ShoppingCart, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { useUser } from "@/firebase";
+import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
-
-export function CartSkeleton() {
-  return (
-    <div className="flex flex-col gap-2 animate-pulse p-4 max-w-md mx-auto">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-16 w-full bg-muted rounded"
-        />
-      ))}
-       <div className="h-10 w-full bg-primary/50 rounded mt-4" />
-    </div>
-  );
-}
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { collection, doc, serverTimestamp } from "firebase/firestore";
 
 export default function CheckoutPage() {
-  const { cart, addToCart, removeFromCart, clearCart, isLoading, total } = useCart();
+  const { cart, clearCart, isLoading: isCartLoading } = useCart();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const router = useRouter();
+  const firestore = useFirestore();
 
+  // State to manage the selected delivery address for each baker's order
+  const [selectedAddresses, setSelectedAddresses] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (isLoading || isUserLoading) return (
-     <div className="flex h-full min-h-[400px] w-full items-center justify-center">
+  // Memoize customer profile fetching
+  const customerRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'customers', user.uid);
+  }, [firestore, user]);
+  const { data: customerProfile, isLoading: isCustomerLoading } = useDoc(customerRef);
+
+  // Group cart items by baker
+  const ordersByBaker = useMemo(() => {
+    return cart.reduce((acc, item) => {
+      const bakerId = item.bakerId || 'unknown';
+      if (!acc[bakerId]) {
+        acc[bakerId] = {
+          bakerId: bakerId,
+          bakerName: item.bakerName || 'Panettiere Sconosciuto',
+          items: [],
+          total: 0,
+        };
+      }
+      acc[bakerId].items.push(item);
+      acc[bakerId].total += item.price * (item.quantity || 1);
+      return acc;
+    }, {} as Record<string, { bakerId: string; bakerName: string; items: typeof cart; total: number }>);
+  }, [cart]);
+
+  const isLoading = isCartLoading || isUserLoading || isCustomerLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full min-h-[400px] w-full items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
-  );
+    );
+  }
 
   if (!user) {
     return (
-        <div className="container mx-auto flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-            <h2 className="text-2xl font-bold">Accesso richiesto</h2>
-            <p className="text-muted-foreground">
-            Devi effettuare l'accesso per completare l'ordine.
-            </p>
-            <Button asChild>
-            <Link href="/login">Vai al Login</Link>
-            </Button>
+      <div className="container mx-auto flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+        <h2 className="text-2xl font-bold">Accesso richiesto</h2>
+        <p className="text-muted-foreground">Devi effettuare l'accesso per completare l'ordine.</p>
+        <Button asChild><Link href="/login">Vai al Login</Link></Button>
       </div>
-    )
+    );
   }
 
-  if (cart.length === 0)
+  if (cart.length === 0 && !isLoading) {
     return (
-        <div className="container mx-auto flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
-            <ShoppingCart className="h-12 w-12 text-muted-foreground" />
-            <h2 className="text-2xl font-bold">Il tuo carrello è vuoto</h2>
-            <p className="text-muted-foreground">
-            Aggiungi qualche prodotto per poter procedere all'ordine.
-            </p>
-            <Button asChild>
-            <Link href="/bakeries">Esplora i panettieri</Link>
-            </Button>
-        </div>
+      <div className="container mx-auto flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
+        <ShoppingCart className="h-12 w-12 text-muted-foreground" />
+        <h2 className="text-2xl font-bold">Il tuo carrello è vuoto</h2>
+        <p className="text-muted-foreground">Aggiungi qualche prodotto per poter procedere all'ordine.</p>
+        <Button asChild><Link href="/bakeries">Esplora i panettieri</Link></Button>
+      </div>
     );
+  }
+  
+  const handlePlaceOrder = async (bakerId: string) => {
+      if (!firestore || !user || !customerProfile) return;
+      
+      const orderData = ordersByBaker[bakerId];
+      const deliveryAddress = selectedAddresses[bakerId];
 
-  const handleCheckout = () => {
-    // Here you would typically connect to a payment gateway
-    // and create an order in your database.
-    console.log("Simulating order creation with items:", cart);
-    toast({
-        title: "Ordine Inviato!",
-        description: "Il tuo ordine è stato simulato con successo."
-    });
-    clearCart();
-    router.push('/'); // Redirect to home after checkout
+      if (!deliveryAddress) {
+          toast({
+              variant: "destructive",
+              title: "Indirizzo di consegna mancante",
+              description: `Seleziona un indirizzo per l'ordine da ${orderData.bakerName}.`,
+          });
+          return;
+      }
+      
+      setIsSubmitting(true);
+      
+      const orderPayload = {
+          bakerId: orderData.bakerId,
+          customerId: user.uid,
+          customerName: user.displayName || `${customerProfile.firstName} ${customerProfile.lastName}`,
+          items: orderData.items.map(item => ({
+              productId: item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              imageUrl: item.imageUrl
+          })),
+          total: orderData.total,
+          deliveryAddress: deliveryAddress,
+          deliveryZone: deliveryAddress, // Assuming address can be used as zone for simplicity
+          status: 'pending',
+          createdAt: serverTimestamp(),
+      };
+
+      try {
+        const docRef = await addDocumentNonBlocking(collection(firestore, 'orders'), orderPayload);
+        toast({
+            title: "Ordine Inviato!",
+            description: `Il tuo ordine per ${orderData.bakerName} è stato inviato.`,
+        });
+        
+        // Remove only the items for this baker from the cart
+        orderData.items.forEach(item => clearCart(item.id));
+        
+        // Redirect to a confirmation page
+        if (docRef) {
+          router.push(`/order-confirmation/${docRef.id}`);
+        } else {
+          // Fallback if docRef is not immediately available
+          router.push('/profile');
+        }
+        
+      } catch (error) {
+          console.error("Error placing order: ", error);
+          toast({
+              variant: "destructive",
+              title: "Oh no! Qualcosa è andato storto",
+              description: "Impossibile completare l'ordine. Riprova.",
+          });
+      } finally {
+          setIsSubmitting(false);
+      }
   };
 
-
   return (
-    <div className="p-4 max-w-md mx-auto space-y-4">
-        <h1 className="font-headline text-3xl text-center">Riepilogo Ordine</h1>
-      {cart.map((item) => (
-        <div key={item.id} className="flex justify-between items-center border-b pb-2">
-          <div>
-            <p className="font-semibold">{item.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {item.quantity} × {item.price.toFixed(2)}€
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => addToCart(item)}>+</Button>
-            <Button size="sm" variant="outline" onClick={() => removeFromCart(item.id)}>-</Button>
-          </div>
+    <div className="container mx-auto max-w-4xl px-4 py-8 space-y-8">
+      <h1 className="font-headline text-3xl text-center">Riepilogo Ordine</h1>
+      
+      {Object.keys(ordersByBaker).length === 0 && !isLoading && (
+         <div className="text-center text-muted-foreground py-8">
+            <p>Il tuo carrello è stato svuotato.</p>
+             <Button asChild variant="link"><Link href="/bakeries">Continua lo shopping</Link></Button>
         </div>
+      )}
+
+      {Object.values(ordersByBaker).map(order => (
+        <Card key={order.bakerId}>
+            <CardHeader>
+                <CardTitle>Ordine per {order.bakerName}</CardTitle>
+                <CardDescription>Rivedi gli articoli e conferma il tuo ordine.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 {order.items.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center border-b pb-2">
+                    <div>
+                        <p className="font-semibold">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                        {item.quantity} × {item.price.toFixed(2)}€
+                        </p>
+                    </div>
+                     <p className="font-semibold">{(item.price * (item.quantity || 1)).toFixed(2)}€</p>
+                    </div>
+                ))}
+                <div className="flex justify-between font-bold text-lg pt-2">
+                    <p>Totale Parziale</p>
+                    <p>{order.total.toFixed(2)}€</p>
+                </div>
+            </CardContent>
+             <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                 {customerProfile && customerProfile.deliveryAddresses?.length > 0 ? (
+                    <Select
+                        onValueChange={(value) => setSelectedAddresses(prev => ({ ...prev, [order.bakerId]: value }))}
+                        value={selectedAddresses[order.bakerId]}
+                    >
+                        <SelectTrigger className="w-full sm:w-[250px]">
+                            <SelectValue placeholder="Seleziona indirizzo di consegna" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {customerProfile.deliveryAddresses.map((addr: string, i: number) => (
+                                <SelectItem key={i} value={addr}>{addr}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                 ) : (
+                    <div className="text-sm text-destructive flex items-center gap-2">
+                       <AlertTriangle className="h-4 w-4" />
+                       <span>Nessun indirizzo, <Link href="/profile" className="underline">aggiungine uno</Link>.</span>
+                    </div>
+                 )}
+                <Button 
+                    onClick={() => handlePlaceOrder(order.bakerId)} 
+                    className="w-full sm:w-auto"
+                    disabled={isSubmitting || !selectedAddresses[order.bakerId]}
+                >
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Conferma Ordine
+                </Button>
+            </CardFooter>
+        </Card>
       ))}
-
-      <p className="text-right font-bold text-lg">Totale: {total.toFixed(2)}€</p>
-
-      <Button
-        onClick={handleCheckout}
-        className="w-full"
-      >
-        Conferma e Paga
-      </Button>
     </div>
   );
 }
+
+    
