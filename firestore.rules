@@ -102,7 +102,7 @@ service cloud.firestore {
     // PRODUCTS
     // ----------------------------------------------------------------
     match /products/{productId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid;
       allow update, delete: if isSignedIn() && resource.data.bakerId == request.auth.uid;
     }
