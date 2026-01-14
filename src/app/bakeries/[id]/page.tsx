@@ -1,5 +1,7 @@
+
 'use client';
 
+import React from "react";
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import Image from 'next/image';
@@ -41,19 +43,24 @@ function ProductCard({ product }: { product: any }) {
   );
 }
 
+type Props = {
+  params: Promise<{ id: string }>;
+};
 
-export default function BakeryDetailPage({ params }: { params: { id: string } }) {
+export default function BakeryDetailPage({ params }: Props) {
+  const { id } = React.use(params);
+
   const firestore = useFirestore();
   
   const bakeryRef = useMemoFirebase(() => {
-    if (!firestore || !params.id) return null;
-    return doc(firestore, 'bakers', params.id);
-  }, [firestore, params.id]);
+    if (!firestore || !id) return null;
+    return doc(firestore, 'bakers', id);
+  }, [firestore, id]);
   
   const productsQuery = useMemoFirebase(() => {
-    if (!firestore || !params.id) return null;
-    return query(collection(firestore, 'products'), where('bakerId', '==', params.id));
-  }, [firestore, params.id]);
+    if (!firestore || !id) return null;
+    return query(collection(firestore, 'products'), where('bakerId', '==', id));
+  }, [firestore, id]);
 
   const { data: bakery, isLoading: isBakeryLoading } = useDoc(bakeryRef);
   const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
@@ -68,7 +75,6 @@ export default function BakeryDetailPage({ params }: { params: { id: string } })
     );
   }
 
-  // If loading is finished and we still have no bakery, or the bakery is not approved, show 404.
   if (!isLoading && (!bakery || bakery.approvalStatus !== 'approved')) {
     notFound();
   }
