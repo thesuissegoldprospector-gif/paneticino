@@ -1,22 +1,19 @@
 rules_version = '2';
-
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Helper function
+    // Helper function to check if a user is signed in
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Avatar images: An authenticated user can only write to their own folder.
-    // Any authenticated user can read.
+    // Avatars: Allow write only to the user's own folder, allow read for any authenticated user
     match /avatars/{userId}/{filename} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Product/Order images: An authenticated user can only write to their own folder.
-    // Any authenticated user can read.
+    // Product/Order Images: Allow write only to the user's own folder, allow read for any authenticated user
     match /images/{userId}/{filename} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == userId;
