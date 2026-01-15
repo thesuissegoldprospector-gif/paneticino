@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, where, orderBy } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,7 +15,7 @@ import Link from "next/link";
 import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 
 type Props = {
-  bakerId: string;
+  bakerUserId: string;
 };
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -33,25 +33,27 @@ const OrderStatusBadge = ({ status }: { status: string }) => {
 };
 
 
-export default function BakerReportClient({ bakerId }: Props) {
+export default function BakerReportClient({ bakerUserId }: Props) {
   const firestore = useFirestore();
 
-  // Fetch baker details on the client
-  const bakerRef = useMemoFirebase(() => {
-    if (!firestore || !bakerId) return null;
-    return doc(firestore, 'bakers', bakerId);
-  }, [firestore, bakerId]);
-  const { data: baker, isLoading: isLoadingBaker } = useDoc(bakerRef);
+  // Fetch baker details on the client by querying for the userId
+  const bakerQuery = useMemoFirebase(() => {
+    if (!firestore || !bakerUserId) return null;
+    return query(collection(firestore, 'bakers'), where('userId', '==', bakerUserId), orderBy('__name__'));
+  }, [firestore, bakerUserId]);
+  const { data: bakerCollection, isLoading: isLoadingBaker } = useCollection(bakerQuery);
+  const baker = useMemo(() => bakerCollection?.[0], [bakerCollection]);
+
 
   // Fetch orders for this baker on the client
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !bakerId) return null;
+    if (!firestore || !bakerUserId) return null;
     return query(
       collection(firestore, "orders"),
-      where("bakerId", "==", bakerId),
+      where("bakerId", "==", bakerUserId),
       orderBy("createdAt", "desc")
     );
-  }, [firestore, bakerId]);
+  }, [firestore, bakerUserId]);
   const { data: orders, isLoading: isLoadingOrders } = useCollection(ordersQuery);
 
   if (isLoadingBaker || isLoadingOrders) {
@@ -64,7 +66,13 @@ export default function BakerReportClient({ bakerId }: Props) {
   }
 
   if (!baker) {
-    notFound();
+    // We don't call notFound() here because it's a client component.
+    // Instead, we show a message. This could happen if the userId is wrong.
+     return (
+      <div className="flex h-full min-h-[400px] w-full items-center justify-center">
+        <p className="text-destructive">Impossibile trovare il profilo del panettiere per ID: {bakerUserId}</p>
+      </div>
+    );
   }
   
   const safeOrders = orders || [];

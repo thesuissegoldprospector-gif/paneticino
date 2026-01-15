@@ -163,7 +163,7 @@ function AdminDashboard() {
   const bakersWithOrderCounts = useMemo(() => {
     if (!bakers || !orders) return [];
     return bakers.map(baker => {
-      const bakerOrders = orders.filter(o => o.bakerId === baker.id);
+      const bakerOrders = orders.filter(o => o.bakerId === baker.userId);
       return {
         ...baker,
         pendingOrders: bakerOrders.filter(o => o.status !== 'completed' && o.status !== 'rejected').length,
@@ -191,8 +191,8 @@ function AdminDashboard() {
       });
   };
   
-  const handleRowClick = (bakerId: string) => {
-    router.push(`/admin/bakers/${bakerId}`);
+  const handleRowClick = (bakerUserId: string) => {
+    router.push(`/admin/bakers/${bakerUserId}`);
   };
 
   return (
@@ -228,7 +228,7 @@ function AdminDashboard() {
                         </TableHeader>
                         <TableBody>
                             {bakersWithOrderCounts.map(baker => (
-                                <TableRow key={baker.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => handleRowClick(baker.id)}>
+                                <TableRow key={baker.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => handleRowClick(baker.userId)}>
                                     <TableCell className="font-medium">{baker.companyName}</TableCell>
                                     <TableCell><OrderStatusBadge status={baker.approvalStatus} /></TableCell>
                                     <TableCell>{baker.pendingOrders}</TableCell>
