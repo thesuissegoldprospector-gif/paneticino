@@ -1,16 +1,20 @@
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
 
+    // Helper function to check if the user is signed in.
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Avatars: Allow authenticated users to read. Allow users to write ONLY to their own avatar folder.
     match /avatars/{userId}/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
+    // Images: Allow authenticated users to read. Allow users to write ONLY to their own images folder.
     match /images/{userId}/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == userId;
