@@ -205,6 +205,17 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
         }
     };
 
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {
             const context = canvasRef.current.getContext('2d');
@@ -261,14 +272,17 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
             <DialogContent className="max-w-xl">
                 <DialogHeader><DialogTitle>Aggiorna immagine</DialogTitle></DialogHeader>
                 <Tabs defaultValue="url">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="url"><Link2 />URL</TabsTrigger>
+                        <TabsTrigger value="upload"><Upload />Carica</TabsTrigger>
                         <TabsTrigger value="gallery"><ImageIcon />Galleria</TabsTrigger>
                         <TabsTrigger value="camera" onClick={handleCamera}><Camera />Camera</TabsTrigger>
                     </TabsList>
                     <TabsContent value="url" className="py-4 space-y-4">
                         <Input placeholder="https://esempio.com/immagine.jpg" value={url} onChange={(e) => setUrl(e.target.value)} />
-                        {url && <Image src={url} alt="Anteprima" width={200} height={200} className="rounded-md object-cover mx-auto" />}
+                    </TabsContent>
+                    <TabsContent value="upload" className="py-4 space-y-4">
+                        <Input type="file" onChange={handleFileChange} accept="image/*" />
                     </TabsContent>
                     <TabsContent value="gallery" className="py-4">
                         <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
@@ -285,6 +299,12 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                         <Button onClick={handleCapture} disabled={!videoRef.current?.srcObject}>Scatta Foto</Button>
                     </TabsContent>
                 </Tabs>
+                {url && (
+                    <div className='py-4'>
+                        <p className='text-sm font-medium mb-2'>Anteprima:</p>
+                        <Image src={url} alt="Anteprima" width={200} height={200} className="rounded-md object-cover mx-auto" />
+                    </div>
+                )}
                 <DialogFooter>
                     <Button type="button" onClick={handleSubmit} disabled={isUploading}>
                         {isUploading ? <Loader2 className="animate-spin" /> : 'Salva'}
