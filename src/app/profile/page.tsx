@@ -147,7 +147,7 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
         setImageFile(null);
     } catch (error) {
         console.error("Error uploading image: ", error);
-        toast({ variant: 'destructive', title: 'Errore di Caricamento', description: 'Controlla la configurazione di CORS e le regole di Storage.' });
+        toast({ variant: 'destructive', title: 'Errore di Caricamento', description: (error as Error).message || 'Controlla la configurazione di CORS e le regole di Storage.' });
     } finally {
         setIsUploading(false);
     }
@@ -159,11 +159,11 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Aggiorna Foto Profilo</DialogTitle>
-          <DialogDescription id="update-avatar-description">
+          <DialogDescription>
             Carica una nuova immagine per il tuo profilo. Verrà visualizzata pubblicamente.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4" aria-describedby="update-avatar-description">
+        <div className="py-4">
             <Input type="file" onChange={handleFileChange} accept="image/*" />
             {imageSrc && <Image src={imageSrc} alt="Anteprima" width={200} height={200} className="mt-4 rounded-md" />}
         </div>
@@ -330,11 +330,11 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
             <DialogContent className="max-w-xl">
                 <DialogHeader>
                   <DialogTitle>Aggiorna immagine</DialogTitle>
-                  <DialogDescription id="update-image-description">
+                  <DialogDescription>
                     Scegli un'immagine caricandola dal tuo dispositivo, usando un link, scattando una foto o selezionandola dalla galleria.
                   </DialogDescription>
                 </DialogHeader>
-                <div aria-describedby="update-image-description">
+                <div>
                   <Tabs defaultValue="upload">
                       <TabsList className="grid w-full grid-cols-4">
                           <TabsTrigger value="upload"><Upload />Carica</TabsTrigger>
@@ -562,12 +562,12 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Aggiungi un nuovo prodotto</DialogTitle>
-                                <DialogDescription id="add-product-description">
+                                <DialogDescription>
                                   Compila i dettagli del prodotto e aggiungi un'immagine per mostrarlo al meglio.
                                 </DialogDescription>
                             </DialogHeader>
                             <Form {...productForm}>
-                                <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4" aria-describedby="add-product-description">
+                                <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
                                     <FormField control={productForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Prodotto</FormLabel><FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo</FormLabel><FormControl><Input placeholder="€4.50" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={productForm.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Textarea placeholder="Breve descrizione..." {...field} /></FormControl><FormMessage /></FormItem>)} />
