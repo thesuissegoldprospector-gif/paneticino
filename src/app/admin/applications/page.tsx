@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 // ---------- SUB-COMPONENTS ----------
 
@@ -130,81 +131,11 @@ const OrdersChart = ({ orders, isLoading }: { orders: any[], isLoading: boolean 
 };
 
 
-const BakerOrdersDrawer = ({ baker, open, onOpenChange }: { baker: any | null, open: boolean, onOpenChange: (open: boolean) => void }) => {
-    const firestore = useFirestore();
-    const [filter, setFilter] = useState('all');
-
-    const ordersQuery = useMemoFirebase(() => {
-        if (!firestore || !baker) return null;
-        let q = query(collection(firestore, 'orders'), where('bakerId', '==', baker.id), orderBy('createdAt', 'desc'));
-        if (filter !== 'all') {
-             // 'pending' and 'accepted' are considered "in attesa"
-            if (filter === 'pending') {
-                q = query(q, where('status', 'in', ['pending', 'accepted', 'preparing', 'delivering']));
-            } else { // 'completed'
-                q = query(q, where('status', '==', 'completed'));
-            }
-        }
-        return q;
-    }, [firestore, baker, filter]);
-
-    const { data: orders, isLoading } = useCollection(ordersQuery);
-
-    return (
-        <Drawer open={open} onOpenChange={onOpenChange}>
-            <DrawerContent className="max-h-[90vh]">
-                <div className="container mx-auto max-w-4xl py-4">
-                    <DrawerHeader>
-                        <DrawerTitle>Ordini per {baker?.companyName}</DrawerTitle>
-                        <DrawerDescription>
-                             <Select value={filter} onValueChange={setFilter}>
-                                <SelectTrigger className="w-[180px] h-8 mt-2">
-                                    <SelectValue placeholder="Filtra per stato" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tutti gli ordini</SelectItem>
-                                    <SelectItem value="pending">In attesa</SelectItem>
-                                    <SelectItem value="completed">Evasi</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </DrawerDescription>
-                    </DrawerHeader>
-                    <div className="overflow-y-auto px-4">
-                        {isLoading ? <Loader2 className="animate-spin mx-auto my-8" /> : (
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Cliente</TableHead>
-                                        <TableHead>Data</TableHead>
-                                        <TableHead>Stato</TableHead>
-                                        <TableHead className="text-right">Totale</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {orders?.map(order => (
-                                        <TableRow key={order.id}>
-                                            <TableCell>{order.customerName}</TableCell>
-                                            <TableCell>{order.createdAt ? format(order.createdAt.toDate(), 'dd/MM/yy HH:mm') : ''}</TableCell>
-                                            <TableCell>{order.status}</TableCell>
-                                            <TableCell className="text-right">{order.total.toFixed(2)}€</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        )}
-                        {!isLoading && orders?.length === 0 && <p className="text-center text-muted-foreground py-8">Nessun ordine trovato per questo filtro.</p>}
-                    </div>
-                </div>
-            </DrawerContent>
-        </Drawer>
-    )
-}
-
 // ---------- MAIN DASHBOARD COMPONENT ----------
 
 function AdminDashboard() {
   const firestore = useFirestore();
-  const [selectedBaker, setSelectedBaker] = useState<any | null>(null);
+  const router = useRouter();
 
   // Queries
   const allBakersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'bakers')) : null, [firestore]);
@@ -251,6 +182,10 @@ function AdminDashboard() {
         console.error("Failed to update approval status", e);
     }
   };
+  
+  const handleRowClick = (bakerId: string) => {
+    router.push(`/admin/bakers/${bakerId}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -285,7 +220,7 @@ function AdminDashboard() {
                         </TableHeader>
                         <TableBody>
                             {bakersWithOrderCounts.map(baker => (
-                                <TableRow key={baker.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedBaker(baker)}>
+                                <TableRow key={baker.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => handleRowClick(baker.id)}>
                                     <TableCell className="font-medium">{baker.companyName}</TableCell>
                                     <TableCell><OrderStatusBadge status={baker.approvalStatus} /></TableCell>
                                     <TableCell>{baker.pendingOrders}</TableCell>
@@ -320,9 +255,6 @@ function AdminDashboard() {
                 )}
             </CardContent>
         </Card>
-        
-        {/* Drawer for Baker Orders */}
-        <BakerOrdersDrawer baker={selectedBaker} open={!!selectedBaker} onOpenChange={(open) => !open && setSelectedBaker(null)} />
     </div>
   );
 }
