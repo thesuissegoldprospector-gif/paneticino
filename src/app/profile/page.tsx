@@ -809,11 +809,11 @@ export default function ProfilePage() {
     }
 
     if (role === 'baker') {
-      return query(ordersCollection, where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
+      return query(ordersCollection, where('bakerId', '==', user.uid));
     }
 
     if (role === 'customer') {
-      return query(ordersCollection, where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
+      return query(ordersCollection, where('customerId', '==', user.uid));
     }
 
     // Return null if role is unknown or doesn't match, preventing unauthorized queries.
