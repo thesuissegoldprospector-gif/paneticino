@@ -23,8 +23,8 @@ export function initializeFirebase() {
     firebaseApp = getApp();
   }
 
-  // Ensure storage is initialized with the correct bucket after the app is initialized.
-  const storage = getStorage(firebaseApp, `gs://${firebaseConfig.projectId}.appspot.com`);
+  // Ensure storage is initialized. If the config is missing the bucket, getStorage might need the app instance.
+  const storage = getStorage(firebaseApp);
 
   return {
     firebaseApp,
