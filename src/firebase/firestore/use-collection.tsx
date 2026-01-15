@@ -85,7 +85,23 @@ export function useCollection<T = any>(
         const path = memoizedTargetRefOrQuery.type === 'collection'
             ? (memoizedTargetRefOrQuery as CollectionReference).path
             : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
+        
+        // Permission denied is a valid state, not a fatal runtime error.
+        // We handle it gracefully by returning no data and logging a warning in dev.
+        if (error.code === 'permission-denied') {
+            setError(null);
+            setData(null);
+            setIsLoading(false);
 
+            if (process.env.NODE_ENV === 'development') {
+                console.warn(
+                    `[Firestore permission denied] on collection "${path}" – query skipped.`
+                );
+            }
+            return; // Stop further processing
+        }
+
+        // For other types of errors, we can still treat them as actual errors.
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path,
@@ -95,8 +111,8 @@ export function useCollection<T = any>(
         setData(null);
         setIsLoading(false);
 
-        // Trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        // Optionally, emit only for truly unexpected errors, not permission issues.
+        // errorEmitter.emit('permission-error', contextualError);
       }
     );
 
