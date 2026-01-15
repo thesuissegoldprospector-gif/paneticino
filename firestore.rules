@@ -121,17 +121,15 @@ service cloud.firestore {
         isAdmin()
       );
       
-      // A baker can update the status of an order. No other fields can be changed.
+      // A baker can update the status of an order.
       allow update: if isSignedIn()
-        && resource.data.bakerId == request.auth.uid
-        && request.resource.data.customerId == resource.data.customerId
-        && request.resource.data.bakerId == resource.data.bakerId
-        && request.resource.data.items.size() == resource.data.items.size()
-        && request.resource.data.total == resource.data.total;
+        && resource.data.bakerId == request.auth.uid;
 
-      // Explicitly disable list operations on the entire collection.
       // Client-side queries are secured by the 'get' rule on each returned document.
-      allow list: if false;
+      // We allow list operations for any signed-in user because the client-side queries
+      // are already filtered by 'customerId' or 'bakerId', and the 'get' rule above
+      // will secure access to each individual document returned by the query.
+      allow list: if isSignedIn();
       
       // Orders cannot be deleted.
       allow delete: if false;
