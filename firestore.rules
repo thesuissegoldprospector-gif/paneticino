@@ -110,24 +110,21 @@ service cloud.firestore {
     // ORDERS
     // ----------------------------------------------------------------
      match /orders/{orderId} {
-      // A customer can create an order for themselves.
+      // Un cliente può creare un ordine per se stesso.
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
-      // An order can be read by the customer who placed it, the baker who is fulfilling it, or an admin.
-      allow get: if isSignedIn() && (
-        resource.data.customerId == request.auth.uid ||
-        resource.data.bakerId == request.auth.uid ||
+      // Un ordine può essere letto dal cliente che lo ha effettuato, dal panettiere che lo evade, o da un admin.
+      allow get, list: if isSignedIn() && (
+        request.auth.uid == resource.data.customerId ||
+        request.auth.uid == resource.data.bakerId ||
         isAdmin()
       );
       
-      // A baker can update the status of an order. No other fields can be changed.
+      // Un panettiere può aggiornare lo stato di un ordine.
       allow update: if isSignedIn()
-        && resource.data.bakerId == request.auth.uid && isApprovedBaker();
-
-      // Client-side queries are secured by the 'get' rule on each returned document.
-      allow list: if isSignedIn();
+        && request.auth.uid == resource.data.bakerId && isApprovedBaker();
       
-      // Orders cannot be deleted.
+      // Gli ordini non possono essere cancellati.
       allow delete: if false;
     }
 
