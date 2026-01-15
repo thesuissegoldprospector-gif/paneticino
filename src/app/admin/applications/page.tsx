@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc, getDocs, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, ShieldX, AlertTriangle, Users, ShoppingCart, CheckCircle, Clock } from 'lucide-react';
@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { cn } from '@/lib/utils';
 
 // ---------- SUB-COMPONENTS ----------
 
