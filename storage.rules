@@ -13,6 +13,10 @@ service firebase.storage {
     }
     
     function isAdmin() {
+      // This rule is illustrative. In a real app, you'd check a custom claim or a document in Firestore.
+      // For this example, we assume an 'admin' custom claim is set on the user's token.
+      // return request.auth.token.admin === true;
+      // For this project, we check a document in Firestore.
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
