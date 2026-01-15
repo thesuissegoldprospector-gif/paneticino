@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/(default)/documents/roles_admin/$(request.auth.uid));
+    }
+    
+    // Function to check if the user is the baker associated with an order
+    function isOrderBaker(orderId) {
+        let order = get(/databases/(default)/documents/orders/$(orderId)).data;
+        return isSignedIn() && request.auth.uid == order.bakerId;
+    }
+
+    // --- Profile Pictures ---
+    // Any authenticated user can upload their own avatar.
+    match /avatars/{userId}/{fileName} {
+      allow read: if true; // Profile pictures are public
+      allow write: if isOwner(userId);
+    }
+
+    // --- General Images (Products, Cover Photos etc.) ---
+    // Any authenticated user can upload general images.
+    // Bakers will link these from their products/profiles.
+    match /images/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // --- Order-specific Images ---
+    // This is a more complex case if customers need to upload images for an order.
+    // The path could include the orderId to enforce rules.
+    match /orders/{orderId}/{fileName} {
+      // The customer who placed the order can upload an image for it.
+      allow write: if isSignedIn() && request.auth.uid == get(/databases/(default)/documents/orders/$(orderId)).data.customerId;
+      
+      // The customer, the baker, or an admin can read order images.
+      allow read: if isSignedIn() && (
+        request.auth.uid == get(/databases/(default)/documents/orders/$(orderId)).data.customerId ||
+        isOrderBaker(orderId) ||
+        isAdmin()
+      );
+    }
+  }
+}

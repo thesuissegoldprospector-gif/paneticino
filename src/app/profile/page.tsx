@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, DocumentReference, Firestore, collection, query, where, orderBy, DocumentData } from 'firebase/firestore';
 import { getAuth, signOut, updateProfile, User } from 'firebase/auth';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link2, Shield } from 'lucide-react';
 import Image from 'next/image';
 import { z } from 'zod';
@@ -109,6 +110,7 @@ async function updateUserProfileAndAuth(user: User, userDocRef: DocumentReferenc
 function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDocRef: DocumentReference | null, children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,10 +126,30 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
   
   const handleSave = async () => {
     if (imageSrc && user && userDocRef) {
-      await updateUserProfileAndAuth(user, userDocRef, { photoURL: imageSrc });
-      toast({ title: 'Avatar aggiornato con successo!' });
-      setOpen(false);
-      setImageSrc(null);
+      setIsUploading(true);
+      try {
+        const storage = getStorage();
+        // Create a storage reference
+        const imageRef = storageRef(storage, `avatars/${user.uid}/${Date.now()}`);
+        
+        // Convert base64 to blob
+        const response = await fetch(imageSrc);
+        const blob = await response.blob();
+
+        // Upload the file
+        const snapshot = await uploadBytes(imageRef, blob);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+
+        await updateUserProfileAndAuth(user, userDocRef, { photoURL: downloadURL });
+        toast({ title: 'Avatar aggiornato con successo!' });
+        setOpen(false);
+        setImageSrc(null);
+      } catch (error) {
+        console.error("Error uploading image: ", error);
+        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare l\'immagine.' });
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
   
@@ -142,7 +164,9 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
         </div>
         <DialogFooter className="mt-4 gap-2">
           <Button variant="ghost" onClick={() => setOpen(false)}>Annulla</Button>
-          <Button onClick={handleSave} disabled={!imageSrc}>Salva Foto</Button>
+          <Button onClick={handleSave} disabled={!imageSrc || isUploading}>
+            {isUploading ? <Loader2 className="animate-spin" /> : 'Salva Foto'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -152,9 +176,11 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
 function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url: string) => void; currentUrl?: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(false);
     const [url, setUrl] = useState('');
+    const [isUploading, setIsUploading] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { toast } = useToast();
+    const { user } = useUser();
 
     useEffect(() => {
         if(open) {
@@ -189,17 +215,44 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                 const dataUrl = canvasRef.current.toDataURL('image/jpeg');
                 setUrl(dataUrl);
                 
-                // Stop camera stream
-                 const stream = videoRef.current.srcObject as MediaStream;
-                 stream.getTracks().forEach(track => track.stop());
-                 videoRef.current.srcObject = null;
+                const stream = videoRef.current.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+                videoRef.current.srcObject = null;
             }
         }
     };
+
+    const uploadImage = async (imageSrc: string): Promise<string> => {
+        if (!user) throw new Error("User not authenticated");
+        
+        const storage = getStorage();
+        const imageRef = storageRef(storage, `images/${user.uid}/${Date.now()}`);
+        
+        const response = await fetch(imageSrc);
+        const blob = await response.blob();
+
+        const snapshot = await uploadBytes(imageRef, blob);
+        return await getDownloadURL(snapshot.ref);
+    };
     
-    const handleSubmit = () => {
-        onUpdate(url);
-        setOpen(false);
+    const handleSubmit = async () => {
+        if (!url) return;
+        setIsUploading(true);
+        try {
+            // Only upload if it's a data URL (new image)
+            if (url.startsWith('data:')) {
+                const downloadURL = await uploadImage(url);
+                onUpdate(downloadURL);
+            } else {
+                onUpdate(url); // It's an existing URL
+            }
+            setOpen(false);
+        } catch (error) {
+            console.error("Error handling image: ", error);
+            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile salvare l\'immagine.' });
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     return (
@@ -232,7 +285,11 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                         <Button onClick={handleCapture} disabled={!videoRef.current?.srcObject}>Scatta Foto</Button>
                     </TabsContent>
                 </Tabs>
-                <DialogFooter><Button type="button" onClick={handleSubmit}>Salva</Button></DialogFooter>
+                <DialogFooter>
+                    <Button type="button" onClick={handleSubmit} disabled={isUploading}>
+                        {isUploading ? <Loader2 className="animate-spin" /> : 'Salva'}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
@@ -649,19 +706,31 @@ export default function ProfilePage() {
   const role = userDoc?.role;
   const isAdmin = !!adminDoc;
 
-  // Create queries conditionally, only when all necessary data is available
   const ordersQuery = useMemoFirebase(() => {
+    // Return null until all necessary data is loaded
     if (!firestore || !user || !role) {
-      return null; // Return null if role is not yet determined
+      return null;
     }
+
+    const ordersCollection = collection(firestore, 'orders');
+
+    if (isAdmin) {
+      // Admins see all orders on their specific admin page, not here.
+      // For their profile page, they act as their base role (customer/baker).
+    }
+
     if (role === 'baker') {
-      return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
+      return query(ordersCollection, where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
+
     if (role === 'customer') {
-      return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
+      return query(ordersCollection, where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
-    return null; // Default to null
-  }, [firestore, user, role]);
+
+    // Default to null if no role matches, preventing unauthorized queries
+    return null;
+  }, [firestore, user, role, isAdmin]);
+
 
   const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 

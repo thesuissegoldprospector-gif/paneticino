@@ -204,10 +204,6 @@
           "type": "string",
           "description": "The UID of the baker fulfilling the order."
         },
-        "bakerName": {
-            "type": "string",
-            "description": "The name of the baker's company."
-        },
         "customerId": {
           "type": "string",
           "description": "The UID of the customer who placed the order."
@@ -261,8 +257,7 @@
         "total",
         "deliveryAddress",
         "status",
-        "createdAt",
-        "bakerName"
+        "createdAt"
       ]
     },
     "OrderItem": {
@@ -274,7 +269,8 @@
         "productId": { "type": "string" },
         "name": { "type": "string" },
         "price": { "type": "number" },
-        "quantity": { "type": "integer" }
+        "quantity": { "type": "integer" },
+        "imageUrl": { "type": "string", "format": "uri" }
       },
       "required": ["productId", "name", "price", "quantity"]
     },
