@@ -39,13 +39,13 @@ export default function BakerReportClient({ bakerUserId }: Props) {
   // Fetch baker details on the client by querying for the userId
   const bakerQuery = useMemoFirebase(() => {
     if (!firestore || !bakerUserId) return null;
-    return query(collection(firestore, 'bakers'), where('userId', '==', bakerUserId), orderBy('__name__'));
+    return query(collection(firestore, 'bakers'), where('userId', '==', bakerUserId));
   }, [firestore, bakerUserId]);
   const { data: bakerCollection, isLoading: isLoadingBaker } = useCollection(bakerQuery);
   const baker = useMemo(() => bakerCollection?.[0], [bakerCollection]);
 
 
-  // Fetch orders for this baker on the client
+  // Fetch orders for this baker on the client, using the correct bakerUserId from props
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !bakerUserId) return null;
     return query(
