@@ -3,38 +3,21 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Helper Functions
+    // Helper function to check for authentication
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-    
-    function isAdmin() {
-      // This rule is illustrative. In a real app, you'd check a custom claim or a document in Firestore.
-      // For this example, we assume an 'admin' custom claim is set on the user's token.
-      // return request.auth.token.admin === true;
-      // For this project, we check a document in Firestore.
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-
-    // --- Avatars ---
-    // Any authenticated user can upload/update their own avatar.
-    // Admins can also modify avatars.
-    match /avatars/{userId}/{fileName} {
-      allow read: if true; // Profile pictures are public
-      allow write: if isOwner(userId) || isAdmin();
-    }
-
-    // --- General Images (Products, Cover Photos etc.) ---
-    // Any authenticated user can write to their own folder.
-    // Admins have full write access.
-    // All authenticated users can read all images.
-    match /images/{userId}/{fileName} {
+    // Avatar images: Only the owner can write, anyone authenticated can read.
+    match /avatars/{userId}/{filename} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId) || isAdmin();
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Product/Order images: Only the owner can write, anyone authenticated can read.
+    match /images/{userId}/{filename} {
+      allow read: if isSignedIn();
+      allow write: if request.auth.uid == userId;
     }
   }
 }

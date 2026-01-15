@@ -1,9 +1,8 @@
 [
-    {
-      "origin": ["*"],
-      "method": ["GET", "POST", "PUT", "OPTIONS"],
-      "maxAgeSeconds": 3600,
-      "responseHeader": ["Content-Type", "Authorization"]
-    }
-  ]
-  
+  {
+    "origin": ["https://9000-firebase-studio-1768380781879.cluster-64pjnskmlbaxowh5lzq6i7v4ra.cloudworkstations.dev"],
+    "method": ["GET", "POST", "PUT", "HEAD"],
+    "responseHeader": ["Content-Type", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+] 
