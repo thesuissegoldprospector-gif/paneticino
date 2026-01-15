@@ -128,9 +128,13 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
   };
   
   const handleSave = async () => {
-    if (imageFile && user && userDocRef) {
-      setIsUploading(true);
-      try {
+    if (!imageFile || !user || !userDocRef || !storage) {
+        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare: servizio non disponibile o dati mancanti.' });
+        return;
+    }
+    
+    setIsUploading(true);
+    try {
         const imageRef = storageRef(storage, `avatars/${user.uid}/${Date.now()}_${imageFile.name}`);
         
         const snapshot = await uploadBytes(imageRef, imageFile);
@@ -141,12 +145,11 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
         setOpen(false);
         setImageSrc(null);
         setImageFile(null);
-      } catch (error) {
+    } catch (error) {
         console.error("Error uploading image: ", error);
         toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare l\'immagine.' });
-      } finally {
+    } finally {
         setIsUploading(false);
-      }
     }
   };
   
@@ -268,7 +271,7 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     };
 
     const uploadImage = async (file: File): Promise<string> => {
-        if (!user) throw new Error("User not authenticated");
+        if (!user || !storage) throw new Error("User not authenticated or storage not available");
         
         const imageRef = storageRef(storage, `images/${user.uid}/${Date.now()}_${file.name}`);
         
