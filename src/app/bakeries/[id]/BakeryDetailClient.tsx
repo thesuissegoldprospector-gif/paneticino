@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUser, useDoc, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase";
 import { doc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
+import { cn } from "@/lib/utils";
 
 
 // Skeleton dei prodotti
