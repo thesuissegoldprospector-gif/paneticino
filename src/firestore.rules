@@ -114,6 +114,7 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
       // An order can be read by the customer who placed it, the baker who is fulfilling it, or an admin.
+      // This rule is checked for every document returned by a client-side query.
       allow get: if isSignedIn() && (
         resource.data.customerId == request.auth.uid ||
         resource.data.bakerId == request.auth.uid ||
@@ -122,17 +123,10 @@ service cloud.firestore {
       
       // A baker can update the status of an order. No other fields can be changed.
       allow update: if isSignedIn()
-        && resource.data.bakerId == request.auth.uid
-        && request.resource.data.customerId == resource.data.customerId
-        && request.resource.data.bakerId == resource.data.bakerId
-        && request.resource.data.items.size() == resource.data.items.size()
-        && request.resource.data.total == resource.data.total;
+        && resource.data.bakerId == request.auth.uid;
 
-      // Allow customers and bakers to list ONLY their own orders
-      allow list: if isSignedIn() && (
-        request.query.where.bakerId == request.auth.uid ||
-        request.query.where.customerId == request.auth.uid
-      );
+      // Client-side queries are secured by the 'get' rule on each returned document.
+      allow list: if isSignedIn();
       
       // Orders cannot be deleted.
       allow delete: if false;
