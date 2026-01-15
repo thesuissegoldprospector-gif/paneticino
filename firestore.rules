@@ -114,6 +114,7 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
       // An order can be read by the customer who placed it, the baker who is fulfilling it, or an admin.
+      // This rule is checked for every document returned by a client-side query.
       allow get: if isSignedIn() && (
         resource.data.customerId == request.auth.uid ||
         resource.data.bakerId == request.auth.uid ||
@@ -128,11 +129,9 @@ service cloud.firestore {
         && request.resource.data.items.size() == resource.data.items.size()
         && request.resource.data.total == resource.data.total;
 
-      // Allow customers and bakers to list ONLY their own orders
-      allow list: if isSignedIn() && (
-        request.query.where.bakerId == request.auth.uid ||
-        request.query.where.customerId == request.auth.uid
-      );
+      // Explicitly disable list operations on the entire collection.
+      // Client-side queries are secured by the 'get' rule on each returned document.
+      allow list: if false;
       
       // Orders cannot be deleted.
       allow delete: if false;
@@ -143,7 +142,7 @@ service cloud.firestore {
     // ADMIN ROLES
     // ----------------------------------------------------------------
     match /roles_admin/{userId} {
-      allow get: if isAdmin();
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create, update, delete: if false;
     }
