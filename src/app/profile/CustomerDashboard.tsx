@@ -86,7 +86,7 @@ export default function CustomerDashboard({ user, userDoc }: { user: User, userD
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, 'orders'), where('customerId', '==', user.uid));
     }, [firestore, user]);
     const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
