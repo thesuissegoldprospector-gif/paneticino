@@ -110,12 +110,14 @@ async function updateUserProfileAndAuth(user: User, userDocRef: DocumentReferenc
 function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDocRef: DocumentReference | null, children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImageSrc(reader.result as string);
@@ -125,25 +127,20 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
   };
   
   const handleSave = async () => {
-    if (imageSrc && user && userDocRef) {
+    if (imageFile && user && userDocRef) {
       setIsUploading(true);
       try {
         const storage = getStorage();
-        // Create a storage reference
-        const imageRef = storageRef(storage, `avatars/${user.uid}/${Date.now()}`);
+        const imageRef = storageRef(storage, `avatars/${user.uid}/${Date.now()}_${imageFile.name}`);
         
-        // Convert base64 to blob
-        const response = await fetch(imageSrc);
-        const blob = await response.blob();
-
-        // Upload the file
-        const snapshot = await uploadBytes(imageRef, blob);
+        const snapshot = await uploadBytes(imageRef, imageFile);
         const downloadURL = await getDownloadURL(snapshot.ref);
 
         await updateUserProfileAndAuth(user, userDocRef, { photoURL: downloadURL });
         toast({ title: 'Avatar aggiornato con successo!' });
         setOpen(false);
         setImageSrc(null);
+        setImageFile(null);
       } catch (error) {
         console.error("Error uploading image: ", error);
         toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare l\'immagine.' });
@@ -164,7 +161,7 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
         </div>
         <DialogFooter className="mt-4 gap-2">
           <Button variant="ghost" onClick={() => setOpen(false)}>Annulla</Button>
-          <Button onClick={handleSave} disabled={!imageSrc || isUploading}>
+          <Button onClick={handleSave} disabled={!imageFile || isUploading}>
             {isUploading ? <Loader2 className="animate-spin" /> : 'Salva Foto'}
           </Button>
         </DialogFooter>
@@ -175,7 +172,9 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
 
 function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url: string) => void; currentUrl?: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(false);
-    const [url, setUrl] = useState('');
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [linkUrl, setLinkUrl] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -183,15 +182,17 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     const { user } = useUser();
 
     useEffect(() => {
-        if(open) {
-            setUrl(currentUrl || '');
+        if (open) {
+            setPreviewUrl(currentUrl || '');
+            setLinkUrl(currentUrl || '');
+            setImageFile(null);
         }
         return () => {
             if (videoRef.current?.srcObject) {
                 const stream = videoRef.current.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
             }
-        }
+        };
     }, [open, currentUrl]);
     
     const handleCamera = async () => {
@@ -208,13 +209,23 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
+            setImageFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
-                setUrl(reader.result as string);
+                setPreviewUrl(reader.result as string);
             };
             reader.readAsDataURL(file);
         }
     };
+
+    const dataURLtoFile = (dataurl: string, filename: string) => {
+        let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)?.[1],
+            bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+        while(n--){
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, {type:mime});
+    }
 
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {
@@ -224,7 +235,8 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                 canvasRef.current.height = videoRef.current.videoHeight;
                 context.drawImage(videoRef.current, 0, 0, videoRef.current.videoWidth, videoRef.current.videoHeight);
                 const dataUrl = canvasRef.current.toDataURL('image/jpeg');
-                setUrl(dataUrl);
+                setPreviewUrl(dataUrl);
+                setImageFile(dataURLtoFile(dataUrl, 'capture.jpg'));
                 
                 const stream = videoRef.current.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
@@ -233,30 +245,26 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
         }
     };
 
-    const uploadImage = async (imageSrc: string): Promise<string> => {
+    const uploadImage = async (file: File): Promise<string> => {
         if (!user) throw new Error("User not authenticated");
         
         const storage = getStorage();
-        const imageRef = storageRef(storage, `images/${user.uid}/${Date.now()}`);
+        const imageRef = storageRef(storage, `images/${user.uid}/${Date.now()}_${file.name}`);
         
-        const response = await fetch(imageSrc);
-        const blob = await response.blob();
-
-        const snapshot = await uploadBytes(imageRef, blob);
+        const snapshot = await uploadBytes(imageRef, file);
         return await getDownloadURL(snapshot.ref);
     };
     
     const handleSubmit = async () => {
-        if (!url) return;
         setIsUploading(true);
         try {
-            // Only upload if it's a data URL (new image)
-            if (url.startsWith('data:')) {
-                const downloadURL = await uploadImage(url);
-                onUpdate(downloadURL);
-            } else {
-                onUpdate(url); // It's an existing URL
+            let finalUrl = previewUrl || '';
+            if (imageFile) {
+                finalUrl = await uploadImage(imageFile);
+            } else if (linkUrl !== currentUrl) {
+                finalUrl = linkUrl;
             }
+            onUpdate(finalUrl);
             setOpen(false);
         } catch (error) {
             console.error("Error handling image: ", error);
@@ -265,30 +273,42 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
             setIsUploading(false);
         }
     };
+    
+    const handleSetUrlFromGallery = (url: string) => {
+        setPreviewUrl(url);
+        setLinkUrl(url);
+        setImageFile(null);
+    }
+    
+    const handleSetUrlFromLink = (url: string) => {
+        setPreviewUrl(url);
+        setLinkUrl(url);
+        setImageFile(null);
+    }
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{children}</DialogTrigger>
             <DialogContent className="max-w-xl">
                 <DialogHeader><DialogTitle>Aggiorna immagine</DialogTitle></DialogHeader>
-                <Tabs defaultValue="url">
+                <Tabs defaultValue="upload">
                     <TabsList className="grid w-full grid-cols-4">
-                        <TabsTrigger value="url"><Link2 />URL</TabsTrigger>
                         <TabsTrigger value="upload"><Upload />Carica</TabsTrigger>
+                        <TabsTrigger value="url"><Link2 />URL</TabsTrigger>
                         <TabsTrigger value="gallery"><ImageIcon />Galleria</TabsTrigger>
                         <TabsTrigger value="camera" onClick={handleCamera}><Camera />Camera</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="url" className="py-4 space-y-4">
-                        <Input placeholder="https://esempio.com/immagine.jpg" value={url} onChange={(e) => setUrl(e.target.value)} />
-                    </TabsContent>
                     <TabsContent value="upload" className="py-4 space-y-4">
                         <Input type="file" onChange={handleFileChange} accept="image/*" />
+                    </TabsContent>
+                    <TabsContent value="url" className="py-4 space-y-4">
+                        <Input placeholder="https://esempio.com/immagine.jpg" value={linkUrl} onChange={(e) => handleSetUrlFromLink(e.target.value)} />
                     </TabsContent>
                     <TabsContent value="gallery" className="py-4">
                         <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
                             {placeholderImages.map(imgUrl => (
-                                <div key={imgUrl} className="relative aspect-video cursor-pointer" onClick={() => setUrl(imgUrl)}>
-                                    <Image src={imgUrl} alt="Placeholder" fill objectFit="cover" className={cn("rounded-md", url === imgUrl && "ring-2 ring-primary ring-offset-2")}/>
+                                <div key={imgUrl} className="relative aspect-video cursor-pointer" onClick={() => handleSetUrlFromGallery(imgUrl)}>
+                                    <Image src={imgUrl} alt="Placeholder" fill objectFit="cover" className={cn("rounded-md", previewUrl === imgUrl && "ring-2 ring-primary ring-offset-2")}/>
                                 </div>
                             ))}
                         </div>
@@ -299,14 +319,14 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                         <Button onClick={handleCapture} disabled={!videoRef.current?.srcObject}>Scatta Foto</Button>
                     </TabsContent>
                 </Tabs>
-                {url && (
+                {previewUrl && (
                     <div className='py-4'>
                         <p className='text-sm font-medium mb-2'>Anteprima:</p>
-                        <Image src={url} alt="Anteprima" width={200} height={200} className="rounded-md object-cover mx-auto" />
+                        <Image src={previewUrl} alt="Anteprima" width={200} height={200} className="rounded-md object-cover mx-auto" />
                     </div>
                 )}
                 <DialogFooter>
-                    <Button type="button" onClick={handleSubmit} disabled={isUploading}>
+                    <Button type="button" onClick={handleSubmit} disabled={isUploading || !previewUrl}>
                         {isUploading ? <Loader2 className="animate-spin" /> : 'Salva'}
                     </Button>
                 </DialogFooter>
@@ -735,8 +755,8 @@ export default function ProfilePage() {
     const ordersCollection = collection(firestore, 'orders');
 
     if (isAdmin) {
-      // Admins see all orders on their specific admin page, not here.
-      // For their profile page, they act as their base role (customer/baker).
+      // Admins see all orders.
+       return query(ordersCollection, orderBy('createdAt', 'desc'));
     }
 
     if (role === 'baker') {

@@ -102,8 +102,8 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /products/{productId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.bakerId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid && isApprovedBaker();
+      allow update, delete: if isSignedIn() && resource.data.bakerId == request.auth.uid && isApprovedBaker();
     }
     
     // ----------------------------------------------------------------
@@ -114,21 +114,17 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
       // An order can be read by the customer who placed it, the baker who is fulfilling it, or an admin.
-      // This rule is checked for every document returned by a client-side query.
       allow get: if isSignedIn() && (
         resource.data.customerId == request.auth.uid ||
         resource.data.bakerId == request.auth.uid ||
         isAdmin()
       );
       
-      // A baker can update the status of an order.
+      // A baker can update the status of an order. No other fields can be changed.
       allow update: if isSignedIn()
-        && resource.data.bakerId == request.auth.uid;
+        && resource.data.bakerId == request.auth.uid && isApprovedBaker();
 
       // Client-side queries are secured by the 'get' rule on each returned document.
-      // We allow list operations for any signed-in user because the client-side queries
-      // are already filtered by 'customerId' or 'bakerId', and the 'get' rule above
-      // will secure access to each individual document returned by the query.
       allow list: if isSignedIn();
       
       // Orders cannot be deleted.

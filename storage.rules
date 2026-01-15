@@ -13,16 +13,10 @@ service firebase.storage {
     }
     
     function isAdmin() {
-      return isSignedIn() && exists(/databases/(default)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
     
-    // Function to check if the user is the baker associated with an order
-    function isOrderBaker(orderId) {
-        let order = get(/databases/(default)/documents/orders/$(orderId)).data;
-        return isSignedIn() && request.auth.uid == order.bakerId;
-    }
-
-    // --- Profile Pictures ---
+    // --- Avatars ---
     // Any authenticated user can upload their own avatar.
     match /avatars/{userId}/{fileName} {
       allow read: if true; // Profile pictures are public
@@ -30,26 +24,10 @@ service firebase.storage {
     }
 
     // --- General Images (Products, Cover Photos etc.) ---
-    // Any authenticated user can upload general images.
-    // Bakers will link these from their products/profiles.
+    // Any authenticated user can upload general images to their own folder.
     match /images/{userId}/{fileName} {
-      allow read: if true;
-      allow write: if isOwner(userId) || isAdmin();
-    }
-
-    // --- Order-specific Images ---
-    // This is a more complex case if customers need to upload images for an order.
-    // The path could include the orderId to enforce rules.
-    match /orders/{orderId}/{fileName} {
-      // The customer who placed the order can upload an image for it.
-      allow write: if isSignedIn() && request.auth.uid == get(/databases/(default)/documents/orders/$(orderId)).data.customerId;
-      
-      // The customer, the baker, or an admin can read order images.
-      allow read: if isSignedIn() && (
-        request.auth.uid == get(/databases/(default)/documents/orders/$(orderId)).data.customerId ||
-        isOrderBaker(orderId) ||
-        isAdmin()
-      );
+      allow read: if true; // Images are public
+      allow write: if isOwner(userId);
     }
   }
 }
