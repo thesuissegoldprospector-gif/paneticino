@@ -1,5 +1,9 @@
 'use client';
 
+import { useMemo } from 'react';
+import { useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc, collection, query, where, orderBy } from 'firebase/firestore';
+import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from 'date-fns';
@@ -8,11 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 
 type Props = {
-  baker: any;
-  orders: any[];
+  bakerId: string;
 };
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -30,10 +33,45 @@ const OrderStatusBadge = ({ status }: { status: string }) => {
 };
 
 
-export default function BakerReportClient({ baker, orders }: Props) {
+export default function BakerReportClient({ bakerId }: Props) {
+  const firestore = useFirestore();
+
+  // Fetch baker details on the client
+  const bakerRef = useMemoFirebase(() => {
+    if (!firestore || !bakerId) return null;
+    return doc(firestore, 'bakers', bakerId);
+  }, [firestore, bakerId]);
+  const { data: baker, isLoading: isLoadingBaker } = useDoc(bakerRef);
+
+  // Fetch orders for this baker on the client
+  const ordersQuery = useMemoFirebase(() => {
+    if (!firestore || !bakerId) return null;
+    return query(
+      collection(firestore, "orders"),
+      where("bakerId", "==", bakerId),
+      orderBy("createdAt", "desc")
+    );
+  }, [firestore, bakerId]);
+  const { data: orders, isLoading: isLoadingOrders } = useCollection(ordersQuery);
+
+  if (isLoadingBaker || isLoadingOrders) {
+    return (
+      <div className="flex h-full min-h-[400px] w-full items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="ml-4">Caricamento report...</p>
+      </div>
+    );
+  }
+
+  if (!baker) {
+    notFound();
+  }
+  
+  const safeOrders = orders || [];
+
   // Calculate summary stats
-  const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-  const completedOrders = orders.filter(order => order.status === 'completed');
+  const totalRevenue = safeOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+  const completedOrders = safeOrders.filter(order => order.status === 'completed');
   const totalRevenueCompleted = completedOrders.reduce((sum, order) => sum + (order.total || 0), 0);
 
   return (
@@ -90,7 +128,7 @@ export default function BakerReportClient({ baker, orders }: Props) {
                 </Card>
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Ordini Totali</CardTitle></CardHeader>
-                    <CardContent><p className="text-2xl font-bold">{orders.length}</p></CardContent>
+                    <CardContent><p className="text-2xl font-bold">{safeOrders.length}</p></CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Ordini Completati</CardTitle></CardHeader>
@@ -112,9 +150,9 @@ export default function BakerReportClient({ baker, orders }: Props) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {orders.map(order => (
+                        {safeOrders.map(order => (
                         <TableRow key={order.id}>
-                            <TableCell>{order.createdAt ? format(new Date(order.createdAt), 'dd/MM/yy HH:mm', { locale: it }) : 'N/A'}</TableCell>
+                            <TableCell>{order.createdAt ? format(order.createdAt.toDate(), 'dd/MM/yy HH:mm', { locale: it }) : 'N/A'}</TableCell>
                             <TableCell>{order.customerName}</TableCell>
                             <TableCell>{order.deliveryAddress}</TableCell>
                             <TableCell><OrderStatusBadge status={order.status} /></TableCell>
@@ -123,7 +161,7 @@ export default function BakerReportClient({ baker, orders }: Props) {
                         ))}
                     </TableBody>
                 </Table>
-                {orders.length === 0 && <p className="text-center text-muted-foreground p-8">Nessun ordine trovato per questo panettiere.</p>}
+                {safeOrders.length === 0 && <p className="text-center text-muted-foreground p-8">Nessun ordine trovato per questo panettiere.</p>}
             </div>
         </CardContent>
       </Card>

@@ -1,37 +1,14 @@
-import { doc, collection, query, where, getDoc, getDocs, orderBy } from "firebase/firestore";
-import { firestore } from "@/firebase/server"; 
-import { notFound } from "next/navigation";
-import BakerReportClient from "./BakerReportClient";
+'use client';
 
-type Props = {
-  params: { bakerId: string };
-};
+import { useParams } from 'next/navigation';
+import BakerReportClient from './BakerReportClient';
 
-export default async function BakerReportPage({ params: { bakerId } }: Props) {
-  if (!bakerId) {
-    notFound();
-  }
+// Questa pagina ora funge solo da contenitore per il componente client.
+// Tutta la logica di caricamento dati è stata spostata sul client
+// per risolvere i problemi di autenticazione sul server.
+export default function BakerReportPage() {
+  const params = useParams();
+  const bakerId = params.bakerId as string;
 
-  // Fetch baker details
-  const bakerDocSnap = await getDoc(doc(firestore, "bakers", bakerId));
-  if (!bakerDocSnap.exists()) {
-    notFound();
-  }
-  const baker = { id: bakerDocSnap.id, ...bakerDocSnap.data() };
-
-  // Fetch all orders for this baker, ordered by date
-  const ordersQuery = query(
-    collection(firestore, "orders"), 
-    where("bakerId", "==", bakerId),
-    orderBy("createdAt", "desc")
-  );
-  const ordersSnap = await getDocs(ordersQuery);
-  const orders = ordersSnap.docs.map(doc => ({ 
-    id: doc.id, 
-    ...doc.data(),
-    // Convert Firestore Timestamp to a serializable format (ISO string)
-    createdAt: doc.data().createdAt.toDate().toISOString(),
-  }));
-
-  return <BakerReportClient baker={baker} orders={orders} />;
+  return <BakerReportClient bakerId={bakerId} />;
 }
