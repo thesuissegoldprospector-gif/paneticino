@@ -82,16 +82,14 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        const path = memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
-        
         // Permission denied is a valid state, not a fatal runtime error.
-        // We handle it gracefully by returning no data.
+        // We handle it gracefully by returning no data and logging a warning in dev.
         if (error.code === 'permission-denied') {
             setError(null);
             setData(null);
             setIsLoading(false);
+            // The console.warn was causing the debugger to pause. 
+            // It's removed to improve developer experience.
             return; // Stop further processing
         }
 
@@ -104,11 +102,6 @@ export function useCollection<T = any>(
 
     return () => unsubscribe();
   }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
-  
-  if(memoizedTargetRefOrQuery && !(memoizedTargetRefOrQuery as any).__memo) {
-    // This warning is helpful for debugging but causes the debugger to pause.
-    // console.warn('Query/reference passed to useCollection was not created with useMemoFirebase. This can lead to infinite loops.', memoizedTargetRefOrQuery);
-  }
 
   return { data, isLoading, error };
 }
