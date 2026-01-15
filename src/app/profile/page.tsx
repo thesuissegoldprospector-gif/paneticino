@@ -641,18 +641,17 @@ export default function ProfilePage() {
   const role = userDoc?.role;
 
   const ordersQuery = useMemoFirebase(() => {
-    if (!firestore || !user || !userDoc) {
-      return null; 
+    if (!firestore || !user || !role) {
+      return null;
     }
-    const role = userDoc.role;
     if (role === 'baker') {
       return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
     if (role === 'customer') {
       return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
-    return null; 
-  }, [firestore, user, userDoc]);
+    return null;
+  }, [firestore, user, role]);
 
   const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
