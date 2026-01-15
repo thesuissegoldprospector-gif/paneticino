@@ -2,9 +2,11 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, updateProfile } from 'firebase/auth';
+import { getFirestore, DocumentReference } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { User } from 'firebase/auth';
+import { updateDocumentNonBlocking } from './non-blocking-updates';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -32,6 +34,27 @@ export function initializeFirebase() {
     firestore: getFirestore(firebaseApp),
     storage: storage
   };
+}
+
+export async function updateUserProfileAndAuth(user: User, userDocRef: DocumentReference, data: any) {
+  if (!user || !userDocRef) return;
+  const authUpdates: any = {};
+  const firestoreUpdates: any = {};
+
+  if (data.firstName && data.lastName) {
+    const displayName = `${data.firstName} ${data.lastName}`;
+    if (user.displayName !== displayName) authUpdates.displayName = displayName;
+    firestoreUpdates.firstName = data.firstName;
+    firestoreUpdates.lastName = data.lastName;
+  }
+
+  if (data.photoURL && user.photoURL !== data.photoURL) {
+    authUpdates.photoURL = data.photoURL;
+    firestoreUpdates.photoURL = data.photoURL;
+  }
+
+  if (Object.keys(authUpdates).length > 0) await updateProfile(user, authUpdates);
+  if (Object.keys(firestoreUpdates).length > 0) updateDocumentNonBlocking(userDocRef, firestoreUpdates);
 }
 
 export * from './provider';
