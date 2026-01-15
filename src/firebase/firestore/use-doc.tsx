@@ -73,14 +73,14 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        if (error.code === 'permission-denied') {
-           if (process.env.NODE_ENV === 'development') {
-                console.warn(`Firestore permission denied for document: "${memoizedDocRef.path}". The query will return no data.`);
-                setData(null);
-                setIsLoading(false);
-                setError(null); // Clear the error to prevent crashes in dev
-                return;
-           }
+        // In development, we want to avoid throwing an error that pauses the debugger.
+        // Instead, we log a warning to the console and return no data.
+        if (process.env.NODE_ENV === 'development' && error.code === 'permission-denied') {
+          console.warn(`Firestore permission denied for document: "${memoizedDocRef.path}". The query will return no data.`);
+          setData(null);
+          setIsLoading(false);
+          setError(null); // Clear the error to prevent crashes in dev.
+          return; // Stop further execution for this error in dev.
         }
         
         // For other errors, or in production, propagate the error.
