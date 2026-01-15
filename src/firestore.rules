@@ -76,7 +76,7 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /bakers/{bakerId} {
 
-      allow list: if isSignedIn();
+      allow list: if true;
 
       allow get: if isOwner(bakerId)
         || isAdmin()
@@ -126,7 +126,7 @@ service cloud.firestore {
       
       // La lista di ordini può essere letta da un admin (per i report dei panettieri) o da un cliente (per il proprio storico).
       // Questa regola è sicura perché richiede che la query lato client specifichi sempre il campo per cui sta filtrando.
-      allow list: if (isAdmin() && request.query.where.field in ['bakerId', 'customerId']) || (isSignedIn() && request.query.where.field == "customerId" && request.query.where.value == request.auth.uid);
+      allow list: if (isAdmin()) || (isSignedIn() && request.query.where.field == "customerId" && request.query.where.value == request.auth.uid);
 
       // Gli ordini non possono essere cancellati.
       allow delete: if false;
