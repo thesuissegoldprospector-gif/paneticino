@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -16,8 +17,21 @@ import Link from 'next/link';
 
 export function CartSheet() {
   const { cart, total, removeFromCart, updateItemQuantity } = useCart();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const totalItems = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
+
+  if (!isMounted) {
+    return (
+      <Button variant="outline" size="icon" className="relative">
+        <ShoppingCart />
+      </Button>
+    );
+  }
 
   return (
     <Sheet>
