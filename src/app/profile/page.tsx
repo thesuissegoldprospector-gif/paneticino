@@ -170,9 +170,30 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
   );
 }
 
+const dataURLtoFile = (dataurl: string, filename: string): File | null => {
+    if (!dataurl || !dataurl.includes(',')) return null;
+    const arr = dataurl.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    if (!mimeMatch) return null;
+    const mime = mimeMatch[1];
+    try {
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new File([u8arr], filename, { type: mime });
+    } catch (e) {
+        console.error("Error converting data URL to file:", e);
+        return null;
+    }
+}
+
 function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url: string) => void; currentUrl?: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [sourceForUpload, setSourceForUpload] = useState<'file' | 'camera' | 'gallery' | 'link' | null>(null);
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [linkUrl, setLinkUrl] = useState('');
     const [isUploading, setIsUploading] = useState(false);
@@ -183,9 +204,11 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
 
     useEffect(() => {
         if (open) {
-            setPreviewUrl(currentUrl || '');
-            setLinkUrl(currentUrl || '');
+            const initialUrl = currentUrl || '';
+            setPreviewUrl(initialUrl);
+            setLinkUrl(initialUrl);
             setImageFile(null);
+            setSourceForUpload(null);
         }
         return () => {
             if (videoRef.current?.srcObject) {
@@ -210,6 +233,7 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
         const file = event.target.files?.[0];
         if (file) {
             setImageFile(file);
+            setSourceForUpload('file');
             const reader = new FileReader();
             reader.onloadend = () => {
                 setPreviewUrl(reader.result as string);
@@ -217,20 +241,6 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
             reader.readAsDataURL(file);
         }
     };
-
-    const dataURLtoFile = (dataurl: string, filename: string): File | null => {
-        const arr = dataurl.split(',');
-        const mimeMatch = arr[0].match(/:(.*?);/);
-        if (!mimeMatch) return null;
-        const mime = mimeMatch[1];
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while(n--){
-            u8arr[n] = bstr.charCodeAt(n);
-        }
-        return new File([u8arr], filename, {type:mime});
-    }
 
     const handleCapture = () => {
         if (videoRef.current && canvasRef.current) {
@@ -241,6 +251,7 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                 context.drawImage(videoRef.current, 0, 0, videoRef.current.videoWidth, videoRef.current.videoHeight);
                 const dataUrl = canvasRef.current.toDataURL('image/jpeg');
                 setPreviewUrl(dataUrl);
+                setSourceForUpload('camera');
                 const file = dataURLtoFile(dataUrl, 'capture.jpg');
                 if (file) setImageFile(file);
                 
@@ -257,8 +268,8 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
         const storage = getStorage();
         const imageRef = storageRef(storage, `images/${user.uid}/${Date.now()}_${file.name}`);
         
-        const snapshot = await uploadBytes(imageRef, file);
-        return await getDownloadURL(snapshot.ref);
+        await uploadBytes(imageRef, file);
+        return await getDownloadURL(imageRef);
     };
     
     const handleSubmit = async () => {
@@ -267,25 +278,24 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
             let finalUrl = previewUrl || '';
             if (imageFile) {
                 finalUrl = await uploadImage(imageFile);
-            } else if (linkUrl && linkUrl !== currentUrl) {
-                 // Check if it's a data URL from gallery/camera that needs uploading
-                if (linkUrl.startsWith('data:')) {
-                    const file = dataURLtoFile(linkUrl, `image-${Date.now()}.png`);
-                    if (file) finalUrl = await uploadImage(file);
-                } else {
-                    finalUrl = linkUrl;
-                }
-            } else if (previewUrl?.startsWith('data:') && !imageFile) {
-                // This handles the case where a gallery image was selected
-                const file = dataURLtoFile(previewUrl, `gallery-${Date.now()}.png`);
-                if (file) finalUrl = await uploadImage(file);
+            } else if (sourceForUpload === 'link' && linkUrl) {
+                finalUrl = linkUrl;
+            } else {
+                 toast({ variant: 'destructive', title: 'Nessuna immagine selezionata', description: 'Seleziona un file o fornisci un link.' });
+                 setIsUploading(false);
+                 return;
             }
-            
             onUpdate(finalUrl);
             setOpen(false);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error handling image: ", error);
-            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile salvare l\'immagine.' });
+             let description = 'Impossibile salvare l\'immagine.';
+            if (error.code === 'storage/unauthorized') {
+                description = 'Non hai i permessi per caricare. Controlla le regole di CORS e di Firebase Storage.';
+            } else if (error.code === 'storage/object-not-found') {
+                description = 'File non trovato. Potrebbe essere un problema di rete.';
+            }
+            toast({ variant: 'destructive', title: 'Errore di caricamento', description });
         } finally {
             setIsUploading(false);
         }
@@ -293,15 +303,21 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     
     const handleSetUrlFromGallery = (url: string) => {
         setPreviewUrl(url);
-        setLinkUrl(url);
         const file = dataURLtoFile(url, `gallery-image-${Date.now()}.png`);
-        if (file) setImageFile(file); else setImageFile(null);
+        if (file) {
+            setImageFile(file);
+            setSourceForUpload('gallery');
+        } else {
+            setLinkUrl(url);
+            setSourceForUpload('link');
+        }
     }
     
     const handleSetUrlFromLink = (url: string) => {
         setPreviewUrl(url);
         setLinkUrl(url);
         setImageFile(null);
+        setSourceForUpload('link');
     }
 
     return (
@@ -326,7 +342,7 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                         <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
                             {placeholderImages.map(imgUrl => (
                                 <div key={imgUrl} className="relative aspect-video cursor-pointer" onClick={() => handleSetUrlFromGallery(imgUrl)}>
-                                    <Image src={imgUrl} alt="Placeholder" fill objectFit="cover" className={cn("rounded-md", previewUrl === imgUrl && "ring-2 ring-primary ring-offset-2")}/>
+                                    <Image src={imgUrl} alt="Placeholder" fill objectFit="cover" className={cn("rounded-md", previewUrl === imgUrl && sourceForUpload === 'gallery' && "ring-2 ring-primary ring-offset-2")}/>
                                 </div>
                             ))}
                         </div>
@@ -765,7 +781,6 @@ export default function ProfilePage() {
   const isAdmin = !!adminDoc;
 
   const ordersQuery = useMemoFirebase(() => {
-    // Return null until all necessary data is loaded
     if (!firestore || !user || !role) {
       return null;
     }
@@ -773,7 +788,6 @@ export default function ProfilePage() {
     const ordersCollection = collection(firestore, 'orders');
 
     if (isAdmin) {
-      // Admins see all orders.
        return query(ordersCollection, orderBy('createdAt', 'desc'));
     }
 
@@ -785,7 +799,6 @@ export default function ProfilePage() {
       return query(ordersCollection, where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
 
-    // Default to null if no role matches, preventing unauthorized queries
     return null;
   }, [firestore, user, role, isAdmin]);
 
