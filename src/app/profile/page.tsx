@@ -640,6 +640,7 @@ export default function ProfilePage() {
   const firestore = useFirestore();
   const router = useRouter();
 
+  // Load all user-related data centrally
   const { data: userDoc, isLoading: isUserDocLoading, ref: userDocRef } = useUserDoc(firestore, user?.uid);
   const { data: bakerProfile, isLoading: isBakerLoading, ref: bakerDocRef } = useBakerProfile(firestore, user?.uid);
   const { data: customerProfile, isLoading: isCustomerLoading, ref: customerDocRef } = useCustomerProfile(firestore, user?.uid);
@@ -648,9 +649,10 @@ export default function ProfilePage() {
   const role = userDoc?.role;
   const isAdmin = !!adminDoc;
 
+  // Create queries conditionally, only when all necessary data is available
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !user || !role) {
-      return null;
+      return null; // Return null if role is not yet determined
     }
     if (role === 'baker') {
       return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
@@ -658,15 +660,15 @@ export default function ProfilePage() {
     if (role === 'customer') {
       return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
-    return null;
+    return null; // Default to null
   }, [firestore, user, role]);
 
   const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
   const productsQuery = useMemoFirebase(() => {
-    if (!firestore || !user || role !== 'baker' || bakerProfile?.approvalStatus !== 'approved') return null;
+    if (!firestore || !user || role !== 'baker') return null;
     return query(collection(firestore, 'products'), where('bakerId', '==', user.uid));
-  }, [firestore, user, role, bakerProfile]);
+  }, [firestore, user, role]);
   
   const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
   
@@ -693,8 +695,9 @@ export default function ProfilePage() {
   return (
     <div className="container mx-auto max-w-5xl space-y-8 px-4 py-8">
       {/* User Profile */}
-      {user && userDocRef && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />}
+      {user && userDoc && userDocRef && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />}
       
+      {/* Admin Section - Only shown on this page */}
       {isAdmin && (
         <Card>
             <CardHeader>
@@ -711,7 +714,7 @@ export default function ProfilePage() {
 
 
       {/* Baker Dashboard */}
-      {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user && userDoc && bakerProfile.approvalStatus === 'approved' && (
+      {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user && userDoc && (bakerProfile.approvalStatus === 'approved') && (
         <BakerProfileDashboard 
           user={user} 
           userProfile={userDoc} 
