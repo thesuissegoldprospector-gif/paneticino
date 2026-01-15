@@ -113,7 +113,7 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
-  const { storage } = useFirebase();
+  const { storage } = useFirebase(); // Use hook to get storage instance
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -147,7 +147,7 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
         setImageFile(null);
     } catch (error) {
         console.error("Error uploading image: ", error);
-        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare l\'immagine.' });
+        toast({ variant: 'destructive', title: 'Errore di Caricamento', description: 'Controlla la configurazione di CORS e le regole di Storage.' });
     } finally {
         setIsUploading(false);
     }
@@ -271,7 +271,7 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     };
 
     const uploadImage = async (file: File): Promise<string> => {
-        if (!user || !storage) throw new Error("User not authenticated or storage not available");
+        if (!user || !storage) throw new Error("Utente non autenticato o servizio di storage non disponibile.");
         
         const imageRef = storageRef(storage, `images/${user.uid}/${Date.now()}_${file.name}`);
         
@@ -282,7 +282,8 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     const handleSubmit = async () => {
         setIsUploading(true);
         try {
-            let finalUrl = previewUrl || '';
+            let finalUrl = '';
+
             if (imageFile) {
                 finalUrl = await uploadImage(imageFile);
             } else if (sourceForUpload === 'link' && linkUrl) {
@@ -296,7 +297,7 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
             setOpen(false);
         } catch (error: any) {
             console.error("Error handling image: ", error);
-             let description = 'Impossibile salvare l\'immagine.';
+             let description = 'Impossibile salvare l\'immagine. Controlla la console per i dettagli.';
             if (error.code === 'storage/unauthorized') {
                 description = 'Non hai i permessi per caricare. Controlla le regole di CORS e di Firebase Storage.';
             } else if (error.code === 'storage/object-not-found') {
@@ -310,14 +311,10 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     
     const handleSetUrlFromGallery = (url: string) => {
         setPreviewUrl(url);
-        const file = dataURLtoFile(url, `gallery-image-${Date.now()}.png`);
-        if (file) {
-            setImageFile(file);
-            setSourceForUpload('gallery');
-        } else {
-            setLinkUrl(url);
-            setSourceForUpload('link');
-        }
+        // We will treat picsum photos as links as they are not base64
+        setLinkUrl(url);
+        setImageFile(null);
+        setSourceForUpload('link');
     }
     
     const handleSetUrlFromLink = (url: string) => {
@@ -355,7 +352,7 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                           <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
                               {placeholderImages.map(imgUrl => (
                                   <div key={imgUrl} className="relative aspect-video cursor-pointer" onClick={() => handleSetUrlFromGallery(imgUrl)}>
-                                      <Image src={imgUrl} alt="Placeholder" fill objectFit="cover" className={cn("rounded-md", previewUrl === imgUrl && sourceForUpload === 'gallery' && "ring-2 ring-primary ring-offset-2")}/>
+                                      <Image src={imgUrl} alt="Placeholder" fill objectFit="cover" className={cn("rounded-md", previewUrl === imgUrl && (sourceForUpload === 'gallery' || sourceForUpload === 'link') && "ring-2 ring-primary ring-offset-2")}/>
                                   </div>
                               ))}
                           </div>
