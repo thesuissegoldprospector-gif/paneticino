@@ -102,17 +102,9 @@ export function useCollection<T = any>(
         }
 
         // For other types of errors, we can still treat them as actual errors.
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        });
-
-        setError(contextualError);
+        setError(error);
         setData(null);
         setIsLoading(false);
-
-        // Optionally, emit only for truly unexpected errors, not permission issues.
-        // errorEmitter.emit('permission-error', contextualError);
       }
     );
 

@@ -218,9 +218,14 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
         }
     };
 
-    const dataURLtoFile = (dataurl: string, filename: string) => {
-        let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)?.[1],
-            bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+    const dataURLtoFile = (dataurl: string, filename: string): File | null => {
+        const arr = dataurl.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        if (!mimeMatch) return null;
+        const mime = mimeMatch[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
         while(n--){
             u8arr[n] = bstr.charCodeAt(n);
         }
@@ -236,7 +241,8 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                 context.drawImage(videoRef.current, 0, 0, videoRef.current.videoWidth, videoRef.current.videoHeight);
                 const dataUrl = canvasRef.current.toDataURL('image/jpeg');
                 setPreviewUrl(dataUrl);
-                setImageFile(dataURLtoFile(dataUrl, 'capture.jpg'));
+                const file = dataURLtoFile(dataUrl, 'capture.jpg');
+                if (file) setImageFile(file);
                 
                 const stream = videoRef.current.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
@@ -261,9 +267,20 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
             let finalUrl = previewUrl || '';
             if (imageFile) {
                 finalUrl = await uploadImage(imageFile);
-            } else if (linkUrl !== currentUrl) {
-                finalUrl = linkUrl;
+            } else if (linkUrl && linkUrl !== currentUrl) {
+                 // Check if it's a data URL from gallery/camera that needs uploading
+                if (linkUrl.startsWith('data:')) {
+                    const file = dataURLtoFile(linkUrl, `image-${Date.now()}.png`);
+                    if (file) finalUrl = await uploadImage(file);
+                } else {
+                    finalUrl = linkUrl;
+                }
+            } else if (previewUrl?.startsWith('data:') && !imageFile) {
+                // This handles the case where a gallery image was selected
+                const file = dataURLtoFile(previewUrl, `gallery-${Date.now()}.png`);
+                if (file) finalUrl = await uploadImage(file);
             }
+            
             onUpdate(finalUrl);
             setOpen(false);
         } catch (error) {
@@ -277,7 +294,8 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     const handleSetUrlFromGallery = (url: string) => {
         setPreviewUrl(url);
         setLinkUrl(url);
-        setImageFile(null);
+        const file = dataURLtoFile(url, `gallery-image-${Date.now()}.png`);
+        if (file) setImageFile(file); else setImageFile(null);
     }
     
     const handleSetUrlFromLink = (url: string) => {

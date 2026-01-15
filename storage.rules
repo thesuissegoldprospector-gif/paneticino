@@ -13,20 +13,28 @@ service firebase.storage {
     }
     
     function isAdmin() {
+      // Use exists() on a path in Firestore. Note the $(database) variable.
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
     
+    function isApprovedBaker() {
+        // Use get() to read a document from Firestore.
+        let bakerProfile = get(/databases/$(database)/documents/bakers/$(request.auth.uid));
+        return bakerProfile.data.approvalStatus == 'approved';
+    }
+
     // --- Avatars ---
-    // Any authenticated user can upload their own avatar.
+    // Any authenticated user can upload their own avatar into their own folder.
     match /avatars/{userId}/{fileName} {
       allow read: if true; // Profile pictures are public
       allow write: if isOwner(userId);
     }
 
     // --- General Images (Products, Cover Photos etc.) ---
-    // Any authenticated user can upload general images to their own folder.
+    // An authenticated user can upload images to their own folder.
+    // Approved bakers can also upload.
     match /images/{userId}/{fileName} {
-      allow read: if true; // Images are public
+      allow read: if true; // Images are generally public for products, covers, etc.
       allow write: if isOwner(userId);
     }
   }
