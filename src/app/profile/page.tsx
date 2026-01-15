@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, DocumentReference, Firestore, collection, query, where, orderBy, DocumentData } from 'firebase/firestore';
+import { doc, DocumentReference, Firestore, collection, query, where, orderBy, DocumentData, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { getAuth, signOut, updateProfile, User } from 'firebase/auth';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, Storage } from "firebase/storage";
-import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link2, Shield } from 'lucide-react';
+import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link as LinkIcon, Shield } from 'lucide-react';
 import Image from 'next/image';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -338,7 +338,7 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
                   <Tabs defaultValue="upload">
                       <TabsList className="grid w-full grid-cols-4">
                           <TabsTrigger value="upload"><Upload />Carica</TabsTrigger>
-                          <TabsTrigger value="url"><Link2 />URL</TabsTrigger>
+                          <TabsTrigger value="url"><LinkIcon />URL</TabsTrigger>
                           <TabsTrigger value="gallery"><ImageIcon />Galleria</TabsTrigger>
                           <TabsTrigger value="camera" onClick={handleCamera}><Camera />Camera</TabsTrigger>
                       </TabsList>
@@ -624,6 +624,14 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
 function CustomerProfileDashboard({ user, userDoc, profile, docRef, orders, areOrdersLoading }: { user: User, userDoc: any, profile: any, docRef: DocumentReference | null, orders: any[] | null, areOrdersLoading: boolean }) {
     const [newAddress, setNewAddress] = useState('');
     const { toast } = useToast();
+    const firestore = useFirestore();
+
+    const favoriteBakeriesQuery = useMemoFirebase(() => {
+        if (!firestore || !profile?.favoriteBakeries || profile.favoriteBakeries.length === 0) return null;
+        return query(collection(firestore, 'bakers'), where('__name__', 'in', profile.favoriteBakeries));
+    }, [firestore, profile?.favoriteBakeries]);
+
+    const { data: favoriteBakeries, isLoading: areFavoritesLoading } = useCollection(favoriteBakeriesQuery);
 
     const handleAddAddress = () => {
         if (!docRef || newAddress.trim() === '') return toast({ variant: 'destructive', title: 'Indirizzo non valido' });
@@ -662,7 +670,15 @@ function CustomerProfileDashboard({ user, userDoc, profile, docRef, orders, areO
             <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><Heart /> Panettieri preferiti</CardTitle></CardHeader>
                 <CardContent>
-                    {profile.favoriteBakeries?.length > 0 ? <ul>{profile.favoriteBakeries.map((b: string) => <li key={b}>{b}</li>)}</ul> : <p className='text-sm text-muted-foreground'>Nessun panettiere preferito.</p>}
+                     {areFavoritesLoading ? <Loader2 className="animate-spin" /> : favoriteBakeries && favoriteBakeries.length > 0 ? (
+                        <ul className="space-y-2">
+                            {favoriteBakeries.map((bakery) => (
+                                <li key={bakery.id} className="flex items-center justify-between rounded-md bg-muted/50 p-2">
+                                    <Link href={`/bakeries/${bakery.id}`} className="font-semibold hover:underline">{bakery.companyName}</Link>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : <p className='text-sm text-muted-foreground'>Nessun panettiere preferito.</p>}
                 </CardContent>
             </Card>
             <CustomerOrdersDashboard user={user} userDoc={userDoc} orders={orders} isLoading={areOrdersLoading} />
@@ -803,21 +819,23 @@ export default function ProfilePage() {
     }
 
     const ordersCollection = collection(firestore, 'orders');
+    let q = query(ordersCollection);
 
     if (isAdmin) {
-       return query(ordersCollection, orderBy('createdAt', 'desc'));
+       q = query(ordersCollection, orderBy('createdAt', 'desc'));
     }
-
-    if (role === 'baker') {
-      return query(ordersCollection, where('bakerId', '==', user.uid));
+    else if (role === 'baker') {
+      q = query(ordersCollection, where('bakerId', '==', user.uid));
     }
-
-    if (role === 'customer') {
-      return query(ordersCollection, where('customerId', '==', user.uid));
+    else if (role === 'customer') {
+      q = query(ordersCollection, where('customerId', '==', user.uid));
     }
+    else {
+        return null;
+    }
+    
+    return query(q, orderBy('createdAt', 'desc'));
 
-    // Return null if role is unknown or doesn't match, preventing unauthorized queries.
-    return null;
   }, [firestore, user, role, isAdmin]);
 
 

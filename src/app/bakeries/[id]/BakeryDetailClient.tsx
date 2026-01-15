@@ -1,14 +1,17 @@
 'use client';
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Info, ShoppingBag, Truck } from "lucide-react";
+import { MapPin, Info, ShoppingBag, Truck, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@/firebase";
+import { useUser, useDoc, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase";
+import { doc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+
 
 // Skeleton dei prodotti
 function ProductCardSkeleton() {
@@ -161,11 +164,49 @@ function CartOverlay() {
 import { useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { arrayRemove, arrayUnion } from 'firebase/firestore';
 
 // ------------------------
 // Bakery Detail Client
 // ------------------------
 export default function BakeryDetailClient({ bakery, products }: { bakery: any; products: any[] | null }) {
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const { toast } = useToast();
+
+    const customerRef = useMemoFirebase(() => {
+        if (!firestore || !user) return null;
+        return doc(firestore, 'customers', user.uid);
+    }, [firestore, user]);
+
+    const { data: customerProfile } = useDoc(customerRef);
+
+    const isFavorite = useMemo(() => {
+        return customerProfile?.favoriteBakeries?.includes(bakery.id);
+    }, [customerProfile, bakery.id]);
+
+    const toggleFavorite = () => {
+        if (!user || !customerRef) {
+            toast({
+                variant: 'destructive',
+                title: 'Accesso richiesto',
+                description: 'Devi effettuare l\'accesso per aggiungere preferiti.',
+            });
+            return;
+        }
+
+        const updateData = {
+            favoriteBakeries: isFavorite ? arrayRemove(bakery.id) : arrayUnion(bakery.id),
+        };
+
+        updateDocumentNonBlocking(customerRef, updateData);
+
+        toast({
+            title: isFavorite ? 'Rimosso dai preferiti' : 'Aggiunto ai preferiti!',
+            description: `${bakery.companyName} è stato ${isFavorite ? 'rimosso dai' : 'aggiunto ai'} tuoi preferiti.`,
+        });
+    };
+    
     if (!bakery) {
         return (
           <div className="container mx-auto px-4 py-6 animate-pulse">
@@ -193,7 +234,7 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
 
       {/* Profile */}
       <div className="container mx-auto -mt-16 px-4 pb-8">
-        <div className="flex flex-col items-center text-center">
+        <div className="relative flex flex-col items-center text-center">
           <div className="relative h-32 w-32 rounded-full border-4 border-background bg-background ring-1 ring-border flex items-center justify-center">
             {bakery.profilePictureUrl ? (
               <Image src={bakery.profilePictureUrl} alt={`Profile ${bakery.companyName}`} fill className="rounded-full object-cover" />
@@ -206,6 +247,16 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
             <MapPin className="h-4 w-4" />
             <span>{bakery.address}</span>
           </div>
+           {user && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-0 right-0 mt-4 rounded-full"
+                onClick={toggleFavorite}
+              >
+                <Heart className={cn("h-6 w-6 text-destructive", isFavorite && "fill-current")} />
+              </Button>
+            )}
         </div>
 
         {/* Tabs */}

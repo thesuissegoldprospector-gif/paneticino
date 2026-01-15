@@ -2,51 +2,10 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, limit } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
-import Image from 'next/image';
-import { Card, CardContent } from '@/components/ui/card';
-
-function BakeryCard({ bakery }: { bakery: any }) {
-  return (
-    <Link href={`/bakeries/${bakery.id}`} className="block h-full w-full">
-      <Card className="h-full overflow-hidden transition-shadow hover:shadow-lg">
-        <div className="relative h-32 w-full bg-muted">
-            {bakery.coverPhotoUrl ? (
-                <Image
-                    src={bakery.coverPhotoUrl}
-                    alt={`Cover image for ${bakery.companyName}`}
-                    fill
-                    className="object-cover"
-                />
-            ) : <div className="h-full w-full bg-gradient-to-t from-muted to-background"></div>}
-        </div>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-4">
-            <div className="relative mt-[-32px] h-12 w-12 flex-shrink-0 rounded-full border-2 border-background bg-muted object-cover ring-1 ring-border flex items-center justify-center">
-                {bakery.profilePictureUrl ? (
-                    <Image
-                    src={bakery.profilePictureUrl}
-                    alt={`Profile image for ${bakery.companyName}`}
-                    fill
-                    className="rounded-full object-cover"
-                    />
-                ) : (
-                    <span className="font-bold text-muted-foreground">{bakery.companyName?.[0]}</span>
-                )}
-            </div>
-            <div>
-              <h3 className="font-semibold leading-tight text-lg">{bakery.companyName}</h3>
-              <p className="line-clamp-2 text-sm text-muted-foreground">{bakery.address}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
+import { BakeryCard } from '@/components/bakeries/bakery-card';
 
 export default function Home() {
   const firestore = useFirestore();

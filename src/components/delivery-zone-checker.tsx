@@ -11,51 +11,11 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Search } from 'lucide-react';
-import Link from 'next/link';
-import Image from 'next/image';
+import { BakeryCard } from '@/components/bakeries/bakery-card';
 
 const formSchema = z.object({
   location: z.string().min(2, { message: 'Inserisci almeno 2 caratteri.' }),
 });
-
-function BakeryCard({ bakery }: { bakery: any }) {
-  return (
-    <Link href={`/bakeries/${bakery.id}`} className="block h-full w-full">
-      <Card className="h-full overflow-hidden transition-shadow hover:shadow-lg">
-        <div className="relative h-32 w-full bg-muted">
-            {bakery.coverPhotoUrl && (
-                <Image
-                    src={bakery.coverPhotoUrl}
-                    alt={`Cover image for ${bakery.companyName}`}
-                    fill
-                    className="object-cover"
-                />
-            )}
-        </div>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-4">
-            <div className="relative mt-[-32px] h-12 w-12 flex-shrink-0 rounded-full border-2 border-background bg-muted object-cover ring-1 ring-border flex items-center justify-center">
-                {bakery.profilePictureUrl ? (
-                    <Image
-                    src={bakery.profilePictureUrl}
-                    alt={`Profile image for ${bakery.companyName}`}
-                    fill
-                    className="rounded-full object-cover"
-                    />
-                ) : (
-                    <span className="text-xs text-muted-foreground">{bakery.companyName?.[0]}</span>
-                )}
-            </div>
-            <div>
-              <h3 className="font-semibold leading-tight text-lg">{bakery.companyName}</h3>
-              <p className="line-clamp-2 text-sm text-muted-foreground">{bakery.address}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
 
 
 export function DeliveryZoneChecker() {

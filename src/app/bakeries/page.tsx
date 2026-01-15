@@ -1,51 +1,9 @@
 'use client';
 
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
-import { Card, CardContent } from '@/components/ui/card';
-import Image from 'next/image';
-import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
-
-function BakeryCard({ bakery }: { bakery: any }) {
-  return (
-    <Link href={`/bakeries/${bakery.id}`} className="block h-full w-full">
-      <Card className="h-full overflow-hidden transition-shadow hover:shadow-lg">
-        <div className="relative h-32 w-full bg-muted">
-            {bakery.coverPhotoUrl && (
-                <Image
-                    src={bakery.coverPhotoUrl}
-                    alt={`Cover image for ${bakery.companyName}`}
-                    fill
-                    className="object-cover"
-                />
-            )}
-        </div>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-4">
-            <div className="relative mt-[-32px] h-12 w-12 flex-shrink-0 rounded-full border-2 border-background bg-muted object-cover ring-1 ring-border flex items-center justify-center">
-                {bakery.profilePictureUrl ? (
-                    <Image
-                    src={bakery.profilePictureUrl}
-                    alt={`Profile image for ${bakery.companyName}`}
-                    fill
-                    className="rounded-full object-cover"
-                    />
-                ) : (
-                    <span className="text-xs text-muted-foreground">{bakery.companyName?.[0]}</span>
-                )}
-            </div>
-            <div>
-              <h3 className="font-semibold leading-tight text-lg">{bakery.companyName}</h3>
-              <p className="line-clamp-2 text-sm text-muted-foreground">{bakery.address}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
+import { BakeryCard } from '@/components/bakeries/bakery-card';
 
 export default function BakeriesPage() {
   const firestore = useFirestore();
