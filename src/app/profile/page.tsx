@@ -154,8 +154,13 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Aggiorna Foto Profilo</DialogTitle></DialogHeader>
-        <div className="py-4">
+        <DialogHeader>
+          <DialogTitle>Aggiorna Foto Profilo</DialogTitle>
+          <DialogDescription id="update-avatar-description">
+            Carica una nuova immagine per il tuo profilo. Verrà visualizzata pubblicamente.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4" aria-describedby="update-avatar-description">
             <Input type="file" onChange={handleFileChange} accept="image/*" />
             {imageSrc && <Image src={imageSrc} alt="Anteprima" width={200} height={200} className="mt-4 rounded-md" />}
         </div>
@@ -324,41 +329,48 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{children}</DialogTrigger>
             <DialogContent className="max-w-xl">
-                <DialogHeader><DialogTitle>Aggiorna immagine</DialogTitle></DialogHeader>
-                <Tabs defaultValue="upload">
-                    <TabsList className="grid w-full grid-cols-4">
-                        <TabsTrigger value="upload"><Upload />Carica</TabsTrigger>
-                        <TabsTrigger value="url"><Link2 />URL</TabsTrigger>
-                        <TabsTrigger value="gallery"><ImageIcon />Galleria</TabsTrigger>
-                        <TabsTrigger value="camera" onClick={handleCamera}><Camera />Camera</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="upload" className="py-4 space-y-4">
-                        <Input type="file" onChange={handleFileChange} accept="image/*" />
-                    </TabsContent>
-                    <TabsContent value="url" className="py-4 space-y-4">
-                        <Input placeholder="https://esempio.com/immagine.jpg" value={linkUrl} onChange={(e) => handleSetUrlFromLink(e.target.value)} />
-                    </TabsContent>
-                    <TabsContent value="gallery" className="py-4">
-                        <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
-                            {placeholderImages.map(imgUrl => (
-                                <div key={imgUrl} className="relative aspect-video cursor-pointer" onClick={() => handleSetUrlFromGallery(imgUrl)}>
-                                    <Image src={imgUrl} alt="Placeholder" fill objectFit="cover" className={cn("rounded-md", previewUrl === imgUrl && sourceForUpload === 'gallery' && "ring-2 ring-primary ring-offset-2")}/>
-                                </div>
-                            ))}
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="camera" className="py-4 space-y-4">
-                        <video ref={videoRef} className="w-full aspect-video bg-muted rounded-md" autoPlay playsInline muted />
-                        <canvas ref={canvasRef} className="hidden"/>
-                        <Button onClick={handleCapture} disabled={!videoRef.current?.srcObject}>Scatta Foto</Button>
-                    </TabsContent>
-                </Tabs>
-                {previewUrl && (
-                    <div className='py-4'>
-                        <p className='text-sm font-medium mb-2'>Anteprima:</p>
-                        <Image src={previewUrl} alt="Anteprima" width={200} height={200} className="rounded-md object-cover mx-auto" />
-                    </div>
-                )}
+                <DialogHeader>
+                  <DialogTitle>Aggiorna immagine</DialogTitle>
+                  <DialogDescription id="update-image-description">
+                    Scegli un'immagine caricandola dal tuo dispositivo, usando un link, scattando una foto o selezionandola dalla galleria.
+                  </DialogDescription>
+                </DialogHeader>
+                <div aria-describedby="update-image-description">
+                  <Tabs defaultValue="upload">
+                      <TabsList className="grid w-full grid-cols-4">
+                          <TabsTrigger value="upload"><Upload />Carica</TabsTrigger>
+                          <TabsTrigger value="url"><Link2 />URL</TabsTrigger>
+                          <TabsTrigger value="gallery"><ImageIcon />Galleria</TabsTrigger>
+                          <TabsTrigger value="camera" onClick={handleCamera}><Camera />Camera</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="upload" className="py-4 space-y-4">
+                          <Input type="file" onChange={handleFileChange} accept="image/*" />
+                      </TabsContent>
+                      <TabsContent value="url" className="py-4 space-y-4">
+                          <Input placeholder="https://esempio.com/immagine.jpg" value={linkUrl} onChange={(e) => handleSetUrlFromLink(e.target.value)} />
+                      </TabsContent>
+                      <TabsContent value="gallery" className="py-4">
+                          <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
+                              {placeholderImages.map(imgUrl => (
+                                  <div key={imgUrl} className="relative aspect-video cursor-pointer" onClick={() => handleSetUrlFromGallery(imgUrl)}>
+                                      <Image src={imgUrl} alt="Placeholder" fill objectFit="cover" className={cn("rounded-md", previewUrl === imgUrl && sourceForUpload === 'gallery' && "ring-2 ring-primary ring-offset-2")}/>
+                                  </div>
+                              ))}
+                          </div>
+                      </TabsContent>
+                      <TabsContent value="camera" className="py-4 space-y-4">
+                          <video ref={videoRef} className="w-full aspect-video bg-muted rounded-md" autoPlay playsInline muted />
+                          <canvas ref={canvasRef} className="hidden"/>
+                          <Button onClick={handleCapture} disabled={!videoRef.current?.srcObject}>Scatta Foto</Button>
+                      </TabsContent>
+                  </Tabs>
+                  {previewUrl && (
+                      <div className='py-4'>
+                          <p className='text-sm font-medium mb-2'>Anteprima:</p>
+                          <Image src={previewUrl} alt="Anteprima" width={200} height={200} className="rounded-md object-cover mx-auto" />
+                      </div>
+                  )}
+                </div>
                 <DialogFooter>
                     <Button type="button" onClick={handleSubmit} disabled={isUploading || !previewUrl}>
                         {isUploading ? <Loader2 className="animate-spin" /> : 'Salva'}
@@ -549,9 +561,14 @@ function BakerProfileDashboard({ user, userProfile, bakerProfile, userDocRef, ba
                     <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
                         <DialogTrigger asChild><Button><PlusCircle /> Aggiungi Prodotto</Button></DialogTrigger>
                         <DialogContent>
-                            <DialogHeader><DialogTitle>Aggiungi un nuovo prodotto</DialogTitle></DialogHeader>
+                            <DialogHeader>
+                                <DialogTitle>Aggiungi un nuovo prodotto</DialogTitle>
+                                <DialogDescription id="add-product-description">
+                                  Compila i dettagli del prodotto e aggiungi un'immagine per mostrarlo al meglio.
+                                </DialogDescription>
+                            </DialogHeader>
                             <Form {...productForm}>
-                                <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
+                                <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4" aria-describedby="add-product-description">
                                     <FormField control={productForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Prodotto</FormLabel><FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo</FormLabel><FormControl><Input placeholder="€4.50" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={productForm.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Textarea placeholder="Breve descrizione..." {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -780,6 +797,7 @@ export default function ProfilePage() {
   const role = userDoc?.role;
   const isAdmin = !!adminDoc;
 
+  // The query is constructed only when user and role are known and valid.
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !user || !role) {
       return null;
@@ -799,6 +817,7 @@ export default function ProfilePage() {
       return query(ordersCollection, where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
 
+    // Return null if role is unknown or doesn't match, preventing unauthorized queries.
     return null;
   }, [firestore, user, role, isAdmin]);
 
