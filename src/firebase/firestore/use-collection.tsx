@@ -92,12 +92,8 @@ export function useCollection<T = any>(
             setError(null);
             setData(null);
             setIsLoading(false);
-
-            if (process.env.NODE_ENV === 'development') {
-                console.warn(
-                    `[Firestore permission denied] on collection "${path}" – query skipped.`
-                );
-            }
+            // The console.warn was causing the debugger to pause. 
+            // It's removed to improve developer experience.
             return; // Stop further processing
         }
 
