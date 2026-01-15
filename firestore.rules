@@ -114,9 +114,9 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
       // Un ordine può essere letto dal cliente che lo ha effettuato, dal panettiere che lo evade, o da un admin.
-      allow get, list: if isSignedIn() && (
-        request.auth.uid == resource.data.customerId ||
-        request.auth.uid == resource.data.bakerId ||
+      allow get: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.bakerId == request.auth.uid ||
         isAdmin()
       );
       
@@ -124,6 +124,9 @@ service cloud.firestore {
       allow update: if isSignedIn()
         && request.auth.uid == resource.data.bakerId && isApprovedBaker();
       
+      // La lista di ordini può essere letta da un admin (per i report) o da un cliente per i propri ordini
+      allow list: if isAdmin() || (isSignedIn() && request.query.where.field == "customerId" && request.query.where.value == request.auth.uid);
+
       // Gli ordini non possono essere cancellati.
       allow delete: if false;
     }
