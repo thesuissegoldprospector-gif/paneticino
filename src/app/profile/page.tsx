@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, DocumentReference, Firestore, collection, query, where, orderBy, DocumentData } from 'firebase/firestore';
 import { getAuth, signOut, updateProfile, User } from 'firebase/auth';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, Storage } from "firebase/storage";
 import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link2, Shield } from 'lucide-react';
 import Image from 'next/image';
 import { z } from 'zod';
@@ -28,7 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
-import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, useFirebase } from '@/firebase';
 
 const placeholderImages = [
     'https://picsum.photos/seed/bread1/400/300',
@@ -113,6 +113,7 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
+  const { storage } = useFirebase();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -130,7 +131,6 @@ function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDo
     if (imageFile && user && userDocRef) {
       setIsUploading(true);
       try {
-        const storage = getStorage();
         const imageRef = storageRef(storage, `avatars/${user.uid}/${Date.now()}_${imageFile.name}`);
         
         const snapshot = await uploadBytes(imageRef, imageFile);
@@ -205,7 +205,7 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { toast } = useToast();
-    const { user } = useUser();
+    const { user, storage } = useFirebase();
 
     useEffect(() => {
         if (open) {
@@ -270,7 +270,6 @@ function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url:
     const uploadImage = async (file: File): Promise<string> => {
         if (!user) throw new Error("User not authenticated");
         
-        const storage = getStorage();
         const imageRef = storageRef(storage, `images/${user.uid}/${Date.now()}_${file.name}`);
         
         await uploadBytes(imageRef, file);
