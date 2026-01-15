@@ -7,9 +7,7 @@ type Props = {
   params: { bakerId: string };
 };
 
-export default async function BakerReportPage({ params }: Props) {
-  const { bakerId } = params;
-
+export default async function BakerReportPage({ params: { bakerId } }: Props) {
   if (!bakerId) {
     notFound();
   }

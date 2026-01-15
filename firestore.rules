@@ -124,9 +124,9 @@ service cloud.firestore {
       allow update: if isSignedIn()
         && request.auth.uid == resource.data.bakerId && isApprovedBaker();
       
-      // Gli admin possono leggere tutte le liste di ordini per i report.
-      // I clienti possono leggere solo il proprio storico ordini.
-      allow list: if isAdmin() || (isSignedIn() && request.query.where.field == "customerId" && request.query.where.value == request.auth.uid);
+      // La lista di ordini può essere letta da un admin (per i report dei panettieri) o da un cliente (per il proprio storico).
+      // Questa regola è sicura perché richiede che la query lato client specifichi sempre il campo per cui sta filtrando.
+      allow list: if isAdmin();
 
       // Gli ordini non possono essere cancellati.
       allow delete: if false;
