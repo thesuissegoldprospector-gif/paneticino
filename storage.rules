@@ -1,5 +1,4 @@
 rules_version = '2';
-
 service firebase.storage {
   match /b/{bucket}/o {
 
@@ -8,13 +7,15 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    // Avatars: Allow authenticated users to read. Allow users to write ONLY to their own avatar folder.
+    // Avatars: Allow users to write ONLY to their own avatar folder.
+    // Allow any authenticated user to read avatars.
     match /avatars/{userId}/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Images: Allow authenticated users to read. Allow users to write ONLY to their own images folder.
+    // Images: Allow users to write ONLY to their own images folder.
+    // Allow any authenticated user to read images.
     match /images/{userId}/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && request.auth.uid == userId;
