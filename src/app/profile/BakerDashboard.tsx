@@ -132,7 +132,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid));
+        return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }, [firestore, user]);
     const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
