@@ -812,30 +812,23 @@ export default function ProfilePage() {
   const role = userDoc?.role;
   const isAdmin = !!adminDoc;
 
-  // The query is constructed only when user and role are known and valid.
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !user || !role) {
       return null;
     }
-
     const ordersCollection = collection(firestore, 'orders');
-    let q = query(ordersCollection);
-
+    let q;
     if (isAdmin) {
-       q = query(ordersCollection, orderBy('createdAt', 'desc'));
+      q = query(ordersCollection);
+    } else if (role === 'baker') {
+      q = query(ordersCollection, where('bakerId', '==', user.uid));
+    } else if (role === 'customer') {
+      q = query(ordersCollection, where('customerId', '==', user.uid));
+    } else {
+      return null; // No valid role, no query
     }
-    else if (role === 'baker') {
-      q = query(ordersCollection, where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
-    }
-    else if (role === 'customer') {
-      q = query(ordersCollection, where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
-    }
-    else {
-        return null;
-    }
-    
+    // Return a query with ordering. Note that this requires a composite index.
     return query(q, orderBy('createdAt', 'desc'));
-
   }, [firestore, user, role, isAdmin]);
 
 
@@ -939,3 +932,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
