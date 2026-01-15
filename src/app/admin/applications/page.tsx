@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc, updateDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc, getDocs, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+
 
 // ---------- SUB-COMPONENTS ----------
 
@@ -171,16 +174,21 @@ function AdminDashboard() {
 
   const isLoading = isLoadingBakers || isLoadingOrders || isLoadingCustomers;
 
-  const handleApproval = async (bakerId: string, currentStatus: string) => {
+  const handleApproval = (bakerId: string, currentStatus: string) => {
     if (!firestore) return;
     const newStatus = currentStatus === 'approved' ? 'pending' : 'approved';
     const bakerRef = doc(firestore, 'bakers', bakerId);
-    
-    try {
-        await updateDoc(bakerRef, { approvalStatus: newStatus });
-    } catch (e) {
-        console.error("Failed to update approval status", e);
-    }
+    const updateData = { approvalStatus: newStatus };
+
+    updateDoc(bakerRef, updateData)
+      .catch(error => {
+        const permissionError = new FirestorePermissionError({
+          path: bakerRef.path,
+          operation: 'update',
+          requestResourceData: updateData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
   };
   
   const handleRowClick = (bakerId: string) => {
