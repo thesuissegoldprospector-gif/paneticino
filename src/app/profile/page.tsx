@@ -825,10 +825,10 @@ export default function ProfilePage() {
        q = query(ordersCollection, orderBy('createdAt', 'desc'));
     }
     else if (role === 'baker') {
-      q = query(ordersCollection, where('bakerId', '==', user.uid));
+      q = query(ordersCollection, where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
     else if (role === 'customer') {
-      q = query(ordersCollection, where('customerId', '==', user.uid));
+      q = query(ordersCollection, where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }
     else {
         return null;
