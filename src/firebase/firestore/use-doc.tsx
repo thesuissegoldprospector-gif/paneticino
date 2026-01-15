@@ -73,28 +73,19 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        // In development, we want to avoid throwing an error that pauses the debugger.
-        // Instead, we log a warning to the console and return no data.
-        if (process.env.NODE_ENV === 'development' && error.code === 'permission-denied') {
-          console.warn(`Firestore permission denied for document: "${memoizedDocRef.path}". The query will return no data.`);
+        // NON interrompere mai il flusso React
+        if (error.code === 'permission-denied') {
           setData(null);
+          setError(null);
           setIsLoading(false);
-          setError(null); // Clear the error to prevent crashes in dev.
-          return; // Stop further execution for this error in dev.
+          return;
         }
-        
-        // For other errors, or in production, propagate the error.
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: memoizedDocRef.path,
-        });
 
-        setError(contextualError);
+        // 🔥 FIX: non propagare errori runtime
+        // Salviamo solo un errore "soft"
         setData(null);
+        setError(new Error('firestore-doc-query-failed'));
         setIsLoading(false);
-
-        // Trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
       }
     );
 

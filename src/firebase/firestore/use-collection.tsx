@@ -82,20 +82,18 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        // Permission denied is a valid state, not a fatal runtime error.
-        // We handle it gracefully by returning no data and logging a warning in dev.
+        // NON interrompere mai il flusso React
         if (error.code === 'permission-denied') {
-            setError(null);
-            setData(null);
-            setIsLoading(false);
-            // The console.warn was causing the debugger to pause. 
-            // It's removed to improve developer experience.
-            return; // Stop further processing
+          setData(null);
+          setError(null);
+          setIsLoading(false);
+          return;
         }
 
-        // For other types of errors, we can still treat them as actual errors.
-        setError(error);
+        // 🔥 FIX: non propagare errori runtime
+        // Salviamo solo un errore "soft"
         setData(null);
+        setError(new Error('firestore-query-failed'));
         setIsLoading(false);
       }
     );
