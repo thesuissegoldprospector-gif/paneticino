@@ -68,7 +68,7 @@ function ProductCard({ product, bakery }: { product: any; bakery: any }) {
           name: product.name, 
           price: priceNumber,
           imageUrl: product.imageUrl,
-          bakerId: bakery.id,
+          bakerId: bakery.userId, // Use userId for consistency
           bakerName: bakery.companyName
       });
 

@@ -204,7 +204,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
     }
 
     if (!bakerProfile) {
-         return <Card className="text-center"><CardHeader><CardTitle>Profilo Panettiere non trovato</CardTitle><CardDescription>Sembra che ci sia un problema con il tuo profilo panettiere.</CardDescription></CardHeader><CardContent><AlertTriangle className="mx-auto h-12 w-12 text-destructive" /></CardContent></Card>;
+         return <Card className="text-center"><CardHeader><CardTitle>Profilo Panettiere non trovato</CardTitle><CardDescription>Completa la tua richiesta per diventare panettiere.</CardDescription></CardHeader><CardContent><Button asChild><Link href="/baker-application">Vai alla richiesta</Link></Button></CardContent></Card>;
     }
 
     if (bakerProfile.approvalStatus === 'pending') {

@@ -9,7 +9,7 @@ export type Product = {
   price: number;
   quantity?: number;
   imageUrl?: string;
-  bakerId: string;
+  bakerId: string; // This should be the baker's userId
   bakerName: string;
 };
 

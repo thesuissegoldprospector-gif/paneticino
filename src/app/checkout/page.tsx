@@ -39,7 +39,7 @@ export default function CheckoutPage() {
   // Group cart items by baker
   const ordersByBaker = useMemo(() => {
     return cart.reduce((acc, item) => {
-      const bakerId = item.bakerId || 'unknown';
+      const bakerId = item.bakerId || 'unknown'; // This is the userId
       if (!acc[bakerId]) {
         acc[bakerId] = {
           bakerId: bakerId,
@@ -85,11 +85,11 @@ export default function CheckoutPage() {
     );
   }
   
-  const handlePlaceOrder = async (bakerId: string) => {
+  const handlePlaceOrder = async (bakerUserId: string) => {
       if (!firestore || !user || !customerProfile || !userDoc) return;
       
-      const orderData = ordersByBaker[bakerId];
-      const deliveryAddress = selectedAddresses[bakerId];
+      const orderData = ordersByBaker[bakerUserId];
+      const deliveryAddress = selectedAddresses[bakerUserId];
 
       if (!deliveryAddress) {
           toast({
@@ -105,7 +105,7 @@ export default function CheckoutPage() {
       const customerName = user.displayName || (userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : 'Cliente');
 
       const orderPayload = {
-          bakerId: orderData.bakerId,
+          bakerId: bakerUserId, // Use the correct bakerUserId
           bakerName: orderData.bakerName,
           customerId: user.uid,
           customerName: customerName,

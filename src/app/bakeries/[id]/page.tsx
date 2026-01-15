@@ -10,36 +10,37 @@ type Props = {
 
 // The component is async and receives props
 export default async function BakeryDetailPage(props: Props) {
-  const id = props.params.id;
+  const id = props.params.id; // This can be either doc ID or userId
 
   if (!id) {
     notFound();
   }
 
-  // 1️⃣ Prova a leggere documento con ID = route param
-  let bakeryDocSnap = await getDoc(doc(firestore, "bakers", id));
+  // We need to find the baker, but the ID could be the doc ID or the userId.
+  // We prioritize querying by userId as it's our consistent identifier.
   let bakeryData;
+  const bakeryQueryByUserId = query(collection(firestore, "bakers"), where("userId", "==", id));
+  const bakeryQuerySnap = await getDocs(bakeryQueryByUserId);
 
-  // 2️⃣ fallback: query per userId
-  if (bakeryDocSnap.exists() && bakeryDocSnap.data().approvalStatus === 'approved') {
-      bakeryData = { id: bakeryDocSnap.id, ...bakeryDocSnap.data() };
+  if (!bakeryQuerySnap.empty) {
+      const firstDoc = bakeryQuerySnap.docs[0];
+      if (firstDoc.data().approvalStatus === 'approved') {
+          bakeryData = { id: firstDoc.id, ...firstDoc.data() };
+      }
   } else {
-    const bakeryQuery = query(collection(firestore, "bakers"), where("userId", "==", id));
-    const bakeryQuerySnap = await getDocs(bakeryQuery);
-    if (!bakeryQuerySnap.empty) {
-        const firstDoc = bakeryQuerySnap.docs[0];
-        if (firstDoc.data().approvalStatus === 'approved') {
-            bakeryData = { id: firstDoc.id, ...firstDoc.data() };
-        }
+    // Fallback: if no user is found by userId, try to get by document ID.
+    const bakeryDocSnap = await getDoc(doc(firestore, "bakers", id));
+    if (bakeryDocSnap.exists() && bakeryDocSnap.data().approvalStatus === 'approved') {
+        bakeryData = { id: bakeryDocSnap.id, ...bakeryDocSnap.data() };
     }
   }
-
+  
   if (!bakeryData) {
     notFound(); 
   }
 
-  // 3️⃣ Carica prodotti server-side
-  const productsQuery = query(collection(firestore, "products"), where("bakerId", "==", bakeryData.id));
+  // Load products using the consistent userId
+  const productsQuery = query(collection(firestore, "products"), where("bakerId", "==", bakeryData.userId));
   const productsSnap = await getDocs(productsQuery);
   const products = productsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
