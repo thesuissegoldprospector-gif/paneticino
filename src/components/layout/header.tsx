@@ -2,32 +2,10 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { doc } from 'firebase/firestore';
 import React from 'react';
 import { CartSheet } from '@/components/cart/cart-sheet';
-
-function AdminNav() {
-    const { user, isUserLoading } = useUser();
-    const firestore = useFirestore();
-
-    const adminRef = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return doc(firestore, 'roles_admin', user.uid);
-    }, [firestore, user]);
-
-    const { data: adminDoc, isLoading: isAdminLoading } = useDoc(adminRef);
-
-    if (isUserLoading || isAdminLoading || !adminDoc) return null;
-
-    return (
-       <Button variant="ghost" asChild>
-          <Link href="/admin/applications">Admin</Link>
-        </Button>
-    );
-}
-
 
 export function Header() {
   const { user, isUserLoading } = useUser();
@@ -46,7 +24,6 @@ export function Header() {
           {!isUserLoading &&
             (user ? (
               <>
-                <AdminNav />
                 <Button variant="ghost" asChild>
                   <Link href="/profile">Profilo</Link>
                 </Button>

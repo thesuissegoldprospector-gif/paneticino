@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, DocumentReference, Firestore, collection, query, where, orderBy, DocumentData } from 'firebase/firestore';
 import { getAuth, signOut, updateProfile, User } from 'firebase/auth';
-import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link2 } from 'lucide-react';
+import { Loader2, AlertTriangle, LogOut, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Heart, MapPin, ShoppingBag, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link2, Shield } from 'lucide-react';
 import Image from 'next/image';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -52,6 +52,12 @@ function useCustomerProfile(firestore: Firestore | null, userId?: string) {
   const customerRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'customers', userId) : null), [firestore, userId]);
   return useDoc(customerRef);
 }
+
+function useAdminRole(firestore: Firestore | null, userId?: string) {
+    const adminRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'roles_admin', userId) : null), [firestore, userId]);
+    return useDoc(adminRef);
+}
+
 
 // ------------------ SCHEMAS ------------------
 const profileFormSchema = z.object({
@@ -637,8 +643,10 @@ export default function ProfilePage() {
   const { data: userDoc, isLoading: isUserDocLoading, ref: userDocRef } = useUserDoc(firestore, user?.uid);
   const { data: bakerProfile, isLoading: isBakerLoading, ref: bakerDocRef } = useBakerProfile(firestore, user?.uid);
   const { data: customerProfile, isLoading: isCustomerLoading, ref: customerDocRef } = useCustomerProfile(firestore, user?.uid);
+  const { data: adminDoc, isLoading: isAdminLoading } = useAdminRole(firestore, user?.uid);
   
   const role = userDoc?.role;
+  const isAdmin = !!adminDoc;
 
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !user || !role) {
@@ -662,7 +670,7 @@ export default function ProfilePage() {
   
   const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
   
-  const isLoading = isUserLoading || isUserDocLoading || isBakerLoading || isCustomerLoading;
+  const isLoading = isUserLoading || isUserDocLoading || isBakerLoading || isCustomerLoading || isAdminLoading;
 
   const handleLogout = async () => {
     await signOut(getAuth());
@@ -686,6 +694,21 @@ export default function ProfilePage() {
     <div className="container mx-auto max-w-5xl space-y-8 px-4 py-8">
       {/* User Profile */}
       {user && userDocRef && <UserProfileCard user={user} userDoc={userDoc} userDocRef={userDocRef} />}
+      
+      {isAdmin && (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Shield /> Area Amministratore</CardTitle>
+                <CardDescription>Gestisci le richieste e le impostazioni dell'applicazione.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild>
+                    <Link href="/admin/applications">Vai alla dashboard admin</Link>
+                </Button>
+            </CardContent>
+        </Card>
+      )}
+
 
       {/* Baker Dashboard */}
       {role === 'baker' && bakerProfile && bakerDocRef && userDocRef && user && userDoc && bakerProfile.approvalStatus === 'approved' && (
