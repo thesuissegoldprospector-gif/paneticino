@@ -17,10 +17,7 @@ function OrderReceiptPage() {
   const id = params.id as string;
   const firestore = useFirestore();
   const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const [formattedDate, setFormattedDate] = useState('');
 
   // Fetch the order
   const orderRef = useMemoFirebase(() => {
@@ -28,6 +25,14 @@ function OrderReceiptPage() {
     return doc(firestore, 'orders', id);
   }, [firestore, id]);
   const { data: order, isLoading: isLoadingOrder } = useDoc(orderRef);
+
+  useEffect(() => {
+    setIsMounted(true);
+    if (order?.createdAt) {
+      setFormattedDate(format(order.createdAt.toDate(), 'dd MMMM yyyy, HH:mm', { locale: it }));
+    }
+  }, [order]);
+
 
   // Fetch baker details using the bakerId from the order
   const bakerQuery = useMemoFirebase(() => {
@@ -52,8 +57,6 @@ function OrderReceiptPage() {
     return null;
   }
 
-  const orderDate = order.createdAt?.toDate();
-
   return (
     <div className="bg-muted min-h-screen py-8 px-4 font-body print:bg-white print:py-0">
         <style jsx global>{`
@@ -76,7 +79,7 @@ function OrderReceiptPage() {
             }
         `}</style>
 
-        <div className="fixed top-4 right-4 no-print">
+        <div className="fixed top-4 right-4 no-print z-50">
             <Button onClick={() => window.print()}>
                 <Printer className="mr-2 h-4 w-4" />
                 Stampa o Salva PDF
@@ -88,7 +91,7 @@ function OrderReceiptPage() {
             <p className="text-sm text-muted-foreground">ID Ordine: {order.id}</p>
             <CardTitle className="text-3xl font-headline">Ricevuta d'Acquisto</CardTitle>
             <CardDescription>
-              {orderDate ? format(orderDate, 'dd MMMM yyyy, HH:mm', { locale: it }) : <>&nbsp;</>}
+              {formattedDate || <>&nbsp;</>}
             </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
