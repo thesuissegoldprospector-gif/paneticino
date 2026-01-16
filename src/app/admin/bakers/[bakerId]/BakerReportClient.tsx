@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import type { DateRange } from 'react-day-picker';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { doc, collection, query, where, getDocs } from 'firebase/firestore';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,7 +13,10 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, Printer, Loader2 } from "lucide-react";
+import { ArrowLeft, Printer, Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+
 
 type Props = {
   bakerUserId: string;
@@ -35,6 +39,7 @@ const OrderStatusBadge = ({ status }: { status: string }) => {
 
 export default function BakerReportClient({ bakerUserId }: Props) {
   const firestore = useFirestore();
+  const [date, setDate] = useState<DateRange | undefined>(undefined);
 
   // Fetch baker details on the client by querying for the userId
   const bakerQuery = useMemoFirebase(() => {
@@ -45,10 +50,9 @@ export default function BakerReportClient({ bakerUserId }: Props) {
   const baker = useMemo(() => bakerCollection?.[0], [bakerCollection]);
 
 
-  // Fetch orders for this baker on the client, using the correct bakerUserId from props
+  // Fetch orders for this baker on the client
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !bakerUserId) return null;
-    // Query without ordering
     return query(
       collection(firestore, "orders"),
       where("bakerId", "==", bakerUserId)
@@ -58,9 +62,32 @@ export default function BakerReportClient({ bakerUserId }: Props) {
   
   // Sort on the client
   const orders = useMemo(() => {
-    if (!unsortedOrders) return null;
-    return [...unsortedOrders].sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+    if (!unsortedOrders) return [];
+    return [...unsortedOrders].sort((a, b) => {
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        return b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()
+    });
   }, [unsortedOrders]);
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+        if (!order.createdAt) return false; // Make sure createdAt exists
+        if (!date?.from && !date?.to) return true;
+        
+        const orderDate = order.createdAt.toDate();
+        
+        if (date.from && orderDate < date.from) return false;
+
+        if (date.to) {
+            const toDate = new Date(date.to);
+            toDate.setHours(23, 59, 59, 999); // Set to end of day
+            if (orderDate > toDate) return false;
+        }
+        
+        return true;
+    });
+  }, [orders, date]);
 
 
   if (isLoadingBaker || isLoadingOrders) {
@@ -73,8 +100,6 @@ export default function BakerReportClient({ bakerUserId }: Props) {
   }
 
   if (!baker) {
-    // We don't call notFound() here because it's a client component.
-    // Instead, we show a message. This could happen if the userId is wrong.
      return (
       <div className="flex h-full min-h-[400px] w-full items-center justify-center">
         <p className="text-destructive">Impossibile trovare il profilo del panettiere per ID: {bakerUserId}</p>
@@ -82,11 +107,8 @@ export default function BakerReportClient({ bakerUserId }: Props) {
     );
   }
   
-  const safeOrders = orders || [];
-
-  // Calculate summary stats
-  const totalRevenue = safeOrders.reduce((sum, order) => sum + (order.total || 0), 0);
-  const completedOrders = safeOrders.filter(order => order.status === 'completed');
+  // Calculate summary stats based on filtered orders
+  const completedOrders = filteredOrders.filter(order => order.status === 'completed');
   const totalRevenueCompleted = completedOrders.reduce((sum, order) => sum + (order.total || 0), 0);
 
   return (
@@ -132,27 +154,55 @@ export default function BakerReportClient({ bakerUserId }: Props) {
       <Card className="print-card">
         <CardHeader>
           <CardTitle>Report Contabile per {baker.companyName}</CardTitle>
-          <CardDescription>Riepilogo di tutti gli ordini ricevuti fino ad oggi.</CardDescription>
+          <CardDescription>Riepilogo degli ordini. Filtra per data per periodi specifici.</CardDescription>
         </CardHeader>
         <CardContent>
+            {/* Date filter section */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-6 no-print items-center">
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.from && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date?.from ? format(date.from, "dd LLL y", { locale: it }) : <span>Da (data)</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={date?.from} onSelect={(d) => setDate(prev => ({...prev, from: d}))} initialFocus />
+                    </PopoverContent>
+                </Popover>
+                <span className="hidden sm:block">-</span>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.to && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {date?.to ? format(date.to, "dd LLL y", { locale: it }) : <span>A (data)</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={date?.to} onSelect={(d) => setDate(prev => ({...prev, to: d}))} initialFocus />
+                    </PopoverContent>
+                </Popover>
+                 <Button variant="ghost" onClick={() => setDate(undefined)}>Reset</Button>
+            </div>
+
             {/* Summary Cards */}
             <div className="grid gap-4 md:grid-cols-3 mb-6">
                 <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Incasso Totale (Completati)</CardTitle></CardHeader>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Incasso (Completati nel periodo)</CardTitle></CardHeader>
                     <CardContent><p className="text-2xl font-bold">€{totalRevenueCompleted.toFixed(2)}</p></CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Ordini Totali</CardTitle></CardHeader>
-                    <CardContent><p className="text-2xl font-bold">{safeOrders.length}</p></CardContent>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Ordini nel periodo</CardTitle></CardHeader>
+                    <CardContent><p className="text-2xl font-bold">{filteredOrders.length}</p></CardContent>
                 </Card>
                 <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Ordini Completati</CardTitle></CardHeader>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Completati nel periodo</CardTitle></CardHeader>
                     <CardContent><p className="text-2xl font-bold">{completedOrders.length}</p></CardContent>
                 </Card>
             </div>
 
             {/* Orders Table */}
-            <h3 className="text-lg font-semibold mb-4">Dettaglio Ordini</h3>
+            <h3 className="text-lg font-semibold mb-4">Dettaglio Ordini (Filtrato)</h3>
             <div className="border rounded-md">
                 <Table>
                     <TableHeader>
@@ -165,7 +215,7 @@ export default function BakerReportClient({ bakerUserId }: Props) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {safeOrders.map(order => (
+                        {filteredOrders.map(order => (
                         <TableRow key={order.id}>
                             <TableCell>{order.createdAt ? format(order.createdAt.toDate(), 'dd/MM/yy HH:mm', { locale: it }) : 'N/A'}</TableCell>
                             <TableCell>{order.customerName}</TableCell>
@@ -176,7 +226,7 @@ export default function BakerReportClient({ bakerUserId }: Props) {
                         ))}
                     </TableBody>
                 </Table>
-                {safeOrders.length === 0 && <p className="text-center text-muted-foreground p-8">Nessun ordine trovato per questo panettiere.</p>}
+                {filteredOrders.length === 0 && <p className="text-center text-muted-foreground p-8">Nessun ordine trovato per questo periodo.</p>}
             </div>
         </CardContent>
       </Card>
