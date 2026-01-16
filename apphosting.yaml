@@ -2,7 +2,7 @@
 # https://firebase.google.com/docs/app-hosting/configure
 
 backendId: pannedelivery
-location: europe-west6
+location: europe-west1
 
 runConfig:
   # Increase this value if you'd like to automatically spin up

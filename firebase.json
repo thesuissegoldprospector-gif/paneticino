@@ -17,7 +17,7 @@
   },
   "firestore": {
     "database": "(default)",
-    "location": "europe-west6",
+    "location": "europe-west1",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
