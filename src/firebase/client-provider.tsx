@@ -8,6 +8,18 @@ import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, Storage } from 'firebase/storage';
 import { Loader2 } from 'lucide-react';
 
+// --- INIZIO MODIFICA ---
+// Configurazione Firebase corretta e definitiva
+const firebaseConfig = {
+  "projectId": "studio-1063796498-c439e",
+  "appId": "1:531203499316:web:ce2acb291b5aa66ee23161",
+  "apiKey": "AIzaSyDiUEXg8n_z2KhIwxvgBVX98g7xmuM5xCU",
+  "authDomain": "studio-1063796498-c439e.firebaseapp.com",
+  "storageBucket": "studio-1063796498-c439e.appspot.com",
+};
+// --- FINE MODIFICA ---
+
+
 // This function is now local to the client-only provider.
 function initializeFirebaseOnClient() {
   if (getApps().length > 0) {
@@ -19,9 +31,8 @@ function initializeFirebaseOnClient() {
       storage: getStorage(app),
     };
   }
-  // If no app is initialized, it means we are on the client and can initialize.
-  // App Hosting provides the config, so we can call initializeApp() without arguments.
-  const firebaseApp = initializeApp();
+  // Se nessuna app è inizializzata, la inizializziamo con la configurazione corretta.
+  const firebaseApp = initializeApp(firebaseConfig);
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
