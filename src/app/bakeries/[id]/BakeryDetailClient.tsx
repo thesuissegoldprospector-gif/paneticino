@@ -226,7 +226,14 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
       {/* Cover */}
       <div className="relative h-48 w-full bg-muted">
         {bakery.coverPhotoUrl ? (
-          <Image src={bakery.coverPhotoUrl} alt={`Cover ${bakery.companyName}`} fill className="object-cover" />
+          <Image
+            src={bakery.coverPhotoUrl}
+            alt={`Cover ${bakery.companyName}`}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-t from-background to-muted" />
         )}
@@ -238,7 +245,13 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
         <div className="relative flex flex-col items-center text-center">
           <div className="relative h-32 w-32 rounded-full border-4 border-background bg-background ring-1 ring-border flex items-center justify-center">
             {bakery.profilePictureUrl ? (
-              <Image src={bakery.profilePictureUrl} alt={`Profile ${bakery.companyName}`} fill className="rounded-full object-cover" />
+              <Image
+                src={bakery.profilePictureUrl}
+                alt={`Profile ${bakery.companyName}`}
+                fill
+                sizes="128px"
+                className="rounded-full object-cover"
+              />
             ) : (
               <span className="text-3xl font-bold text-muted-foreground">{bakery.companyName?.[0]}</span>
             )}

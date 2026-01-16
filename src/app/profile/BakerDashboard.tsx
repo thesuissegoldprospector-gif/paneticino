@@ -265,11 +265,11 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                     <Card>
                         <CardContent className="p-0">
                              <div className="relative h-48 w-full group">
-                                {bakerProfile.coverPhotoUrl ? <Image src={bakerProfile.coverPhotoUrl} alt="Immagine di copertina" fill style={{objectFit: "cover"}} className="rounded-t-lg" /> : <div className="flex h-full items-center justify-center rounded-t-lg text-muted-foreground bg-muted">Immagine di copertina</div>}
+                                {bakerProfile.coverPhotoUrl ? <Image src={bakerProfile.coverPhotoUrl} alt="Immagine di copertina" fill priority sizes="100vw" style={{objectFit: "cover"}} className="rounded-t-lg" /> : <div className="flex h-full items-center justify-center rounded-t-lg text-muted-foreground bg-muted">Immagine di copertina</div>}
                                 <UpdateImageDialog onUpdate={(url) => handleImageUpdate('coverPhotoUrl', url)} currentUrl={bakerProfile.coverPhotoUrl || ''}><Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 opacity-50 group-hover:opacity-100 transition-opacity"><Camera className="h-4 w-4" /></Button></UpdateImageDialog>
                                 <div className="absolute -bottom-16 left-6">
                                     <div className="relative h-32 w-32 rounded-full border-4 border-card bg-muted flex items-center justify-center group">
-                                        {bakerProfile.profilePictureUrl ? <Image src={bakerProfile.profilePictureUrl} alt="Immagine profilo" fill style={{objectFit: "cover"}} className="rounded-full" /> : <span className="text-center text-xs text-muted-foreground">Immagine profilo</span>}
+                                        {bakerProfile.profilePictureUrl ? <Image src={bakerProfile.profilePictureUrl} alt="Immagine profilo" fill sizes="128px" style={{objectFit: "cover"}} className="rounded-full" /> : <span className="text-center text-xs text-muted-foreground">Immagine profilo</span>}
                                         <UpdateImageDialog onUpdate={(url) => handleImageUpdate('profilePictureUrl', url)} currentUrl={bakerProfile.profilePictureUrl || ''}><Button variant="outline" size="icon" className="absolute bottom-1 right-1 z-10 h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity rounded-full"><Camera className="h-4 w-4" /></Button></UpdateImageDialog>
                                     </div>
                                 </div>

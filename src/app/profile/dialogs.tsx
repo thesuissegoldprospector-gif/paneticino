@@ -266,7 +266,7 @@ export function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate
                           <div className="grid grid-cols-2 gap-4 max-h-64 overflow-y-auto">
                               {placeholderImages.map(imgUrl => (
                                   <div key={imgUrl} className="relative aspect-video cursor-pointer" onClick={() => handleSetUrlFromGallery(imgUrl)}>
-                                      <Image src={imgUrl} alt="Placeholder" fill style={{objectFit: "cover"}} className={cn("rounded-md", previewUrl === imgUrl && (sourceForUpload === 'gallery' || sourceForUpload === 'link') && "ring-2 ring-primary ring-offset-2")}/>
+                                      <Image src={imgUrl} alt="Placeholder" fill sizes="200px" style={{objectFit: "cover"}} className={cn("rounded-md", previewUrl === imgUrl && (sourceForUpload === 'gallery' || sourceForUpload === 'link') && "ring-2 ring-primary ring-offset-2")}/>
                                   </div>
                               ))}
                           </div>

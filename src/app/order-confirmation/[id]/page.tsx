@@ -75,7 +75,13 @@ export default function OrderConfirmationPage() {
                 <div className='flex items-center gap-4'>
                     <div className="relative h-16 w-16 rounded-md bg-muted overflow-hidden">
                         {item.imageUrl && (
-                            <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                            <Image
+                              src={item.imageUrl}
+                              alt={item.name}
+                              fill
+                              sizes="64px"
+                              className="object-cover"
+                            />
                         )}
                     </div>
                     <div>

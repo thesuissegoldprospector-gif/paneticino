@@ -79,6 +79,8 @@ export function BakeryCard({ bakery }: { bakery: any }) {
                     src={bakery.coverPhotoUrl}
                     alt={`Cover image for ${bakery.companyName}`}
                     fill
+                    priority
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover"
                 />
             ) : <div className="h-full w-full bg-gradient-to-t from-muted to-background"></div>}
@@ -91,6 +93,7 @@ export function BakeryCard({ bakery }: { bakery: any }) {
                     src={bakery.profilePictureUrl}
                     alt={`Profile image for ${bakery.companyName}`}
                     fill
+                    sizes="48px"
                     className="rounded-full object-cover"
                     />
                 ) : (
