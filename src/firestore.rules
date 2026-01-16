@@ -129,8 +129,8 @@ service cloud.firestore {
       // Questa regola è sicura perché richiede che la query lato client specifichi sempre il campo per cui sta filtrando.
       allow list: if 
         (isAdmin()) ||
-        (isSignedIn() && request.query.where.field == "customerId" && request.query.where.value == request.auth.uid) ||
-        (isSignedIn() && request.query.where.field == "bakerId" && request.query.where.value == request.auth.uid);
+        (isSignedIn() && request.auth.uid == request.query.value) ;
+
 
       // Gli ordini non possono essere cancellati.
       allow delete: if false;

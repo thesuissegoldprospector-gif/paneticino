@@ -81,19 +81,11 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (error: FirestoreError) => {
-        // NON interrompere mai il flusso React
-        if (error.code === 'permission-denied') {
-          setData(null);
-          setError(null);
-          setIsLoading(false);
-          return;
-        }
-
-        // 🔥 FIX: non propagare errori runtime
-        // Salviamo solo un errore "soft"
+      (err: FirestoreError) => {
+        // Log the actual error for debugging, but don't crash the app.
+        console.error("useCollection Firestore Error:", err);
+        setError(err); // Keep the actual error for inspection if needed
         setData(null);
-        setError(new Error('firestore-query-failed'));
         setIsLoading(false);
       }
     );

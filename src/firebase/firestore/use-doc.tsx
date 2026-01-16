@@ -72,19 +72,11 @@ export function useDoc<T = any>(
         setError(null); // Clear any previous error on successful snapshot
         setIsLoading(false);
       },
-      (error: FirestoreError) => {
-        // NON interrompere mai il flusso React
-        if (error.code === 'permission-denied') {
-          setData(null);
-          setError(null);
-          setIsLoading(false);
-          return;
-        }
-
-        // 🔥 FIX: non propagare errori runtime
-        // Salviamo solo un errore "soft"
+      (err: FirestoreError) => {
+        // Log the actual error for debugging, but don't crash the app.
+        console.error("useDoc Firestore Error:", err);
+        setError(err); // Keep the actual error for inspection if needed
         setData(null);
-        setError(new Error('firestore-doc-query-failed'));
         setIsLoading(false);
       }
     );
