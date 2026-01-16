@@ -10,11 +10,17 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from '@/components/ui/separator';
+import { useState, useEffect } from 'react';
 
 function OrderReceiptPage() {
   const params = useParams();
   const id = params.id as string;
   const firestore = useFirestore();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Fetch the order
   const orderRef = useMemoFirebase(() => {
@@ -82,7 +88,7 @@ function OrderReceiptPage() {
             <p className="text-sm text-muted-foreground">ID Ordine: {order.id}</p>
             <CardTitle className="text-3xl font-headline">Ricevuta d'Acquisto</CardTitle>
             <CardDescription>
-                {orderDate ? format(orderDate, 'dd MMMM yyyy, HH:mm', { locale: it }) : ''}
+              {isMounted && orderDate ? format(orderDate, 'dd MMMM yyyy, HH:mm', { locale: it }) : <>&nbsp;</>}
             </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
