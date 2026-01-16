@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -60,22 +60,15 @@ export default function BakerReportClient({ bakerUserId }: Props) {
     if (!firestore || !bakerUserId) return null;
     return query(
       collection(firestore, "orders"),
-      where("bakerId", "==", bakerUserId)
+      where("bakerId", "==", bakerUserId),
+      orderBy("createdAt", "desc")
     );
   }, [firestore, bakerUserId]);
-  const { data: unsortedOrders, isLoading: isLoadingOrders } = useCollection(ordersQuery);
+  const { data: orders, isLoading: isLoadingOrders } = useCollection(ordersQuery);
   
-  // Sort on the client
-  const orders = useMemo(() => {
-    if (!unsortedOrders) return [];
-    return [...unsortedOrders].sort((a, b) => {
-        if (!a.createdAt) return 1;
-        if (!b.createdAt) return -1;
-        return b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()
-    });
-  }, [unsortedOrders]);
 
   const filteredOrders = useMemo(() => {
+    if (!orders) return [];
     return orders.filter(order => {
         if (!order.createdAt) return false; // Make sure createdAt exists
         if (!date?.from && !date?.to) return true;

@@ -3,7 +3,7 @@
 import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
+import { collection, query, where, Timestamp, orderBy } from 'firebase/firestore';
 import { Loader2, Printer, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,8 @@ function DeliverySlips() {
             where('bakerId', '==', user.uid),
             where('status', '==', 'accepted'),
             where('createdAt', '>=', Timestamp.fromDate(fromDate)),
-            where('createdAt', '<=', Timestamp.fromDate(toDate))
+            where('createdAt', '<=', Timestamp.fromDate(toDate)),
+            orderBy('createdAt', 'asc')
         );
     }, [firestore, user, fromDate, toDate]);
 
