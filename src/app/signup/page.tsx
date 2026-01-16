@@ -105,7 +105,6 @@ export default function SignUpPage() {
       if (values.role === 'customer') {
         const customerDocRef = doc(firestore, 'customers', user.uid);
         const customerData = {
-          id: user.uid,
           userId: user.uid,
           deliveryAddresses: [],
           favoriteBakeries: [],
@@ -121,7 +120,6 @@ export default function SignUpPage() {
         const bakerDocRef = doc(firestore, 'bakers', user.uid);
         const bakerProfileData = {
             userId: user.uid,
-            id: user.uid,
             companyName: '',
             address: '',
             companyNumber: '',
