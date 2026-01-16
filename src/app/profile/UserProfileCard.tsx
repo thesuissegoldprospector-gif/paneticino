@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormItem, FormLabel, FormControl, FormMessage, FormField } from '@/components/ui/form';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { updateUserProfileAndAuth } from '@/firebase';
-import { UpdateAvatarDialog } from './dialogs';
+import { UpdateImageDialog } from './dialogs';
 
 
 const profileFormSchema = z.object({
@@ -38,11 +38,21 @@ export default function UserProfileCard({ user, userDoc, userDocRef }: { user: U
         setIsEditing(false);
     };
 
+    const handleAvatarUpdate = (url: string) => {
+        if (!user || !userDocRef) return;
+        updateUserProfileAndAuth(user, userDocRef, { photoURL: url });
+        toast({ title: 'Avatar aggiornato!' });
+    };
+
     return (
         <Card>
             <CardContent className="p-6">
                 <div className="flex flex-col items-center gap-4 sm:flex-row">
-                    <UpdateAvatarDialog user={user} userDocRef={userDocRef}>
+                    <UpdateImageDialog 
+                        onUpdate={handleAvatarUpdate} 
+                        currentUrl={user.photoURL || ''}
+                        pathPrefix={`avatars/${user.uid}`}
+                    >
                         <div className="relative group cursor-pointer">
                             <Avatar className="h-24 w-24">
                                 <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/200`} data-ai-hint="profile person" />
@@ -52,7 +62,7 @@ export default function UserProfileCard({ user, userDoc, userDocRef }: { user: U
                                 <Camera className="text-white h-8 w-8" />
                             </div>
                         </div>
-                    </UpdateAvatarDialog>
+                    </UpdateImageDialog>
                     <div className="flex-1 text-center sm:text-left">
                         {!isEditing ? (
                             <>

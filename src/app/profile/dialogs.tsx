@@ -1,11 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { User } from 'firebase/auth';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Loader2, Camera, Upload, ImageIcon, Link as LinkIcon } from 'lucide-react';
 import Image from 'next/image';
-import { DocumentReference } from 'firebase/firestore';
 
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useFirebase, updateUserProfileAndAuth } from '@/firebase';
+import { useFirebase } from '@/firebase';
+import { uploadImage } from '@/app/actions/upload-actions';
 
 const placeholderImages = [
     'https://picsum.photos/seed/bread1/400/300',
@@ -22,69 +20,6 @@ const placeholderImages = [
     'https://picsum.photos/seed/bread4/400/300',
 ];
 
-export function UpdateAvatarDialog({ user, userDocRef, children }: { user: User, userDocRef: DocumentReference | null, children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const { toast } = useToast();
-  const { storage } = useFirebase();
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageSrc(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-  
-  const handleSave = async () => {
-    if (!imageFile || !user || !userDocRef || !storage) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare: servizio non disponibile o dati mancanti.' });
-        return;
-    }
-    
-    setIsUploading(true);
-    try {
-        // TODO: Implement server-side upload
-        toast({ title: 'Caricamento non implementato', description: 'La logica di caricamento lato server deve essere aggiunta.'});
-
-    } catch (error: any) {
-        console.error("Error uploading image: ", error);
-        toast({ variant: 'destructive', title: 'Errore di Caricamento', description: 'Impossibile caricare l\'immagine.' });
-    } finally {
-        setIsUploading(false);
-    }
-  };
-  
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Aggiorna Foto Profilo</DialogTitle>
-          <DialogDescription>
-            Carica una nuova immagine per il tuo profilo. Verrà visualizzata pubblicamente.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-4">
-            <Input type="file" onChange={handleFileChange} accept="image/*" />
-            {imageSrc && <Image src={imageSrc} alt="Anteprima" width={200} height={200} className="mt-4 rounded-md" />}
-        </div>
-        <DialogFooter className="mt-4 gap-2">
-          <Button variant="ghost" onClick={() => setOpen(false)}>Annulla</Button>
-          <Button onClick={handleSave} disabled={!imageFile || isUploading}>
-            {isUploading ? <Loader2 className="animate-spin" /> : 'Salva Foto'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 const dataURLtoFile = (dataurl: string, filename: string): File | null => {
     if (!dataurl || !dataurl.includes(',')) return null;
@@ -106,7 +41,7 @@ const dataURLtoFile = (dataurl: string, filename: string): File | null => {
     }
 }
 
-export function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate: (url: string) => void; currentUrl?: string; children: React.ReactNode }) {
+export function UpdateImageDialog({ onUpdate, currentUrl, children, pathPrefix }: { onUpdate: (url: string) => void; currentUrl?: string; children: React.ReactNode; pathPrefix: string; }) {
     const [open, setOpen] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [sourceForUpload, setSourceForUpload] = useState<'file' | 'camera' | 'gallery' | 'link' | null>(null);
@@ -116,7 +51,7 @@ export function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { toast } = useToast();
-    const { user, storage } = useFirebase();
+    const { user } = useFirebase();
 
     useEffect(() => {
         if (open) {
@@ -184,23 +119,36 @@ export function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate
             let finalUrl = '';
 
             if (imageFile) {
-                // TODO: Implement server-side upload
-                 toast({ title: 'Caricamento non implementato', description: 'La logica di caricamento lato server deve essere aggiunta.'});
-                 setIsUploading(false);
-                 return;
+                if (!user) throw new Error('Utente non autenticato.');
+                if (!pathPrefix) throw new Error('Percorso di caricamento non specificato.');
 
+                const formData = new FormData();
+                formData.append('file', imageFile);
+                formData.append('pathPrefix', pathPrefix);
+
+                const result = await uploadImage(formData);
+
+                if (result.error) throw new Error(result.error);
+                if (!result.url) throw new Error('Caricamento fallito, nessun URL restituito.');
+                
+                finalUrl = result.url;
             } else if (sourceForUpload === 'link' && linkUrl) {
                 finalUrl = linkUrl;
+            } else if (previewUrl === currentUrl) {
+                // No change, just close.
+                setOpen(false);
+                setIsUploading(false);
+                return;
             } else {
-                 toast({ variant: 'destructive', title: 'Nessuna immagine selezionata', description: 'Seleziona un file o fornisci un link.' });
-                 setIsUploading(false);
-                 return;
+                throw new Error('Nessuna nuova immagine da salvare.');
             }
+            
             onUpdate(finalUrl);
+            toast({ title: 'Immagine aggiornata!' });
             setOpen(false);
         } catch (error: any) {
             console.error("Error handling image: ", error);
-            toast({ variant: 'destructive', title: 'Errore di caricamento', description: 'Impossibile salvare l\'immagine.' });
+            toast({ variant: 'destructive', title: 'Errore', description: error.message || 'Impossibile salvare l\'immagine.' });
         } finally {
             setIsUploading(false);
         }

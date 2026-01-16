@@ -30,7 +30,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 
 import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, useFirebase, updateUserProfileAndAuth } from '@/firebase';
-import { UpdateAvatarDialog, UpdateImageDialog } from './dialogs';
+import { UpdateImageDialog } from './dialogs';
 import UserProfileCard from './UserProfileCard';
 
 const bakerProfileFormSchema = z.object({
@@ -260,11 +260,15 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                         <CardContent className="p-0">
                              <div className="relative h-48 w-full group">
                                 {bakerProfile.coverPhotoUrl ? <Image src={bakerProfile.coverPhotoUrl} alt="Immagine di copertina" fill priority sizes="100vw" style={{objectFit: "cover"}} className="rounded-t-lg" /> : <div className="flex h-full items-center justify-center rounded-t-lg text-muted-foreground bg-muted">Immagine di copertina</div>}
-                                <UpdateImageDialog onUpdate={(url) => handleImageUpdate('coverPhotoUrl', url)} currentUrl={bakerProfile.coverPhotoUrl || ''}><Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 opacity-50 group-hover:opacity-100 transition-opacity"><Camera className="h-4 w-4" /></Button></UpdateImageDialog>
+                                <UpdateImageDialog onUpdate={(url) => handleImageUpdate('coverPhotoUrl', url)} currentUrl={bakerProfile.coverPhotoUrl || ''} pathPrefix={`images/${user.uid}`}>
+                                    <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 opacity-50 group-hover:opacity-100 transition-opacity"><Camera className="h-4 w-4" /></Button>
+                                </UpdateImageDialog>
                                 <div className="absolute -bottom-16 left-6">
                                     <div className="relative h-32 w-32 rounded-full border-4 border-card bg-muted flex items-center justify-center group">
                                         {bakerProfile.profilePictureUrl ? <Image src={bakerProfile.profilePictureUrl} alt="Immagine profilo" fill sizes="128px" style={{objectFit: "cover"}} className="rounded-full" /> : <span className="text-center text-xs text-muted-foreground">Immagine profilo</span>}
-                                        <UpdateImageDialog onUpdate={(url) => handleImageUpdate('profilePictureUrl', url)} currentUrl={bakerProfile.profilePictureUrl || ''}><Button variant="outline" size="icon" className="absolute bottom-1 right-1 z-10 h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity rounded-full"><Camera className="h-4 w-4" /></Button></UpdateImageDialog>
+                                        <UpdateImageDialog onUpdate={(url) => handleImageUpdate('profilePictureUrl', url)} currentUrl={bakerProfile.profilePictureUrl || ''} pathPrefix={`images/${user.uid}`}>
+                                            <Button variant="outline" size="icon" className="absolute bottom-1 right-1 z-10 h-8 w-8 opacity-50 group-hover:opacity-100 transition-opacity rounded-full"><Camera className="h-4 w-4" /></Button>
+                                        </UpdateImageDialog>
                                     </div>
                                 </div>
                             </div>
@@ -401,7 +405,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                                                         <div className="relative h-24 w-24 rounded-md bg-muted flex items-center justify-center overflow-hidden">
                                                             {field.value ? <Image src={field.value} alt="Anteprima prodotto" fill sizes="96px" style={{objectFit: "cover"}} /> : <ImageIcon className="h-8 w-8 text-muted-foreground" />}
                                                         </div>
-                                                        <UpdateImageDialog onUpdate={(url) => field.onChange(url)} currentUrl={field.value}>
+                                                        <UpdateImageDialog onUpdate={(url) => field.onChange(url)} currentUrl={field.value} pathPrefix={`images/${user.uid}`}>
                                                             <Button type="button" variant="outline">Cambia Immagine</Button>
                                                         </UpdateImageDialog>
                                                     </div>
