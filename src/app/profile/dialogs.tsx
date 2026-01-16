@@ -50,25 +50,12 @@ export function UpdateAvatarDialog({ user, userDocRef, children }: { user: User,
     
     setIsUploading(true);
     try {
-        const imageRef = storageRef(storage, `avatars/${user.uid}/${Date.now()}_${imageFile.name}`);
-        
-        const snapshot = await uploadBytes(imageRef, imageFile);
-        const downloadURL = await getDownloadURL(snapshot.ref);
+        // TODO: Implement server-side upload
+        toast({ title: 'Caricamento non implementato', description: 'La logica di caricamento lato server deve essere aggiunta.'});
 
-        await updateUserProfileAndAuth(user, userDocRef, { photoURL: downloadURL });
-        toast({ title: 'Avatar aggiornato con successo!' });
-        setOpen(false);
-        setImageSrc(null);
-        setImageFile(null);
     } catch (error: any) {
         console.error("Error uploading image: ", error);
-        let description = 'Controlla la configurazione di CORS e le regole di Storage.';
-        if (error.code === 'storage/unauthorized') {
-            description = 'Non hai i permessi per caricare. Controlla le regole di CORS e di Firebase Storage.';
-        } else if (error.message) {
-            description = error.message;
-        }
-        toast({ variant: 'destructive', title: 'Errore di Caricamento', description });
+        toast({ variant: 'destructive', title: 'Errore di Caricamento', description: 'Impossibile caricare l\'immagine.' });
     } finally {
         setIsUploading(false);
     }
@@ -191,22 +178,17 @@ export function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate
         }
     };
 
-    const uploadImage = async (file: File): Promise<string> => {
-        if (!user || !storage) throw new Error("Utente non autenticato o servizio di storage non disponibile.");
-        
-        const imageRef = storageRef(storage, `images/${user.uid}/${Date.now()}_${file.name}`);
-        
-        await uploadBytes(imageRef, file);
-        return await getDownloadURL(imageRef);
-    };
-    
     const handleSubmit = async () => {
         setIsUploading(true);
         try {
             let finalUrl = '';
 
             if (imageFile) {
-                finalUrl = await uploadImage(imageFile);
+                // TODO: Implement server-side upload
+                 toast({ title: 'Caricamento non implementato', description: 'La logica di caricamento lato server deve essere aggiunta.'});
+                 setIsUploading(false);
+                 return;
+
             } else if (sourceForUpload === 'link' && linkUrl) {
                 finalUrl = linkUrl;
             } else {
@@ -218,13 +200,7 @@ export function UpdateImageDialog({ onUpdate, currentUrl, children }: { onUpdate
             setOpen(false);
         } catch (error: any) {
             console.error("Error handling image: ", error);
-             let description = 'Impossibile salvare l\'immagine. Controlla la console per i dettagli.';
-            if (error.code === 'storage/unauthorized') {
-                description = 'Non hai i permessi per caricare. Controlla le regole di CORS e di Firebase Storage.';
-            } else if (error.code === 'storage/object-not-found') {
-                description = 'File non trovato. Potrebbe essere un problema di rete.';
-            }
-            toast({ variant: 'destructive', title: 'Errore di caricamento', description });
+            toast({ variant: 'destructive', title: 'Errore di caricamento', description: 'Impossibile salvare l\'immagine.' });
         } finally {
             setIsUploading(false);
         }
