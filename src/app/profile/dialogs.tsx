@@ -140,7 +140,13 @@ export function UpdateImageDialog({ onUpdate, currentUrl, children, pathPrefix }
                 setIsUploading(false);
                 return;
             } else {
-                throw new Error('Nessuna nuova immagine da salvare.');
+                // This case handles selecting from gallery where previewUrl is updated
+                // but it's not a file upload, so we treat it like a link.
+                if (sourceForUpload === 'gallery' && previewUrl) {
+                    finalUrl = previewUrl;
+                } else {
+                    throw new Error('Nessuna nuova immagine da salvare.');
+                }
             }
             
             onUpdate(finalUrl);
@@ -158,7 +164,7 @@ export function UpdateImageDialog({ onUpdate, currentUrl, children, pathPrefix }
         setPreviewUrl(url);
         setLinkUrl(url);
         setImageFile(null);
-        setSourceForUpload('link');
+        setSourceForUpload('gallery');
     }
     
     const handleSetUrlFromLink = (url: string) => {

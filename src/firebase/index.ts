@@ -1,10 +1,10 @@
 'use client';
 
 import { updateProfile } from 'firebase/auth';
-import { DocumentReference } from 'firebase/firestore';
+import { DocumentReference, updateDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
-import { updateDocumentNonBlocking } from './non-blocking-updates';
 
+// This function now uses updateDoc and is awaited.
 export async function updateUserProfileAndAuth(user: User, userDocRef: DocumentReference, data: any) {
   if (!user || !userDocRef) return;
   const authUpdates: any = {};
@@ -21,9 +21,13 @@ export async function updateUserProfileAndAuth(user: User, userDocRef: DocumentR
     authUpdates.photoURL = data.photoURL;
     firestoreUpdates.photoURL = data.photoURL;
   }
-
-  if (Object.keys(authUpdates).length > 0) await updateProfile(user, authUpdates);
-  if (Object.keys(firestoreUpdates).length > 0) updateDocumentNonBlocking(userDocRef, firestoreUpdates);
+  
+  if (Object.keys(firestoreUpdates).length > 0) {
+      await updateDoc(userDocRef, firestoreUpdates);
+  }
+  if (Object.keys(authUpdates).length > 0) {
+      await updateProfile(user, authUpdates);
+  }
 }
 
 export * from './provider';
