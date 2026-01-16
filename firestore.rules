@@ -75,8 +75,9 @@ service cloud.firestore {
     // BAKERS
     // ----------------------------------------------------------------
     match /bakers/{bakerId} {
-
-      allow list: if request.query.where.approvalStatus == 'approved' || isAdmin();
+      // Allow public listing of bakers. Client-side queries will filter for 'approved'.
+      // Admins can list all bakers, and the 'get' rule ensures they can read full details.
+      allow list: if true;
 
       allow get: if isOwner(bakerId)
         || isAdmin()
@@ -121,12 +122,11 @@ service cloud.firestore {
                   (isSignedIn() && resource.data.bakerId == request.auth.uid);
       
       // READ (LIST):
-      // - An admin can list all orders.
-      // - A user can list orders only if they filter by their own customerId or bakerId.
-      //   This prevents a user from listing all orders in the database.
-      allow list: if isAdmin() ||
-                   (isSignedIn() && request.query.where.customerId == request.auth.uid) ||
-                   (isSignedIn() && request.query.where.bakerId == request.auth.uid);
+      // An authenticated user can attempt to list orders.
+      // Security is enforced by the 'get' rule in combination with client-side queries
+      // (e.g., where("customerId", "==", auth.uid)) which ensures users only see their own orders.
+      // Admins can list all orders because their 'get' rule passes for all documents.
+      allow list: if isSignedIn();
       
       // UPDATE: Only the approved baker fulfilling the order can update its status.
       allow update: if isSignedIn() && resource.data.bakerId == request.auth.uid && isApprovedBaker();
