@@ -1,4 +1,20 @@
 {
+  "hosting": {
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "apphosting": {
+          "backendId": "pannedelivery"
+        }
+      }
+    ]
+  },
   "firestore": {
     "database": "(default)",
     "location": "us-central1",
