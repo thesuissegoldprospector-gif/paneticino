@@ -17,7 +17,6 @@ function OrderReceiptPage() {
   const id = params.id as string;
   const firestore = useFirestore();
   const [isMounted, setIsMounted] = useState(false);
-  const [formattedDate, setFormattedDate] = useState('');
 
   // Fetch the order
   const orderRef = useMemoFirebase(() => {
@@ -28,10 +27,7 @@ function OrderReceiptPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    if (order?.createdAt) {
-      setFormattedDate(format(order.createdAt.toDate(), 'dd MMMM yyyy, HH:mm', { locale: it }));
-    }
-  }, [order]);
+  }, []);
 
 
   // Fetch baker details using the bakerId from the order
@@ -56,6 +52,8 @@ function OrderReceiptPage() {
     notFound();
     return null;
   }
+  
+  const orderDate = order?.createdAt?.toDate();
 
   return (
     <div className="bg-muted min-h-screen py-8 px-4 font-body print:bg-white print:py-0">
@@ -91,7 +89,7 @@ function OrderReceiptPage() {
             <p className="text-sm text-muted-foreground">ID Ordine: {order.id}</p>
             <CardTitle className="text-3xl font-headline">Ricevuta d'Acquisto</CardTitle>
             <CardDescription>
-              {formattedDate || <>&nbsp;</>}
+              {isMounted && orderDate ? format(orderDate, 'dd MMMM yyyy, HH:mm', { locale: it }) : <>&nbsp;</>}
             </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
