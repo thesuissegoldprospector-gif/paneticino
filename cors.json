@@ -1,8 +1,14 @@
 [
   {
-    "origin": ["*"],
-    "method": ["GET", "POST", "PUT", "HEAD"],
-    "maxAgeSeconds": 3600,
-    "responseHeader": ["Content-Type", "Authorization"]
+    "origin": [
+      "http://localhost:9002",
+      "https://studio-1063796498-c439e.web.app",
+      "https://studio-1063796498-c439e.firebaseapp.com",
+      "https://studio--studio-1063796498-c439e.us-central1.hosted.app",
+      "https://6000-firebase-studio-1768380781879.cluster-64pjnskmlbaxowh5lzq6i7v4ra.cloudworkstations.dev"
+    ],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+    "responseHeader": ["Content-Type", "Authorization", "X-Goog-Resumable"],
+    "maxAgeSeconds": 3600
   }
 ]
