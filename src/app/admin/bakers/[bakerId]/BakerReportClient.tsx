@@ -16,6 +16,9 @@ import Link from "next/link";
 import { ArrowLeft, Printer, Loader2, Calendar as CalendarIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 
 type Props = {
@@ -40,6 +43,8 @@ const OrderStatusBadge = ({ status }: { status: string }) => {
 export default function BakerReportClient({ bakerUserId }: Props) {
   const firestore = useFirestore();
   const [date, setDate] = useState<DateRange | undefined>(undefined);
+  const [commissionPercentage, setCommissionPercentage] = useState(15);
+  const [subscriptionFee, setSubscriptionFee] = useState(0);
 
   // Fetch baker details on the client by querying for the userId
   const bakerQuery = useMemoFirebase(() => {
@@ -110,6 +115,17 @@ export default function BakerReportClient({ bakerUserId }: Props) {
   // Calculate summary stats based on filtered orders
   const completedOrders = filteredOrders.filter(order => order.status === 'completed');
   const totalRevenueCompleted = completedOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+
+  // New calculations for commission and total
+  const commissionAmount = totalRevenueCompleted * (commissionPercentage / 100);
+  const totalToBaker = totalRevenueCompleted - commissionAmount - subscriptionFee;
+  
+  const subscriptionOptions = [
+    { label: 'Prova 1 Mese', value: 0 },
+    { label: 'Base', value: 19.90 },
+    { label: 'Standard', value: 29.90 },
+    { label: 'Premium', value: 39.90 },
+  ];
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -228,6 +244,65 @@ export default function BakerReportClient({ bakerUserId }: Props) {
                 </Table>
                 {filteredOrders.length === 0 && <p className="text-center text-muted-foreground p-8">Nessun ordine trovato per questo periodo.</p>}
             </div>
+
+             {/* Calculator Section */}
+            <div className="mt-8 pt-6 border-t">
+                <h3 className="text-lg font-semibold mb-4">Calcolo Competenze</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Commission Calculator */}
+                    <div>
+                        <Card>
+                            <CardHeader><CardTitle>Commissioni e Abbonamento</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="commission">Percentuale Commissione (%)</Label>
+                                    <Input 
+                                        id="commission"
+                                        type="number"
+                                        value={commissionPercentage}
+                                        onChange={(e) => setCommissionPercentage(Number(e.target.value))}
+                                        className="w-24"
+                                    />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label>Piano di Abbonamento</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {subscriptionOptions.map(opt => (
+                                            <Button 
+                                                key={opt.label}
+                                                variant={subscriptionFee === opt.value ? "default" : "outline"}
+                                                size="sm"
+                                                onClick={() => setSubscriptionFee(opt.value)}
+                                            >
+                                                {opt.label} (€{opt.value.toFixed(2)})
+                                            </Button>
+                                        ))}
+                                    </div>
+                                    <Button size="sm" variant="ghost" className="mt-2 text-xs h-auto p-1" onClick={() => setSubscriptionFee(0)}>Rimuovi abbonamento</Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Final Summary */}
+                    <div>
+                        <Card>
+                            <CardHeader><CardTitle>Riepilogo Finale</CardTitle></CardHeader>
+                            <CardContent>
+                                <div className="space-y-2 text-right">
+                                     <p className="flex justify-between"><span>Incasso Lordo (nel periodo):</span> <span className="font-semibold font-mono">{totalRevenueCompleted.toFixed(2)}€</span></p>
+                                     <Separator />
+                                     <p className="flex justify-between text-destructive"><span>- Commissioni ({commissionPercentage}%):</span> <span className="font-semibold font-mono">{commissionAmount.toFixed(2)}€</span></p>
+                                     <p className="flex justify-between text-destructive"><span>- Abbonamento:</span> <span className="font-semibold font-mono">{subscriptionFee.toFixed(2)}€</span></p>
+                                     <Separator />
+                                     <p className="flex justify-between font-bold text-lg pt-2 mt-2"><span>Totale Netto per Panettiere:</span> <span className="font-semibold font-mono">{totalToBaker.toFixed(2)}€</span></p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+
         </CardContent>
       </Card>
     </div>
