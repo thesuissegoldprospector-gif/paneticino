@@ -60,9 +60,15 @@ export function UpdateAvatarDialog({ user, userDocRef, children }: { user: User,
         setOpen(false);
         setImageSrc(null);
         setImageFile(null);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error uploading image: ", error);
-        toast({ variant: 'destructive', title: 'Errore di Caricamento', description: (error as Error).message || 'Controlla la configurazione di CORS e le regole di Storage.' });
+        let description = 'Controlla la configurazione di CORS e le regole di Storage.';
+        if (error.code === 'storage/unauthorized') {
+            description = 'Non hai i permessi per caricare. Controlla le regole di CORS e di Firebase Storage.';
+        } else if (error.message) {
+            description = error.message;
+        }
+        toast({ variant: 'destructive', title: 'Errore di Caricamento', description });
     } finally {
         setIsUploading(false);
     }
