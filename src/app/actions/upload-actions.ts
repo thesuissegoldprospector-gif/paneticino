@@ -22,8 +22,9 @@ export async function uploadImage(formData: FormData): Promise<{ url?: string; e
       return { error: 'Percorso di caricamento non specificato.' };
   }
 
-  // This is the correct way to get the default bucket name from App Hosting env vars.
-  const bucketName = process.env.FIREBASE_STORAGE_BUCKET;
+  // The environment variable FIREBASE_STORAGE_BUCKET is not reliably available in this environment.
+  // We will use the bucket name from the known Firebase configuration.
+  const bucketName = 'studio-1063796498-c439e.appspot.com';
   if (!bucketName) {
       return { error: 'Impossibile determinare il bucket di storage. Assicurati che FIREBASE_STORAGE_BUCKET sia configurato.' };
   }
