@@ -160,7 +160,7 @@ export default function BakerApplicationPage() {
                     <FormLabel>Condizioni di Consegna (Opzionale)</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Es. Ordine minimo 10€, consegna gratuita sopra i 30€, orari di consegna 9-12."
+                        placeholder="Es. Ordine minimo 10 CHF, consegna gratuita sopra i 30 CHF, orari di consegna 9-12."
                         {...field}
                       />
                     </FormControl>
@@ -182,5 +182,3 @@ export default function BakerApplicationPage() {
     </div>
   );
 }
-
-    

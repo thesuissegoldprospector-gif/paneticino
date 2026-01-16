@@ -198,7 +198,7 @@ export default function BakerReportClient({ bakerUserId }: Props) {
             <div className="grid gap-4 md:grid-cols-3 mb-6">
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Incasso (Completati nel periodo)</CardTitle></CardHeader>
-                    <CardContent><p className="text-2xl font-bold">€{totalRevenueCompleted.toFixed(2)}</p></CardContent>
+                    <CardContent><p className="text-2xl font-bold">{totalRevenueCompleted.toFixed(2)} CHF</p></CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Ordini nel periodo</CardTitle></CardHeader>
@@ -230,7 +230,7 @@ export default function BakerReportClient({ bakerUserId }: Props) {
                             <TableCell>{order.customerName}</TableCell>
                             <TableCell>{order.deliveryAddress}</TableCell>
                             <TableCell><OrderStatusBadge status={order.status} /></TableCell>
-                            <TableCell className="text-right">€{order.total.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{order.total.toFixed(2)} CHF</TableCell>
                         </TableRow>
                         ))}
                     </TableBody>
@@ -267,7 +267,7 @@ export default function BakerReportClient({ bakerUserId }: Props) {
                                                 size="sm"
                                                 onClick={() => setSubscriptionFee(opt.value)}
                                             >
-                                                {opt.label} (€{opt.value.toFixed(2)})
+                                                {opt.label} ({opt.value.toFixed(2)} CHF)
                                             </Button>
                                         ))}
                                     </div>
@@ -283,12 +283,12 @@ export default function BakerReportClient({ bakerUserId }: Props) {
                             <CardHeader><CardTitle>Riepilogo Finale</CardTitle></CardHeader>
                             <CardContent>
                                 <div className="space-y-2 text-right">
-                                     <p className="flex justify-between"><span>Incasso Lordo (nel periodo):</span> <span className="font-semibold font-mono">{totalRevenueCompleted.toFixed(2)}€</span></p>
+                                     <p className="flex justify-between"><span>Incasso Lordo (nel periodo):</span> <span className="font-semibold font-mono">{totalRevenueCompleted.toFixed(2)} CHF</span></p>
                                      <Separator />
-                                     <p className="flex justify-between text-destructive"><span>- Commissioni ({commissionPercentage}%):</span> <span className="font-semibold font-mono">{commissionAmount.toFixed(2)}€</span></p>
-                                     <p className="flex justify-between text-destructive"><span>- Abbonamento:</span> <span className="font-semibold font-mono">{subscriptionFee.toFixed(2)}€</span></p>
+                                     <p className="flex justify-between text-destructive"><span>- Commissioni ({commissionPercentage}%):</span> <span className="font-semibold font-mono">{commissionAmount.toFixed(2)} CHF</span></p>
+                                     <p className="flex justify-between text-destructive"><span>- Abbonamento:</span> <span className="font-semibold font-mono">{subscriptionFee.toFixed(2)} CHF</span></p>
                                      <Separator />
-                                     <p className="flex justify-between font-bold text-lg pt-2 mt-2"><span>Totale Netto per Panettiere:</span> <span className="font-semibold font-mono">{totalToBaker.toFixed(2)}€</span></p>
+                                     <p className="flex justify-between font-bold text-lg pt-2 mt-2"><span>Totale Netto per Panettiere:</span> <span className="font-semibold font-mono">{totalToBaker.toFixed(2)} CHF</span></p>
                                 </div>
                             </CardContent>
                         </Card>

@@ -113,7 +113,7 @@ function DeliverySlips() {
                                         </TableBody>
                                     </Table>
                                 </div>
-                                <p className="text-right font-bold text-xl">Totale Ordine: €{order.total.toFixed(2)}</p>
+                                <p className="text-right font-bold text-xl">Totale Ordine: {order.total.toFixed(2)} CHF</p>
                             </CardContent>
                         </Card>
                     ))}

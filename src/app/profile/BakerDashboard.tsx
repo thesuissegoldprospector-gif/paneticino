@@ -104,9 +104,9 @@ function BakerOrdersDashboard({ user, orders, isLoading }: { user: User, orders:
                                     <div>
                                         <h4 className="font-semibold mb-2">Articoli</h4>
                                         <ul className="list-disc pl-5 space-y-1">
-                                            {order.items.map((item: any, index: number) => <li key={index}>{item.quantity}x {item.name} - {(item.price * item.quantity).toFixed(2)}€</li>)}
+                                            {order.items.map((item: any, index: number) => <li key={index}>{item.quantity}x {item.name} - {(item.price * item.quantity).toFixed(2)} CHF</li>)}
                                         </ul>
-                                        <p className="font-bold text-right mt-2">Totale: {order.total.toFixed(2)}€</p>
+                                        <p className="font-bold text-right mt-2">Totale: {order.total.toFixed(2)} CHF</p>
                                     </div>
                                     <div className="flex flex-wrap gap-2 justify-end pt-2 border-t">
                                         {order.status === 'pending' && (<><Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(order.id, 'rejected')}><ThumbsDown /> Rifiuta</Button><Button size="sm" onClick={() => handleUpdateStatus(order.id, 'accepted')}><ThumbsUp /> Accetta</Button></>)}
@@ -283,7 +283,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                                 <FormField control={profileForm.control} name="address" render={({ field }) => (<FormItem><FormLabel>Indirizzo Completo</FormLabel><FormControl><Input placeholder="Via, numero civico, città, CAP" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             </div>
                             <FormField control={profileForm.control} name="deliveryZones" render={({ field }) => (<FormItem><FormLabel>Zone di Consegna (separate da virgola)</FormLabel><FormControl><Textarea placeholder="Elenca le aree, i CAP o le città" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField control={profileForm.control} name="deliveryConditions" render={({ field }) => (<FormItem><FormLabel>Condizioni di Consegna</FormLabel><FormControl><Textarea placeholder="Es. Ordine minimo 10€..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField control={profileForm.control} name="deliveryConditions" render={({ field }) => (<FormItem><FormLabel>Condizioni di Consegna</FormLabel><FormControl><Textarea placeholder="Es. Ordine minimo 10 CHF..." {...field} /></FormControl><FormMessage /></FormItem>)} />
                              <div className="flex justify-end gap-2">
                                 <Button type="submit" disabled={profileForm.formState.isSubmitting}>{profileForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salva Modifiche</Button>
                             </div>
@@ -387,7 +387,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                             <Form {...productForm}>
                                 <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
                                     <FormField control={productForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Prodotto</FormLabel><FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo</FormLabel><FormControl><Input placeholder="€4.50" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo</FormLabel><FormControl><Input placeholder="CHF 4.50" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={productForm.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Textarea placeholder="Breve descrizione..." {...field} /></FormControl><FormMessage /></FormItem>)} />
                                     
                                     <FormField
@@ -426,7 +426,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                                     <CardContent className="p-3">
                                         <h4 className="truncate font-bold">{product.name}</h4>
                                         <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
-                                        <p className="mt-2 font-bold">{product.price}</p>
+                                        <p className="mt-2 font-bold">{product.price.replace('€', 'CHF')}</p>
                                         <Button variant="destructive" size="icon" className="absolute right-2 top-2 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteProduct(product.id)}><Trash2 className="h-4 w-4" /></Button>
                                     </CardContent>
                                 </Card>

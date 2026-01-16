@@ -175,7 +175,7 @@
         },
         "price": {
           "type": "string",
-          "description": "The price of the product (e.g., '€4.50')."
+          "description": "The price of the product (e.g., '4.50 CHF')."
         },
         "imageUrl": {
           "type": "string",

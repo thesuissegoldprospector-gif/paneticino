@@ -89,14 +89,14 @@ export default function OrderConfirmationPage() {
                         <p className="text-sm text-muted-foreground">Quantità: {item.quantity}</p>
                     </div>
                 </div>
-                <p className="font-semibold">{(item.price * item.quantity).toFixed(2)}€</p>
+                <p className="font-semibold">{(item.price * item.quantity).toFixed(2)} CHF</p>
               </div>
             ))}
           </div>
           <Separator />
           <div className="flex justify-between font-bold text-lg">
             <p>Totale Pagato</p>
-            <p>{order.total.toFixed(2)}€</p>
+            <p>{order.total.toFixed(2)} CHF</p>
           </div>
         </CardContent>
         <CardFooter className='flex-col gap-4'>
@@ -111,5 +111,3 @@ export default function OrderConfirmationPage() {
     </div>
   );
 }
-
-    

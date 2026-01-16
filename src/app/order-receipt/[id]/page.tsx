@@ -121,8 +121,8 @@ function OrderReceiptPage() {
                             <TableRow key={item.productId}>
                                 <TableCell className="font-medium">{item.name}</TableCell>
                                 <TableCell className="text-center">{item.quantity}</TableCell>
-                                <TableCell className="text-right">€{item.price.toFixed(2)}</TableCell>
-                                <TableCell className="text-right">€{(item.price * item.quantity).toFixed(2)}</TableCell>
+                                <TableCell className="text-right">{item.price.toFixed(2)} CHF</TableCell>
+                                <TableCell className="text-right">{(item.price * item.quantity).toFixed(2)} CHF</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -133,7 +133,7 @@ function OrderReceiptPage() {
             <div className="w-full max-w-xs space-y-2 text-right">
                 <div className="flex justify-between font-semibold text-lg">
                     <span>Totale</span>
-                    <span>€{order.total.toFixed(2)}</span>
+                    <span>{order.total.toFixed(2)} CHF</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                     <span>Stato</span>

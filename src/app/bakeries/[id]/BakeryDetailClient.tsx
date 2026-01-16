@@ -52,7 +52,7 @@ function ProductCard({ product, bakery }: { product: any; bakery: any }) {
       
       setAdding(true);
 
-      const priceString = String(product.price || '0').replace('€', '').trim();
+      const priceString = String(product.price || '0').replace('€', '').replace('CHF', '').trim();
       const priceNumber = parseFloat(priceString);
 
       if (isNaN(priceNumber)) {
@@ -105,7 +105,7 @@ function ProductCard({ product, bakery }: { product: any; bakery: any }) {
           <div>
             <h3 className="font-semibold text-base">{product.name}</h3>
             <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-            <p className="mt-1 font-bold text-sm text-accent-foreground">{product.price}</p>
+            <p className="mt-1 font-bold text-sm text-accent-foreground">{product.price.replace('€', 'CHF')}</p>
           </div>
           <Button
             variant="outline"
@@ -136,7 +136,7 @@ function CartOverlay() {
                         <div>
                             <p className="font-medium">{item.name}</p>
                             <p className="text-muted-foreground">
-                                {item.quantity} × {item.price.toFixed(2)}€
+                                {item.quantity} × {item.price.toFixed(2)} CHF
                             </p>
                         </div>
                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => useCart.getState().removeFromCart(item.id)}>
@@ -145,7 +145,7 @@ function CartOverlay() {
                     </div>
                 ))}
             </div>
-            <p className="mt-4 font-bold text-right text-lg">Totale: {total.toFixed(2)}€</p>
+            <p className="mt-4 font-bold text-right text-lg">Totale: {total.toFixed(2)} CHF</p>
             <Button asChild className="w-full mt-3">
                 <Link href="/checkout">Vai al Checkout</Link>
             </Button>

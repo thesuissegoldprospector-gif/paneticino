@@ -179,15 +179,15 @@ export default function CheckoutPage() {
                     <div>
                         <p className="font-semibold">{item.name}</p>
                         <p className="text-sm text-muted-foreground">
-                        {item.quantity} × {item.price.toFixed(2)}€
+                        {item.quantity} × {item.price.toFixed(2)} CHF
                         </p>
                     </div>
-                     <p className="font-semibold">{(item.price * (item.quantity || 1)).toFixed(2)}€</p>
+                     <p className="font-semibold">{(item.price * (item.quantity || 1)).toFixed(2)} CHF</p>
                     </div>
                 ))}
                 <div className="flex justify-between font-bold text-lg pt-2">
                     <p>Totale Parziale</p>
-                    <p>{order.total.toFixed(2)}€</p>
+                    <p>{order.total.toFixed(2)} CHF</p>
                 </div>
             </CardContent>
              <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">

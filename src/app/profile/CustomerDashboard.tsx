@@ -65,7 +65,7 @@ function CustomerOrdersDashboard({ orders, isLoading }: { orders: any[] | null, 
                                             {order.items.map((item: any, index: number) => <li key={index}>{item.quantity}x {item.name}</li>)}
                                         </ul>
                                     </div>
-                                    <div className="font-bold text-right mt-2">Totale: {order.total.toFixed(2)}€</div>
+                                    <div className="font-bold text-right mt-2">Totale: {order.total.toFixed(2)} CHF</div>
                                     <div className="pt-4 mt-4 border-t flex justify-end">
                                         <Button asChild variant="outline" size="sm">
                                             <Link href={`/order-receipt/${order.id}`} target="_blank" rel="noopener noreferrer">
