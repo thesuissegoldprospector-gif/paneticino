@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { doc, collection, query, where, DocumentData } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { Loader2, PlusCircle, Trash2, Heart, MapPin, ShoppingBag, FileText } from 'lucide-react';
