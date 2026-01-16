@@ -10,14 +10,14 @@
       {
         "source": "**",
         "apphosting": {
-          "backendId": "pannedelivery"
+          "backendId": "studio-1063796498-c439e"
         }
       }
     ]
   },
   "firestore": {
     "database": "(default)",
-    "location": "europe-west1",
+    "location": "us-central1",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },

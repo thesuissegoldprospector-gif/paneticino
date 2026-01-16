@@ -1,8 +1,8 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
-backendId: pannedelivery
-location: europe-west1
+backendId: studio-1063796498-c439e
+location: us-central1
 
 runConfig:
   # Increase this value if you'd like to automatically spin up
