@@ -28,11 +28,6 @@ function ProductionSheet() {
 
     const fromDate = from ? new Date(from) : null;
     const toDate = to ? new Date(to) : null;
-
-    // Set 'to' date to the end of the day
-    if (toDate) {
-        toDate.setHours(23, 59, 59, 999);
-    }
     
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user || !fromDate || !toDate) return null;
@@ -102,7 +97,9 @@ function ProductionSheet() {
                 <CardHeader>
                     <CardTitle>Foglio di Produzione</CardTitle>
                     <CardDescription>
-                        Totale prodotti da preparare per gli ordini accettati dal {format(fromDate, 'dd/MM/yy HH:mm', { locale: it })} al {format(toDate, 'dd/MM/yy HH:mm', { locale: it })}.
+                        Totale prodotti da preparare per gli ordini accettati 
+                        dal {fromDate ? format(fromDate, 'dd/MM/yy HH:mm', { locale: it }) : ''} 
+                        al {toDate ? format(toDate, 'dd/MM/yy HH:mm', { locale: it }) : ''}.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

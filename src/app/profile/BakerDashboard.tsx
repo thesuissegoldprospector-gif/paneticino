@@ -131,6 +131,8 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
     const router = useRouter();
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
     const [printDateRange, setPrintDateRange] = useState<DateRange | undefined>();
+    const [startTime, setStartTime] = useState('00:00');
+    const [endTime, setEndTime] = useState('23:59');
     
     const bakerDocRef = useMemoFirebase(() => doc(firestore, 'bakers', user.uid), [firestore, user.uid]);
     const { data: bakerProfile, isLoading: isBakerLoading } = useDoc(bakerDocRef);
@@ -212,27 +214,33 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
         toast({ title: 'Immagine aggiornata!' });
     };
 
-    const handlePrintProduction = () => {
+    const handlePrint = (path: 'production' | 'delivery') => {
         if (!printDateRange?.from) {
-            toast({ variant: 'destructive', title: 'Data di inizio mancante', description: 'Seleziona un intervallo di date completo.' });
+            toast({ variant: 'destructive', title: 'Data di inizio mancante', description: 'Seleziona una data o un intervallo di date.' });
             return;
         }
-        const toDate = printDateRange.to || printDateRange.from;
-        const fromISO = printDateRange.from.toISOString();
-        const toISO = toDate.toISOString();
-        window.open(`/print/production?from=${fromISO}&to=${toISO}`, '_blank');
-    };
+        
+        const fromDate = new Date(printDateRange.from);
+        const [startHours, startMinutes] = startTime.split(':').map(Number);
+        fromDate.setHours(startHours, startMinutes, 0, 0);
 
-    const handlePrintDelivery = () => {
-        if (!printDateRange?.from) {
-            toast({ variant: 'destructive', title: 'Data di inizio mancante', description: 'Seleziona un intervallo di date completo.' });
+        const toDate = printDateRange.to ? new Date(printDateRange.to) : new Date(printDateRange.from);
+        const [endHours, endMinutes] = endTime.split(':').map(Number);
+        toDate.setHours(endHours, endMinutes, 59, 999);
+        
+        if (fromDate > toDate) {
+            toast({ variant: 'destructive', title: 'Intervallo non valido', description: 'La data e ora di inizio non possono essere successive alla data e ora di fine.' });
             return;
         }
-        const toDate = printDateRange.to || printDateRange.from;
-        const fromISO = printDateRange.from.toISOString();
+
+        const fromISO = fromDate.toISOString();
         const toISO = toDate.toISOString();
-        window.open(`/print/delivery?from=${fromISO}&to=${toISO}`, '_blank');
+        window.open(`/print/${path}?from=${fromISO}&to=${toISO}`, '_blank');
     };
+    
+    const handlePrintProduction = () => handlePrint('production');
+
+    const handlePrintDelivery = () => handlePrint('delivery');
     
     if (isBakerLoading) {
         return <div className="flex h-full min-h-[50vh] items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
@@ -298,44 +306,66 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                     <CardDescription>Genera fogli di produzione e bollettini di consegna per gli ordini accettati nell'intervallo di tempo selezionato.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="date">Intervallo di Date</Label>
-                         <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    id="date"
-                                    variant={"outline"}
-                                    className={cn(
-                                        "w-[300px] justify-start text-left font-normal",
-                                        !printDateRange && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {printDateRange?.from ? (
-                                        printDateRange.to ? (
-                                            <>
-                                                {format(printDateRange.from, "dd LLL, y", { locale: it })} -{" "}
-                                                {format(printDateRange.to, "dd LLL, y", { locale: it })}
-                                            </>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="date">Intervallo di Date</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="date"
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            !printDateRange && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {printDateRange?.from ? (
+                                            printDateRange.to ? (
+                                                <>
+                                                    {format(printDateRange.from, "dd LLL, y", { locale: it })} -{" "}
+                                                    {format(printDateRange.to, "dd LLL, y", { locale: it })}
+                                                </>
+                                            ) : (
+                                                format(printDateRange.from, "dd LLL, y", { locale: it })
+                                            )
                                         ) : (
-                                            format(printDateRange.from, "dd LLL, y", { locale: it })
-                                        )
-                                    ) : (
-                                        <span>Scegli le date</span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={printDateRange?.from}
-                                    selected={printDateRange}
-                                    onSelect={setPrintDateRange}
-                                    numberOfMonths={2}
+                                            <span>Scegli le date</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        initialFocus
+                                        mode="range"
+                                        defaultMonth={printDateRange?.from}
+                                        selected={printDateRange}
+                                        onSelect={setPrintDateRange}
+                                        numberOfMonths={2}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="start-time">Ora Inizio</Label>
+                                <Input
+                                    id="start-time"
+                                    type="time"
+                                    value={startTime}
+                                    onChange={(e) => setStartTime(e.target.value)}
                                 />
-                            </PopoverContent>
-                        </Popover>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="end-time">Ora Fine</Label>
+                                <Input
+                                    id="end-time"
+                                    type="time"
+                                    value={endTime}
+                                    onChange={(e) => setEndTime(e.target.value)}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
                 <CardFooter className="flex-wrap gap-4">

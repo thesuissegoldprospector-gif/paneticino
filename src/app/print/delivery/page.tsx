@@ -23,10 +23,6 @@ function DeliverySlips() {
     const fromDate = from ? new Date(from) : null;
     const toDate = to ? new Date(to) : null;
 
-    if (toDate) {
-        toDate.setHours(23, 59, 59, 999);
-    }
-
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user || !fromDate || !toDate) return null;
         return query(
