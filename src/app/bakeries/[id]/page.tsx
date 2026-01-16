@@ -2,6 +2,7 @@ import { doc, collection, query, where, getDoc, getDocs } from "firebase/firesto
 import { firestore } from "@/firebase/server"; // Server-side Firebase client
 import BakeryDetailClient from "./BakeryDetailClient";
 import { notFound } from "next/navigation";
+import type { JSX } from "react";
 
 // The props object now includes a `params` property
 type Props = {
@@ -9,7 +10,7 @@ type Props = {
 };
 
 // The component is async and receives props
-export default async function BakeryDetailPage(props: Props) {
+export default async function BakeryDetailPage(props: Props): Promise<JSX.Element> {
   const id = props.params.id; // This can be either doc ID or userId
 
   if (!id) {
