@@ -110,30 +110,23 @@ service cloud.firestore {
     // ORDERS
     // ----------------------------------------------------------------
      match /orders/{orderId} {
-      // Un cliente può creare un ordine per se stesso.
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
-      // Un ordine può essere letto dal cliente che lo ha effettuato, dal panettiere che lo evade, o da un admin.
       allow get: if isSignedIn() && (
         resource.data.customerId == request.auth.uid ||
         resource.data.bakerId == request.auth.uid ||
         isAdmin()
       );
       
-      // Un panettiere può aggiornare lo stato di un ordine.
       allow update: if isSignedIn()
         && request.auth.uid == resource.data.bakerId && isApprovedBaker();
       
-      // La lista di ordini può essere letta da un admin (per i report), da un cliente (per il proprio storico)
-      // o da un panettiere (per la propria dashboard).
-      // Questa regola è sicura perché richiede che la query lato client specifichi sempre il campo per cui sta filtrando.
-      allow list: if 
-        (isAdmin()) ||
-        (isSignedIn() && request.query.where.field == "customerId" && request.query.where.value == request.auth.uid) ||
-        (isSignedIn() && request.query.where.field == "bakerId" && request.query.where.value == request.auth.uid);
+      // A user can query the orders collection if they are an admin,
+      // OR if they are querying for their own orders as a customer or baker.
+      allow list: if isAdmin() || 
+                    (isSignedIn() && request.query.where.field == "customerId" && request.query.where.value == request.auth.uid) ||
+                    (isSignedIn() && request.query.where.field == "bakerId" && request.query.where.value == request.auth.uid);
 
-
-      // Gli ordini non possono essere cancellati.
       allow delete: if false;
     }
 

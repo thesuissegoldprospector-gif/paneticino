@@ -86,9 +86,14 @@ export default function CustomerDashboard({ user, userDoc }: { user: User, userD
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, 'orders'), where('customerId', '==', user.uid));
     }, [firestore, user]);
-    const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
+    const { data: unsortedOrders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
+
+    const orders = useMemo(() => {
+        if (!unsortedOrders) return null;
+        return [...unsortedOrders].sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+    }, [unsortedOrders]);
 
     const favoriteBakeriesQuery = useMemoFirebase(() => {
         if (!firestore || !customerProfile?.favoriteBakeries || customerProfile.favoriteBakeries.length === 0) return null;

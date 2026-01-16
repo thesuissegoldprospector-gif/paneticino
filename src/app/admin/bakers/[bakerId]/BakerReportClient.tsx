@@ -48,13 +48,20 @@ export default function BakerReportClient({ bakerUserId }: Props) {
   // Fetch orders for this baker on the client, using the correct bakerUserId from props
   const ordersQuery = useMemoFirebase(() => {
     if (!firestore || !bakerUserId) return null;
+    // Query without ordering
     return query(
       collection(firestore, "orders"),
-      where("bakerId", "==", bakerUserId),
-      orderBy("createdAt", "desc")
+      where("bakerId", "==", bakerUserId)
     );
   }, [firestore, bakerUserId]);
-  const { data: orders, isLoading: isLoadingOrders } = useCollection(ordersQuery);
+  const { data: unsortedOrders, isLoading: isLoadingOrders } = useCollection(ordersQuery);
+  
+  // Sort on the client
+  const orders = useMemo(() => {
+    if (!unsortedOrders) return null;
+    return [...unsortedOrders].sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+  }, [unsortedOrders]);
+
 
   if (isLoadingBaker || isLoadingOrders) {
     return (
