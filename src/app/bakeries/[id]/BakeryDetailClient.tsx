@@ -3,16 +3,19 @@
 import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, Info, ShoppingBag, Truck, Heart } from "lucide-react";
+import { MapPin, Info, ShoppingBag, Truck, Heart, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
-import { useUser, useDoc, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase";
-import { doc } from 'firebase/firestore';
+import { useUser, useDoc, useMemoFirebase, updateDocumentNonBlocking, useCollection } from "@/firebase";
+import { doc, query, collection, where } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { cn } from "@/lib/utils";
-
+import { useRouter } from 'next/navigation';
+import { Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { arrayRemove, arrayUnion } from 'firebase/firestore';
 
 // Skeleton dei prodotti
 function ProductCardSkeleton() {
@@ -49,7 +52,6 @@ function ProductCard({ product, bakery }: { product: any; bakery: any }) {
       
       setAdding(true);
 
-      // Convert price string to number, removing currency symbol
       const priceString = String(product.price || '0').replace('€', '').trim();
       const priceNumber = parseFloat(priceString);
 
@@ -68,7 +70,7 @@ function ProductCard({ product, bakery }: { product: any; bakery: any }) {
           name: product.name, 
           price: priceNumber,
           imageUrl: product.imageUrl,
-          bakerId: bakery.userId, // Use userId for consistency
+          bakerId: bakery.userId,
           bakerName: bakery.companyName
       });
 
@@ -121,20 +123,9 @@ function ProductCard({ product, bakery }: { product: any; bakery: any }) {
   
 // Componente Carrello rapido in overlay
 function CartOverlay() {
-    const { cart, removeFromCart, clearCart, total } = useCart();
-    const { toast } = useToast();
-    const router = useRouter();
+    const { cart, clearCart, total } = useCart();
 
     if (cart.length === 0) return null;
-
-    const handleCheckout = () => {
-        toast({
-            title: "Ordine Inviato!",
-            description: "Il tuo ordine è stato simulato con successo."
-        });
-        clearCart();
-        router.push('/');
-    };
 
     return (
         <div className="fixed top-20 right-4 w-80 max-w-[calc(100vw-2rem)] bg-card shadow-lg rounded-lg p-4 z-50 border hidden md:block">
@@ -148,7 +139,7 @@ function CartOverlay() {
                                 {item.quantity} × {item.price.toFixed(2)}€
                             </p>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFromCart(item.id)}>
+                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => useCart.getState().removeFromCart(item.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                     </div>
@@ -162,29 +153,37 @@ function CartOverlay() {
     );
 }
 
-import { useRouter } from 'next/navigation';
-import { Trash2 } from 'lucide-react';
-import Link from 'next/link';
-import { arrayRemove, arrayUnion } from 'firebase/firestore';
-
 // ------------------------
 // Bakery Detail Client
 // ------------------------
-export default function BakeryDetailClient({ bakery, products }: { bakery: any; products: any[] | null }) {
+export default function BakeryDetailClient({ bakeryId }: { bakeryId: string }) {
     const firestore = useFirestore();
     const { user } = useUser();
     const { toast } = useToast();
+
+    // Fetch baker data using the document ID
+    const bakerRef = useMemoFirebase(() => {
+        if (!firestore || !bakeryId) return null;
+        return doc(firestore, 'bakers', bakeryId);
+    }, [firestore, bakeryId]);
+    const { data: bakery, isLoading: isBakerLoading } = useDoc(bakerRef);
+
+    // Fetch products for this baker using the baker's userId
+    const productsQuery = useMemoFirebase(() => {
+        if (!firestore || !bakery?.userId) return null;
+        return query(collection(firestore, "products"), where("bakerId", "==", bakery.userId));
+    }, [firestore, bakery?.userId]);
+    const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
 
     const customerRef = useMemoFirebase(() => {
         if (!firestore || !user) return null;
         return doc(firestore, 'customers', user.uid);
     }, [firestore, user]);
-
     const { data: customerProfile } = useDoc(customerRef);
 
     const isFavorite = useMemo(() => {
-        return customerProfile?.favoriteBakeries?.includes(bakery.id);
-    }, [customerProfile, bakery.id]);
+        return customerProfile?.favoriteBakeries?.includes(bakeryId);
+    }, [customerProfile, bakeryId]);
 
     const toggleFavorite = () => {
         if (!user || !customerRef) {
@@ -197,18 +196,18 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
         }
 
         const updateData = {
-            favoriteBakeries: isFavorite ? arrayRemove(bakery.id) : arrayUnion(bakery.id),
+            favoriteBakeries: isFavorite ? arrayRemove(bakeryId) : arrayUnion(bakeryId),
         };
 
         updateDocumentNonBlocking(customerRef, updateData);
 
         toast({
             title: isFavorite ? 'Rimosso dai preferiti' : 'Aggiunto ai preferiti!',
-            description: `${bakery.companyName} è stato ${isFavorite ? 'rimosso dai' : 'aggiunto ai'} tuoi preferiti.`,
+            description: `${bakery?.companyName} è stato ${isFavorite ? 'rimosso dai' : 'aggiunto ai'} tuoi preferiti.`,
         });
     };
     
-    if (!bakery) {
+    if (isBakerLoading) {
         return (
           <div className="container mx-auto px-4 py-6 animate-pulse">
             <div className="h-48 w-full bg-muted mb-4 rounded" />
@@ -220,6 +219,16 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
           </div>
         );
       }
+      
+    if (!bakery) {
+        return (
+            <div className="container mx-auto px-4 py-16 text-center">
+                <h1 className="text-2xl font-bold">Panettiere non trovato</h1>
+                <p className="text-muted-foreground">Impossibile trovare questo panettiere. Potrebbe non essere più disponibile.</p>
+                <Button asChild className="mt-4"><Link href="/bakeries">Torna ai panettieri</Link></Button>
+            </div>
+        )
+    }
 
   return (
     <div>
@@ -281,19 +290,18 @@ export default function BakeryDetailClient({ bakery, products }: { bakery: any; 
           </TabsList>
 
           <TabsContent value="products" className="mt-6">
-            {products ? (
-              products.length > 0 ? (
+            {areProductsLoading ? (
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+              </div>
+            ) : products && products.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                   {products.map((product) => <ProductCard key={product.id} product={product} bakery={bakery} />)}
                 </div>
               ) : (
                 <p className="py-8 text-center text-muted-foreground">Questo panettiere non ha ancora aggiunto prodotti.</p>
               )
-            ) : (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)}
-              </div>
-            )}
+            }
           </TabsContent>
 
           <TabsContent value="info" className="mt-6">

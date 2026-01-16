@@ -1,33 +1,9 @@
 'use client';
 
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, updateProfile } from 'firebase/auth';
-import { getFirestore, DocumentReference } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { updateProfile } from 'firebase/auth';
+import { DocumentReference } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { updateDocumentNonBlocking } from './non-blocking-updates';
-
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase() {
-  let firebaseApp;
-  if (!getApps().length) {
-    // App Hosting provides the config via environment variables,
-    // so we can call initializeApp() without arguments.
-    firebaseApp = initializeApp();
-  } else {
-    firebaseApp = getApp();
-  }
-
-  // Ensure storage is initialized.
-  const storage = getStorage(firebaseApp);
-
-  return {
-    firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp),
-    storage: storage
-  };
-}
 
 export async function updateUserProfileAndAuth(user: User, userDocRef: DocumentReference, data: any) {
   if (!user || !userDocRef) return;
