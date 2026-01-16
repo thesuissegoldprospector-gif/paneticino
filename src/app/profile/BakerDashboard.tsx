@@ -4,13 +4,15 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { doc, DocumentReference, Firestore, collection, query, where, orderBy, DocumentData } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, Storage } from "firebase/storage";
-import { Loader2, AlertTriangle, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
+import { Loader2, AlertTriangle, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link as LinkIcon, Calendar as CalendarIcon, Printer } from 'lucide-react';
 import Image from 'next/image';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { useRouter } from 'next/navigation';
+import type { DateRange } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +25,9 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingBag } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Label } from '@/components/ui/label';
 
 import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, useFirebase, updateUserProfileAndAuth } from '@/firebase';
 import { UpdateAvatarDialog, UpdateImageDialog } from './dialogs';
@@ -123,7 +128,9 @@ function BakerOrdersDashboard({ user, orders, isLoading }: { user: User, orders:
 export default function BakerDashboard({ user, userDoc }: { user: User, userDoc: DocumentData }) {
     const firestore = useFirestore();
     const { toast } = useToast();
+    const router = useRouter();
     const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+    const [printDateRange, setPrintDateRange] = useState<DateRange | undefined>();
     
     const bakerDocRef = useMemoFirebase(() => doc(firestore, 'bakers', user.uid), [firestore, user.uid]);
     const { data: bakerProfile, isLoading: isBakerLoading } = useDoc(bakerDocRef);
@@ -132,14 +139,9 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid));
+        return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }, [firestore, user]);
-    const { data: unsortedOrders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
-
-    const orders = useMemo(() => {
-        if (!unsortedOrders) return null;
-        return [...unsortedOrders].sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-    }, [unsortedOrders]);
+    const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -203,6 +205,28 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
         updateDocumentNonBlocking(bakerDocRef, { [fieldName]: url });
         toast({ title: 'Immagine aggiornata!' });
     };
+
+    const handlePrintProduction = () => {
+        if (!printDateRange?.from) {
+            toast({ variant: 'destructive', title: 'Data di inizio mancante', description: 'Seleziona un intervallo di date completo.' });
+            return;
+        }
+        const toDate = printDateRange.to || printDateRange.from;
+        const fromISO = printDateRange.from.toISOString();
+        const toISO = toDate.toISOString();
+        window.open(`/print/production?from=${fromISO}&to=${toISO}`, '_blank');
+    };
+
+    const handlePrintDelivery = () => {
+        if (!printDateRange?.from) {
+            toast({ variant: 'destructive', title: 'Data di inizio mancante', description: 'Seleziona un intervallo di date completo.' });
+            return;
+        }
+        const toDate = printDateRange.to || printDateRange.from;
+        const fromISO = printDateRange.from.toISOString();
+        const toISO = toDate.toISOString();
+        window.open(`/print/delivery?from=${fromISO}&to=${toISO}`, '_blank');
+    };
     
     if (isBakerLoading) {
         return <div className="flex h-full min-h-[50vh] items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
@@ -261,6 +285,62 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
             </Form>
 
             <BakerOrdersDashboard user={user} orders={orders} isLoading={areOrdersLoading} />
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Centro Stampa Giornaliero</CardTitle>
+                    <CardDescription>Genera fogli di produzione e bollettini di consegna per gli ordini accettati nell'intervallo di tempo selezionato.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="date">Intervallo di Date</Label>
+                         <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    id="date"
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-[300px] justify-start text-left font-normal",
+                                        !printDateRange && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {printDateRange?.from ? (
+                                        printDateRange.to ? (
+                                            <>
+                                                {format(printDateRange.from, "dd LLL, y", { locale: it })} -{" "}
+                                                {format(printDateRange.to, "dd LLL, y", { locale: it })}
+                                            </>
+                                        ) : (
+                                            format(printDateRange.from, "dd LLL, y", { locale: it })
+                                        )
+                                    ) : (
+                                        <span>Scegli le date</span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    initialFocus
+                                    mode="range"
+                                    defaultMonth={printDateRange?.from}
+                                    selected={printDateRange}
+                                    onSelect={setPrintDateRange}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </CardContent>
+                <CardFooter className="flex-wrap gap-4">
+                    <Button onClick={handlePrintProduction} disabled={!printDateRange?.from}>
+                        <Printer className="mr-2"/> Stampa Foglio di Produzione
+                    </Button>
+                    <Button variant="secondary" onClick={handlePrintDelivery} disabled={!printDateRange?.from}>
+                        <Printer className="mr-2"/> Stampa Bollettini di Consegna
+                    </Button>
+                </CardFooter>
+            </Card>
 
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">

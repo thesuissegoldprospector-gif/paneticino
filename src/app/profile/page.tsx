@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc } from 'firebase/firestore';
+import { doc, query, where, orderBy } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
 import { Loader2, AlertTriangle, LogOut, Shield } from 'lucide-react';
 import Link from 'next/link';
