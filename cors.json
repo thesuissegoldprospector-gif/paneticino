@@ -4,14 +4,16 @@
     "method": [
       "GET",
       "POST",
-      "PUT",
+"PUT",
       "DELETE",
       "HEAD"
     ],
     "responseHeader": [
       "Content-Type",
       "Authorization",
-      "X-Goog-Resumable"
+      "X-Goog-Resumable",
+      "X-Goog-Upload-Protocol",
+      "x-firebase-gmpid"
     ],
     "maxAgeSeconds": 3600
   }
