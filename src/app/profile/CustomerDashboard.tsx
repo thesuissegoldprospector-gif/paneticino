@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { doc, collection, query, where, orderBy, DocumentData } from 'firebase/firestore';
+import { doc, collection, query, where, DocumentData } from 'firebase/firestore';
 import { User } from 'firebase/auth';
-import { Loader2, PlusCircle, Trash2, Heart, MapPin, ShoppingBag } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Heart, MapPin, ShoppingBag, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import Link from 'next/link';
@@ -58,11 +58,22 @@ function CustomerOrdersDashboard({ orders, isLoading }: { orders: any[] | null, 
                                         <OrderStatusBadge status={order.status} />
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent className="space-y-2">
-                                    <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        {order.items.map((item: any, index: number) => <li key={index}>{item.quantity}x {item.name}</li>)}
-                                    </ul>
-                                    <p className="font-bold text-right mt-2">Totale: {order.total.toFixed(2)}€</p>
+                                <AccordionContent className="space-y-4 p-4">
+                                     <div>
+                                        <h4 className="font-semibold mb-2">Articoli</h4>
+                                        <ul className="list-disc pl-5 space-y-1 text-sm">
+                                            {order.items.map((item: any, index: number) => <li key={index}>{item.quantity}x {item.name}</li>)}
+                                        </ul>
+                                    </div>
+                                    <div className="font-bold text-right mt-2">Totale: {order.total.toFixed(2)}€</div>
+                                    <div className="pt-4 mt-4 border-t flex justify-end">
+                                        <Button asChild variant="outline" size="sm">
+                                            <Link href={`/order-receipt/${order.id}`} target="_blank" rel="noopener noreferrer">
+                                                <FileText className="mr-2 h-4 w-4" />
+                                                Scarica Ricevuta
+                                            </Link>
+                                        </Button>
+                                    </div>
                                 </AccordionContent>
                             </AccordionItem>
                         ))}
@@ -83,16 +94,26 @@ export default function CustomerDashboard({ user, userDoc }: { user: User, userD
     const { data: customerProfile, isLoading: isCustomerLoading } = useDoc(customerDocRef);
     
     const userDocRef = useMemoFirebase(() => doc(firestore, 'users', user.uid), [firestore, user.uid]);
+    
+    const [orders, setOrders] = useState<any[] | null>(null);
+    const [areOrdersLoading, setAreOrdersLoading] = useState(true);
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
         return query(collection(firestore, 'orders'), where('customerId', '==', user.uid));
     }, [firestore, user]);
-    const { data: unsortedOrders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
-    const orders = useMemo(() => {
-        if (!unsortedOrders) return null;
-        return [...unsortedOrders].sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+    const { data: unsortedOrders } = useCollection(ordersQuery);
+
+     useEffect(() => {
+        if (unsortedOrders) {
+            const sorted = [...unsortedOrders].sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
+            setOrders(sorted);
+            setAreOrdersLoading(false);
+        } else if (unsortedOrders === null) {
+            setOrders(null);
+            setAreOrdersLoading(false);
+        }
     }, [unsortedOrders]);
 
     const favoriteBakeriesQuery = useMemoFirebase(() => {
