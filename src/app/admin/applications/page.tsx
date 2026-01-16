@@ -142,35 +142,46 @@ function AdminDashboard() {
 
   // Queries
   const allBakersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'bakers')) : null, [firestore]);
-  const allOrdersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'orders'), orderBy('createdAt', 'desc')) : null, [firestore]);
+  
+  // OPTIMIZATION: Query only orders from the last 30 days for the dashboard
+  const thirtyDaysAgo = useMemo(() => subDays(new Date(), 30), []);
+  const recentOrdersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(
+      collection(firestore, 'orders'),
+      where('createdAt', '>=', thirtyDaysAgo),
+      orderBy('createdAt', 'desc')
+    );
+  }, [firestore, thirtyDaysAgo]);
+
   const allCustomersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'customer')) : null, [firestore]);
 
   // Data fetching
   const { data: bakers, isLoading: isLoadingBakers } = useCollection(allBakersQuery);
-  const { data: orders, isLoading: isLoadingOrders } = useCollection(allOrdersQuery);
+  const { data: recentOrders, isLoading: isLoadingOrders } = useCollection(recentOrdersQuery);
   const { data: customers, isLoading: isLoadingCustomers } = useCollection(allCustomersQuery);
   
-  // Memoized calculations for performance
+  // Memoized calculations for performance (now using recentOrders)
   const stats = useMemo(() => {
-    if (!orders || !bakers) return { total: 0, completed: 0, pending: 0 };
+    if (!recentOrders || !bakers) return { total: 0, completed: 0, pending: 0 };
     return {
-      total: orders.length,
-      completed: orders.filter(o => o.status === 'completed').length,
-      pending: orders.filter(o => o.status !== 'completed' && o.status !== 'rejected').length
+      total: recentOrders.length,
+      completed: recentOrders.filter(o => o.status === 'completed').length,
+      pending: recentOrders.filter(o => o.status !== 'completed' && o.status !== 'rejected').length
     };
-  }, [orders, bakers]);
+  }, [recentOrders, bakers]);
   
   const bakersWithOrderCounts = useMemo(() => {
-    if (!bakers || !orders) return [];
+    if (!bakers || !recentOrders) return [];
     return bakers.map(baker => {
-      const bakerOrders = orders.filter(o => o.bakerId === baker.userId);
+      const bakerOrders = recentOrders.filter(o => o.bakerId === baker.userId);
       return {
         ...baker,
         pendingOrders: bakerOrders.filter(o => o.status !== 'completed' && o.status !== 'rejected').length,
         completedOrders: bakerOrders.filter(o => o.status === 'completed').length,
       };
     });
-  }, [bakers, orders]);
+  }, [bakers, recentOrders]);
 
   const isLoading = isLoadingBakers || isLoadingOrders || isLoadingCustomers;
 
@@ -200,19 +211,19 @@ function AdminDashboard() {
         {/* Stat Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Clienti Totali" value={customers?.length ?? 0} icon={Users} isLoading={isLoading} />
-            <StatCard title="Ordini Totali" value={stats.total} icon={ShoppingCart} isLoading={isLoading} />
-            <StatCard title="Ordini Evasi" value={stats.completed} icon={CheckCircle} isLoading={isLoading} />
-            <StatCard title="Ordini in Attesa" value={stats.pending} icon={Clock} isLoading={isLoading} />
+            <StatCard title="Ordini (ultimi 30gg)" value={stats.total} icon={ShoppingCart} isLoading={isLoading} />
+            <StatCard title="Ordini Evasi (ultimi 30gg)" value={stats.completed} icon={CheckCircle} isLoading={isLoading} />
+            <StatCard title="Ordini in Attesa (ultimi 30gg)" value={stats.pending} icon={Clock} isLoading={isLoading} />
         </div>
         
         {/* Chart */}
-        <OrdersChart orders={orders || []} isLoading={isLoadingOrders} />
+        <OrdersChart orders={recentOrders || []} isLoading={isLoadingOrders} />
 
         {/* Bakers Table */}
         <Card>
             <CardHeader>
                 <CardTitle>Gestione Panettieri</CardTitle>
-                <CardDescription>Revisiona, approva o rifiuta le richieste e monitora gli ordini.</CardDescription>
+                <CardDescription>Revisiona, approva o rifiuta le richieste e monitora gli ordini recenti.</CardDescription>
             </CardHeader>
             <CardContent>
                 {isLoadingBakers ? <Loader2 className="animate-spin" /> : (
@@ -221,8 +232,8 @@ function AdminDashboard() {
                             <TableRow>
                                 <TableHead>Panettiere</TableHead>
                                 <TableHead>Stato</TableHead>
-                                <TableHead>Ordini in Attesa</TableHead>
-                                <TableHead>Ordini Evasi</TableHead>
+                                <TableHead>Ordini in Attesa (30gg)</TableHead>
+                                <TableHead>Ordini Evasi (30gg)</TableHead>
                                 <TableHead>Azioni</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -327,3 +338,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
+    
