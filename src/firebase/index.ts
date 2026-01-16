@@ -1,6 +1,5 @@
 'use client';
 
-import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, updateProfile } from 'firebase/auth';
 import { getFirestore, DocumentReference } from 'firebase/firestore';
@@ -12,20 +11,14 @@ import { updateDocumentNonBlocking } from './non-blocking-updates';
 export function initializeFirebase() {
   let firebaseApp;
   if (!getApps().length) {
-    try {
-      // Attempt to initialize via Firebase App Hosting environment variables
-      firebaseApp = initializeApp();
-    } catch (e) {
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
-      }
-      firebaseApp = initializeApp(firebaseConfig);
-    }
+    // App Hosting provides the config via environment variables,
+    // so we can call initializeApp() without arguments.
+    firebaseApp = initializeApp();
   } else {
     firebaseApp = getApp();
   }
 
-  // Ensure storage is initialized. If the config is missing the bucket, getStorage might need the app instance.
+  // Ensure storage is initialized.
   const storage = getStorage(firebaseApp);
 
   return {
