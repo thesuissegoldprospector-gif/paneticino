@@ -124,8 +124,8 @@ service cloud.firestore {
       // A user can query the orders collection if they are an admin,
       // OR if they are querying for their own orders as a customer or baker.
       allow list: if isAdmin() || 
-                    (isSignedIn() && request.query.where.field == "customerId" && request.query.where.value == request.auth.uid) ||
-                    (isSignedIn() && request.query.where.field == "bakerId" && request.query.where.value == request.auth.uid);
+                    (isSignedIn() && request.query.where['customerId'] == request.auth.uid) ||
+                    (isSignedIn() && request.query.where['bakerId'] == request.auth.uid);
 
       allow delete: if false;
     }
