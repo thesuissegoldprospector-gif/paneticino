@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
-import { doc, collection, query, where, DocumentData } from 'firebase/firestore';
+import { useState, useMemo } from 'react';
+import { doc, collection, query, where, DocumentData, orderBy } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { Loader2, PlusCircle, Trash2, Heart, MapPin, ShoppingBag, FileText } from 'lucide-react';
 import { format } from 'date-fns';
@@ -95,26 +95,13 @@ export default function CustomerDashboard({ user, userDoc }: { user: User, userD
     
     const userDocRef = useMemoFirebase(() => doc(firestore, 'users', user.uid), [firestore, user.uid]);
     
-    const [orders, setOrders] = useState<any[] | null>(null);
-    const [areOrdersLoading, setAreOrdersLoading] = useState(true);
-
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(collection(firestore, 'orders'), where('customerId', '==', user.uid));
+        return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }, [firestore, user]);
 
-    const { data: unsortedOrders } = useCollection(ordersQuery);
+    const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
-     useEffect(() => {
-        if (unsortedOrders) {
-            const sorted = [...unsortedOrders].sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
-            setOrders(sorted);
-            setAreOrdersLoading(false);
-        } else if (unsortedOrders === null) {
-            setOrders(null);
-            setAreOrdersLoading(false);
-        }
-    }, [unsortedOrders]);
 
     const favoriteBakeriesQuery = useMemoFirebase(() => {
         if (!firestore || !customerProfile?.favoriteBakeries || customerProfile.favoriteBakeries.length === 0) return null;
