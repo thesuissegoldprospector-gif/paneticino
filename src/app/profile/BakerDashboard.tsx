@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { doc, DocumentReference, Firestore, collection, query, where, DocumentData } from 'firebase/firestore';
+import { doc, DocumentReference, Firestore, collection, query, where, DocumentData, orderBy } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, Storage } from "firebase/storage";
 import { Loader2, AlertTriangle, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link as LinkIcon, Calendar as CalendarIcon, Printer } from 'lucide-react';
@@ -141,15 +141,9 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid));
+        return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }, [firestore, user]);
-    const { data: rawOrders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
-
-    const orders = useMemo(() => {
-        if (!rawOrders) return null;
-        // Sort by date, newest first
-        return [...rawOrders].sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
-    }, [rawOrders]);
+    const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -405,7 +399,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                                                 <FormControl>
                                                     <div className="flex items-center gap-4">
                                                         <div className="relative h-24 w-24 rounded-md bg-muted flex items-center justify-center overflow-hidden">
-                                                            {field.value ? <Image src={field.value} alt="Anteprima prodotto" fill style={{objectFit: "cover"}} /> : <ImageIcon className="h-8 w-8 text-muted-foreground" />}
+                                                            {field.value ? <Image src={field.value} alt="Anteprima prodotto" fill sizes="96px" style={{objectFit: "cover"}} /> : <ImageIcon className="h-8 w-8 text-muted-foreground" />}
                                                         </div>
                                                         <UpdateImageDialog onUpdate={(url) => field.onChange(url)} currentUrl={field.value}>
                                                             <Button type="button" variant="outline">Cambia Immagine</Button>
@@ -428,7 +422,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                             {products.map((product) => (
                                 <Card key={product.id} className="group relative overflow-hidden">
-                                    {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} width={400} height={300} className="h-32 w-full object-cover" /> : <div className="flex h-32 w-full items-center justify-center bg-muted"><ShoppingBag /></div>}
+                                    {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} width={400} height={300} sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw" className="h-32 w-full object-cover" /> : <div className="flex h-32 w-full items-center justify-center bg-muted"><ShoppingBag /></div>}
                                     <CardContent className="p-3">
                                         <h4 className="truncate font-bold">{product.name}</h4>
                                         <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
