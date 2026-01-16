@@ -110,23 +110,23 @@ service cloud.firestore {
     // ORDERS
     // ----------------------------------------------------------------
      match /orders/{orderId} {
+      // CREATE: A signed-in user can create an order for themselves.
       allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
-      allow get: if isSignedIn() && (
-        resource.data.customerId == request.auth.uid ||
-        resource.data.bakerId == request.auth.uid ||
-        isAdmin()
-      );
+      // READ (GET + LIST): 
+      // - An admin can read any order/list of orders.
+      // - A user can read an order if they are the customer.
+      // - A baker can read an order if they are the baker.
+      // IMPORTANT: For list queries, the client MUST include a `where` clause
+      // (e.g., where('customerId', '==', auth.uid)) to ensure the query is efficient.
+      allow read: if isAdmin() || 
+                  (isSignedIn() && resource.data.customerId == request.auth.uid) || 
+                  (isSignedIn() && resource.data.bakerId == request.auth.uid);
       
-      allow update: if isSignedIn()
-        && request.auth.uid == resource.data.bakerId && isApprovedBaker();
+      // UPDATE: Only the approved baker fulfilling the order can update its status.
+      allow update: if isSignedIn() && resource.data.bakerId == request.auth.uid && isApprovedBaker();
       
-      // A user can query the orders collection if they are an admin,
-      // OR if they are querying for their own orders as a customer or baker.
-      allow list: if isAdmin() || 
-                    (isSignedIn() && request.query.where['customerId'] == request.auth.uid) ||
-                    (isSignedIn() && request.query.where['bakerId'] == request.auth.uid);
-
+      // DELETE: Orders cannot be deleted.
       allow delete: if false;
     }
 
