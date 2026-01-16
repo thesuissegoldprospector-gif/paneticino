@@ -76,7 +76,7 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /bakers/{bakerId} {
 
-      allow list: if true;
+      allow list: if request.query.where.approvalStatus == 'approved' || isAdmin();
 
       allow get: if isOwner(bakerId)
         || isAdmin()
@@ -125,8 +125,8 @@ service cloud.firestore {
       // - A user can list orders only if they filter by their own customerId or bakerId.
       //   This prevents a user from listing all orders in the database.
       allow list: if isAdmin() ||
-                   (isSignedIn() && request.query.where.keys().hasAny(['customerId', 'bakerId']) && request.query.where.customerId == request.auth.uid) ||
-                   (isSignedIn() && request.query.where.keys().hasAny(['customerId', 'bakerId']) && request.query.where.bakerId == request.auth.uid);
+                   (isSignedIn() && request.query.where.customerId == request.auth.uid) ||
+                   (isSignedIn() && request.query.where.bakerId == request.auth.uid);
       
       // UPDATE: Only the approved baker fulfilling the order can update its status.
       allow update: if isSignedIn() && resource.data.bakerId == request.auth.uid && isApprovedBaker();
