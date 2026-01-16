@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { doc, collection, query, where, DocumentData, orderBy } from 'firebase/firestore';
+import { doc, collection, query, where, DocumentData } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { Loader2, PlusCircle, Trash2, Heart, MapPin, ShoppingBag, FileText } from 'lucide-react';
 import { format } from 'date-fns';
@@ -97,10 +97,16 @@ export default function CustomerDashboard({ user, userDoc }: { user: User, userD
     
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, 'orders'), where('customerId', '==', user.uid));
     }, [firestore, user]);
 
-    const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
+    const { data: rawOrders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
+
+    const orders = useMemo(() => {
+        if (!rawOrders) return null;
+        // Sort by date, newest first
+        return [...rawOrders].sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
+    }, [rawOrders]);
 
 
     const favoriteBakeriesQuery = useMemoFirebase(() => {

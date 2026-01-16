@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { doc, DocumentReference, Firestore, collection, query, where, orderBy, DocumentData } from 'firebase/firestore';
+import { doc, DocumentReference, Firestore, collection, query, where, DocumentData } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, Storage } from "firebase/storage";
 import { Loader2, AlertTriangle, Pencil, Camera, Upload, PlusCircle, Trash2, FileText, Package, ThumbsUp, ThumbsDown, Truck, Check, Image as ImageIcon, Link as LinkIcon, Calendar as CalendarIcon, Printer } from 'lucide-react';
@@ -139,9 +139,15 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
 
     const ordersQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
+        return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid));
     }, [firestore, user]);
-    const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
+    const { data: rawOrders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
+
+    const orders = useMemo(() => {
+        if (!rawOrders) return null;
+        // Sort by date, newest first
+        return [...rawOrders].sort((a, b) => (b.createdAt?.toDate() || 0) - (a.createdAt?.toDate() || 0));
+    }, [rawOrders]);
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
