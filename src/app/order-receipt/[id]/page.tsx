@@ -37,7 +37,7 @@ function OrderReceiptPage() {
   const { data: bakerCollection, isLoading: isLoadingBaker } = useCollection(bakerQuery);
   const baker = bakerCollection?.[0];
 
-  const isLoading = isLoadingOrder || isLoadingBaker;
+  const isLoading = isLoadingOrder || isLoadingBaker || !isMounted;
 
   if (isLoading) {
     return (
@@ -88,7 +88,7 @@ function OrderReceiptPage() {
             <p className="text-sm text-muted-foreground">ID Ordine: {order.id}</p>
             <CardTitle className="text-3xl font-headline">Ricevuta d'Acquisto</CardTitle>
             <CardDescription>
-              {isMounted && orderDate ? format(orderDate, 'dd MMMM yyyy, HH:mm', { locale: it }) : <>&nbsp;</>}
+              {orderDate ? format(orderDate, 'dd MMMM yyyy, HH:mm', { locale: it }) : <>&nbsp;</>}
             </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
