@@ -102,13 +102,19 @@ export default function Home() {
       <section>
         <h2 className="text-3xl font-headline text-foreground mb-4">Prodotti del giorno</h2>
         {isLoadingProducts || isLoadingAllBakers ? (
-           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+           <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="w-64 flex-shrink-0">
+                        <ProductCardSkeleton />
+                    </div>
+                ))}
             </div>
         ) : productsWithBakers.length > 0 ? (
-           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+           <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
               {productsWithBakers.map(({ product, baker }) => (
-                  <ProductCard key={product.id} product={product} bakery={baker} />
+                <div key={product.id} className="w-64 flex-shrink-0">
+                  <ProductCard product={product} bakery={baker} />
+                </div>
               ))}
             </div>
         ) : (
