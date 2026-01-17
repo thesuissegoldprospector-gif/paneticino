@@ -7,6 +7,7 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { collection, query, where, limit } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { BakeryCard } from '@/components/bakeries/bakery-card';
+import { ProductCard, ProductCardSkeleton } from '@/components/products/product-card';
 import {
   Carousel,
   CarouselContent,
@@ -32,7 +33,41 @@ export default function Home() {
     );
   }, [firestore]);
 
-  const { data: featuredBakeries, isLoading } = useCollection(featuredBakersQuery);
+  const { data: featuredBakeries, isLoading: isLoadingBakers } = useCollection(featuredBakersQuery);
+
+  // Query per gli ultimi prodotti e per tutti i panettieri
+  const recentProductsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    // NOTA: la collezione 'products' non ha un timestamp.
+    // Per mostrare gli "ultimi", dovremmo aggiungere un campo 'createdAt' e ordinare per quello.
+    // Per ora, ci limitiamo a caricare un numero limitato di prodotti.
+    return query(collection(firestore, 'products'), limit(8));
+  }, [firestore]);
+  
+  const allBakersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'));
+  }, [firestore]);
+
+  const { data: recentProducts, isLoading: isLoadingProducts } = useCollection(recentProductsQuery);
+  const { data: allBakers, isLoading: isLoadingAllBakers } = useCollection(allBakersQuery);
+
+  // Unisce i prodotti con le informazioni del loro panettiere
+  const productsWithBakers = React.useMemo(() => {
+    if (!recentProducts || !allBakers) return [];
+    
+    const bakersMap = new Map(allBakers.map(baker => [baker.userId, baker]));
+    
+    return recentProducts
+      .map(product => {
+        const baker = bakersMap.get(product.bakerId);
+        if (baker) {
+          return { product, baker };
+        }
+        return null;
+      })
+      .filter((item): item is { product: any; baker: any } => item !== null);
+  }, [recentProducts, allBakers]);
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-12">
@@ -45,7 +80,7 @@ export default function Home() {
             </Link>
           </Button>
         </div>
-        {isLoading ? (
+        {isLoadingBakers ? (
             <div className="flex justify-center items-center h-48">
                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
@@ -66,9 +101,21 @@ export default function Home() {
 
       <section>
         <h2 className="text-3xl font-headline text-foreground mb-4">Prodotti del giorno</h2>
-        <div className="py-8 text-center text-muted-foreground">
-          Nessun prodotto in evidenza al momento.
-        </div>
+        {isLoadingProducts || isLoadingAllBakers ? (
+           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+            </div>
+        ) : productsWithBakers.length > 0 ? (
+           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {productsWithBakers.map(({ product, baker }) => (
+                  <ProductCard key={product.id} product={product} bakery={baker} />
+              ))}
+            </div>
+        ) : (
+          <div className="py-8 text-center text-muted-foreground">
+            Nessun prodotto in evidenza al momento.
+          </div>
+        )}
       </section>
 
       <section>
