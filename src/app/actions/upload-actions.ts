@@ -43,9 +43,9 @@ export async function uploadImage(formData: FormData): Promise<{ url?: string; e
         },
     });
     
-    // Make the file public and get the URL
+    // Make the file public and get the URL using the recommended method
     await blob.makePublic();
-    const publicUrl = blob.publicUrl();
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
     
     return { url: publicUrl };
 
