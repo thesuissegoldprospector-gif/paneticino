@@ -55,6 +55,11 @@ export function BakeryCard({ bakery }: { bakery: any }) {
     });
   };
 
+  const coverImageSrc = bakery?.coverPhotoUrl;
+  const profileImageSrc = bakery?.profilePictureUrl;
+  const companyName = bakery?.companyName || 'Panificio';
+  const address = bakery?.address || 'Indirizzo non disponibile';
+
   return (
     <Link href={`/bakeries/${bakery.id}`} className="block h-full w-full group">
       <Card className="h-full overflow-hidden transition-shadow hover:shadow-lg relative">
@@ -74,13 +79,13 @@ export function BakeryCard({ bakery }: { bakery: any }) {
             </Button>
         )}
         <div className="relative h-32 w-full bg-muted">
-            {bakery.coverPhotoUrl ? (
+            {coverImageSrc ? (
                 <Image
-                    src={bakery.coverPhotoUrl}
-                    alt={`Cover image for ${bakery.companyName}`}
+                    src={coverImageSrc}
+                    alt={`Cover image for ${companyName}`}
                     fill
                     priority
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    sizes="100vw"
                     className="object-cover"
                 />
             ) : <div className="h-full w-full bg-gradient-to-t from-muted to-background"></div>}
@@ -88,21 +93,21 @@ export function BakeryCard({ bakery }: { bakery: any }) {
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
             <div className="relative mt-[-32px] h-12 w-12 flex-shrink-0 rounded-full border-2 border-background bg-muted object-cover ring-1 ring-border flex items-center justify-center">
-                {bakery.profilePictureUrl ? (
+                {profileImageSrc ? (
                     <Image
-                    src={bakery.profilePictureUrl}
-                    alt={`Profile image for ${bakery.companyName}`}
+                    src={profileImageSrc}
+                    alt={`Profile image for ${companyName}`}
                     fill
                     sizes="48px"
                     className="rounded-full object-cover"
                     />
                 ) : (
-                    <span className="font-bold text-muted-foreground">{bakery.companyName?.[0]}</span>
+                    <span className="font-bold text-muted-foreground">{companyName?.[0]}</span>
                 )}
             </div>
             <div>
-              <h3 className="font-semibold leading-tight text-lg group-hover:underline">{bakery.companyName}</h3>
-              <p className="line-clamp-2 text-sm text-muted-foreground">{bakery.address}</p>
+              <h3 className="font-semibold leading-tight text-lg group-hover:underline">{companyName}</h3>
+              <p className="line-clamp-2 text-sm text-muted-foreground">{address}</p>
             </div>
           </div>
         </CardContent>
