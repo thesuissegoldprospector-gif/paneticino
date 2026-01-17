@@ -12,9 +12,7 @@ export const contentType = 'image/png'
 
 // Image generation
 export default function AppleIcon() {
-  const primaryColor = 'hsl(45, 100%, 52%)';
-  const accentColor = 'hsl(33, 100%, 65%)';
-  const backgroundColor = 'hsl(195, 70%, 95%)';
+  const swissRed = '#FF0000';
 
   return new ImageResponse(
     (
@@ -26,24 +24,22 @@ export default function AppleIcon() {
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: '32px', // Standard Apple icon corner radius
-          background: backgroundColor,
+          background: swissRed,
         }}
       >
-        <svg width="120" height="120" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style={{ stopColor: accentColor }} />
-              <stop offset="100%" style={{ stopColor: primaryColor }} />
-            </linearGradient>
-          </defs>
-          <path 
-                d="M 62.5,25 C 50,25 50,37.5 50,37.5 S 50,50 37.5,50 25,50 25,50 M 37.5,75 C 50,75 50,62.5 50,62.5 S 50,50 62.5,50 75,50 75,50" 
-                stroke="url(#grad1)" 
-                strokeWidth="12" 
-                fill="none" 
-                strokeLinecap="round"
-                strokeLinejoin="round"
-          />
+        <svg width="80%" height="80%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          {/* Croce svizzera bianca */}
+          <rect x="38" y="19" width="24" height="62" fill="white" rx="3"/>
+          <rect x="19" y="38" width="62" height="24" fill="white" rx="3"/>
+          
+          {/* Pagnotta stilizzata */}
+          <g transform="translate(0, 5)">
+              <path d="M 25,68 C 25,50 35,38 50,38 C 65,38 75,50 75,68 A 25 15 0 0 1 25,68 Z" fill="#C68E4D" stroke="#A06A3D" strokeWidth="3"/>
+              {/* Tagli sul pane */}
+              <path d="M 38,48 L 45,60" stroke="#A06A3D" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M 50,46 L 55,60" stroke="#A06A3D" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M 62,48 L 65,60" stroke="#A06A3D" strokeWidth="2.5" strokeLinecap="round"/>
+          </g>
         </svg>
       </div>
     ),
