@@ -27,14 +27,14 @@ export function BakeryCard({ bakery }: { bakery: any }) {
 
   // Check if the current bakery is in the user's favorites
   const isFavorite = useMemo(() => {
-    return customerProfile?.favoriteBakeries?.includes(bakery.id);
-  }, [customerProfile, bakery.id]);
+    return customerProfile?.favoriteBakeries?.includes(bakery?.id);
+  }, [customerProfile, bakery?.id]);
 
   const toggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigating to the bakery page
     e.stopPropagation(); // Stop event bubbling
 
-    if (!user || !customerRef) {
+    if (!user || !customerRef || !bakery) {
       toast({
         variant: 'destructive',
         title: 'Accesso richiesto',
@@ -58,9 +58,13 @@ export function BakeryCard({ bakery }: { bakery: any }) {
   const companyName = bakery?.companyName || 'Panificio';
   const address = bakery?.address || 'Indirizzo non disponibile';
   // Fallback images to prevent undefined/empty src
-  const coverImageSrc = bakery?.coverPhotoUrl || `https://picsum.photos/seed/${bakery.id || 'cover'}/400/200`;
-  const profileImageSrc = bakery?.profilePictureUrl || `https://picsum.photos/seed/${bakery.id || 'profile'}/100/100`;
+  const coverImageSrc = bakery?.coverPhotoUrl || `https://picsum.photos/seed/${bakery?.id || 'cover'}/400/200`;
+  const profileImageSrc = bakery?.profilePictureUrl || `https://picsum.photos/seed/${bakery?.id || 'profile'}/100/100`;
 
+  if (!bakery?.id) {
+    // Return a skeleton or null to prevent rendering a broken card
+    return null;
+  }
 
   return (
     <Link href={`/bakeries/${bakery.id}`} className="block h-full w-full group">
