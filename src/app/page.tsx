@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Loader2 } from 'lucide-react';
@@ -13,9 +14,14 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
+import Autoplay from 'embla-carousel-autoplay';
 
 export default function Home() {
   const firestore = useFirestore();
+
+  const plugin = React.useRef(
+    Autoplay({ delay: 2500, stopOnInteraction: false, stopOnMouseEnter: true })
+  );
 
   const featuredBakersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -69,6 +75,7 @@ export default function Home() {
         <h2 className="text-3xl font-headline text-foreground mb-4">I Nostri Sponsor</h2>
         <div className="relative">
           <Carousel
+            plugins={[plugin.current]}
             opts={{
               align: 'start',
               loop: true,
@@ -79,8 +86,8 @@ export default function Home() {
               {Array.from({ length: 8 }).map((_, index) => (
                 <CarouselItem key={index} className="basis-full md:basis-1/2">
                   <div className="p-1">
-                    <div className="flex aspect-[8/5] items-center justify-center rounded-lg bg-muted p-6">
-                      <span className="text-lg font-semibold text-muted-foreground">
+                    <div className="flex aspect-[32/5] items-center justify-center rounded-lg bg-muted p-2">
+                      <span className="text-md font-semibold text-muted-foreground">
                         Sponsor {index + 1}
                       </span>
                     </div>
