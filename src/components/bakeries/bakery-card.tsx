@@ -55,10 +55,12 @@ export function BakeryCard({ bakery }: { bakery: any }) {
     });
   };
 
-  const coverImageSrc = bakery?.coverPhotoUrl;
-  const profileImageSrc = bakery?.profilePictureUrl;
   const companyName = bakery?.companyName || 'Panificio';
   const address = bakery?.address || 'Indirizzo non disponibile';
+  // Fallback images to prevent undefined/empty src
+  const coverImageSrc = bakery?.coverPhotoUrl || `https://picsum.photos/seed/${bakery.id || 'cover'}/400/200`;
+  const profileImageSrc = bakery?.profilePictureUrl || `https://picsum.photos/seed/${bakery.id || 'profile'}/100/100`;
+
 
   return (
     <Link href={`/bakeries/${bakery.id}`} className="block h-full w-full group">
@@ -79,31 +81,25 @@ export function BakeryCard({ bakery }: { bakery: any }) {
             </Button>
         )}
         <div className="relative h-32 w-full bg-muted">
-            {coverImageSrc ? (
-                <Image
-                    src={coverImageSrc}
-                    alt={`Cover image for ${companyName}`}
-                    fill
-                    priority
-                    sizes="100vw"
-                    className="object-cover"
-                />
-            ) : <div className="h-full w-full bg-gradient-to-t from-muted to-background"></div>}
+            <Image
+                src={coverImageSrc}
+                alt={`Cover image for ${companyName}`}
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover"
+            />
         </div>
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
-            <div className="relative mt-[-32px] h-12 w-12 flex-shrink-0 rounded-full border-2 border-background bg-muted object-cover ring-1 ring-border flex items-center justify-center">
-                {profileImageSrc ? (
-                    <Image
+            <div className="relative mt-[-32px] h-12 w-12 flex-shrink-0 rounded-full border-2 border-background bg-muted ring-1 ring-border overflow-hidden">
+                <Image
                     src={profileImageSrc}
                     alt={`Profile image for ${companyName}`}
                     fill
                     sizes="48px"
                     className="rounded-full object-cover"
-                    />
-                ) : (
-                    <span className="font-bold text-muted-foreground">{companyName?.[0]}</span>
-                )}
+                />
             </div>
             <div>
               <h3 className="font-semibold leading-tight text-lg group-hover:underline">{companyName}</h3>
