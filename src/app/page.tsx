@@ -6,6 +6,13 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { collection, query, where, limit } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { BakeryCard } from '@/components/bakeries/bakery-card';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from '@/components/ui/carousel';
 
 export default function Home() {
   const firestore = useFirestore();
@@ -55,6 +62,35 @@ export default function Home() {
         <h2 className="text-3xl font-headline text-foreground mb-4">Prodotti del giorno</h2>
         <div className="py-8 text-center text-muted-foreground">
           Nessun prodotto in evidenza al momento.
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-3xl font-headline text-foreground mb-4">I Nostri Sponsor</h2>
+        <div className="relative">
+          <Carousel
+            opts={{
+              align: 'start',
+              loop: true,
+            }}
+            className="w-full"
+          >
+            <CarouselContent>
+              {Array.from({ length: 8 }).map((_, index) => (
+                <CarouselItem key={index} className="basis-full md:basis-1/2">
+                  <div className="p-1">
+                    <div className="flex aspect-[8/5] items-center justify-center rounded-lg bg-muted p-6">
+                      <span className="text-lg font-semibold text-muted-foreground">
+                        Sponsor {index + 1}
+                      </span>
+                    </div>
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="absolute -left-4 top-1/2 -translate-y-1/2 hidden sm:flex" />
+            <CarouselNext className="absolute -right-4 top-1/2 -translate-y-1/2 hidden sm:flex" />
+          </Carousel>
         </div>
       </section>
     </div>
