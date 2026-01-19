@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, getDocs, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { collection, query, where, doc, getDocs, orderBy, updateDoc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, ShieldX, AlertTriangle, Users, ShoppingCart, CheckCircle, Clock } from 'lucide-react';
@@ -10,7 +10,6 @@ import Link from 'next/link';
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { startOfWeek, startOfMonth, subDays, format } from 'date-fns';
@@ -140,48 +139,60 @@ function AdminDashboard() {
   const firestore = useFirestore();
   const router = useRouter();
 
-  // Queries for bakers and customers
-  const allBakersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'bakers')) : null, [firestore]);
-  const allCustomersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'customer')) : null, [firestore]);
-
-  // Data fetching for bakers and customers (real-time)
-  const { data: bakers, isLoading: isLoadingBakers } = useCollection(allBakersQuery);
-  const { data: customers, isLoading: isLoadingCustomers } = useCollection(allCustomersQuery);
-  
-  // State and one-time fetch for recent orders (non-real-time)
+  // State for bakers, customers, and orders
+  const [bakers, setBakers] = useState<any[] | null>(null);
+  const [customers, setCustomers] = useState<any[] | null>(null);
   const [recentOrders, setRecentOrders] = useState<any[] | null>(null);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
-  const thirtyDaysAgo = useMemo(() => subDays(new Date(), 30), []);
   
+  // Unified loading state
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     if (!firestore) {
-        setIsLoadingOrders(false);
-        return;
+      setIsLoading(false);
+      return;
     }
 
-    const fetchOrders = async () => {
-        setIsLoadingOrders(true);
-        try {
-            const ordersQuery = query(
-                collection(firestore, 'orders'),
-                where('createdAt', '>=', thirtyDaysAgo),
-                orderBy('createdAt', 'desc')
-            );
-            const querySnapshot = await getDocs(ordersQuery);
-            const ordersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setRecentOrders(ordersData);
-        } catch (error) {
-            console.error("Admin: Failed to fetch recent orders:", error);
-            setRecentOrders([]); // Set to empty array to prevent breaking downstream logic
-        } finally {
-            // Crucial: Always set loading to false to avoid infinite loading state.
-            setIsLoadingOrders(false);
-        }
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const thirtyDaysAgo = subDays(new Date(), 30);
+
+        // Fetch bakers
+        const bakersQuery = query(collection(firestore, 'bakers'));
+        const bakersSnapshot = await getDocs(bakersQuery);
+        const bakersData = bakersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setBakers(bakersData);
+        
+        // Fetch customers
+        const customersQuery = query(collection(firestore, 'users'), where('role', '==', 'customer'));
+        const customersSnapshot = await getDocs(customersQuery);
+        const customersData = customersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setCustomers(customersData);
+
+        // Fetch orders
+        const ordersQuery = query(
+            collection(firestore, 'orders'),
+            where('createdAt', '>=', thirtyDaysAgo),
+            orderBy('createdAt', 'desc')
+        );
+        const ordersSnapshot = await getDocs(ordersQuery);
+        const ordersData = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setRecentOrders(ordersData);
+
+      } catch (error) {
+        console.error("Admin: Failed to fetch dashboard data:", error);
+        setBakers([]);
+        setCustomers([]);
+        setRecentOrders([]);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    fetchOrders();
-  }, [firestore, thirtyDaysAgo]);
-
+    fetchData();
+  }, [firestore]);
+  
   
   // Memoized calculations for performance
   const stats = useMemo(() => {
@@ -204,8 +215,6 @@ function AdminDashboard() {
       };
     });
   }, [bakers, recentOrders]);
-
-  const isLoading = isLoadingBakers || isLoadingOrders || isLoadingCustomers;
 
   const handleApproval = (bakerId: string, currentStatus: string) => {
     if (!firestore) return;
@@ -239,7 +248,7 @@ function AdminDashboard() {
         </div>
         
         {/* Chart */}
-        <OrdersChart orders={recentOrders || []} isLoading={isLoadingOrders} />
+        <OrdersChart orders={recentOrders || []} isLoading={isLoading} />
 
         {/* Bakers Table */}
         <Card>
@@ -248,7 +257,7 @@ function AdminDashboard() {
                 <CardDescription>Revisiona, approva o rifiuta le richieste e monitora gli ordini recenti.</CardDescription>
             </CardHeader>
             <CardContent>
-                {isLoadingBakers ? <Loader2 className="animate-spin" /> : (
+                {isLoading ? <Loader2 className="animate-spin" /> : (
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -307,12 +316,40 @@ export default function AdminPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
-  const adminRef = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return doc(firestore, 'roles_admin', user.uid);
-  }, [firestore, user]);
+  // State to hold the result of the admin check, replacing the useDoc listener.
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminLoading, setIsAdminLoading] = useState(true);
 
-  const { data: adminDoc, isLoading: isAdminLoading } = useDoc(adminRef);
+  useEffect(() => {
+    // This effect uses a one-time getDoc to check for the admin role,
+    // avoiding the problematic onSnapshot listener for this specific auth check.
+    if (!user || !firestore) {
+      // If the user is definitely not logged in, they are not an admin.
+      if (!isUserLoading) {
+        setIsAdmin(false);
+        setIsAdminLoading(false);
+      }
+      return;
+    }
+
+    const checkAdminRole = async () => {
+      setIsAdminLoading(true);
+      const adminRef = doc(firestore, 'roles_admin', user.uid);
+      try {
+        const docSnap = await getDoc(adminRef);
+        setIsAdmin(docSnap.exists());
+      } catch (error) {
+        console.error("Error checking admin role:", error);
+        setIsAdmin(false); // On error, assume not admin for safety.
+      } finally {
+        // This is critical: it ensures the loading state is always resolved.
+        setIsAdminLoading(false);
+      }
+    };
+
+    checkAdminRole();
+  }, [user, firestore, isUserLoading]);
+
 
   const isLoading = isUserLoading || isAdminLoading;
 
@@ -339,7 +376,7 @@ export default function AdminPage() {
     );
   }
 
-  if (!adminDoc) {
+  if (!isAdmin) {
     return (
       <div className="container mx-auto flex flex-col items-center justify-center gap-4 px-4 py-16 text-center">
         <ShieldX className="h-12 w-12 text-destructive" />
