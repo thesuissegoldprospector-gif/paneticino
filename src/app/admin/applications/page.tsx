@@ -239,6 +239,24 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+        {/* Sponsor Card */}
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Handshake />
+                    Dashboard Sponsor
+                </CardTitle>
+                <CardDescription>
+                    Accedi al pannello dedicato per la gestione degli sponsor e delle loro richieste.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild>
+                    <Link href="/admin/sponsors">Vai alla Gestione Sponsor</Link>
+                </Button>
+            </CardContent>
+        </Card>
+
         {/* Stat Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Clienti Totali" value={customers?.length ?? 0} icon={Users} isLoading={isLoading} />
@@ -303,24 +321,6 @@ function AdminDashboard() {
                         </TableBody>
                     </Table>
                 )}
-            </CardContent>
-        </Card>
-        
-        {/* Sponsor Card */}
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Handshake />
-                    Dashboard Sponsor
-                </CardTitle>
-                <CardDescription>
-                    Accedi al pannello dedicato per la gestione degli sponsor e delle loro richieste.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button asChild>
-                    <Link href="/admin/sponsors">Vai alla Gestione Sponsor</Link>
-                </Button>
             </CardContent>
         </Card>
     </div>
