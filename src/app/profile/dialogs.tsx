@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const placeholderImages = [
     'https://picsum.photos/seed/bread1/400/300',
@@ -59,9 +60,17 @@ export function UpdateImageDialog({
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [linkUrl, setLinkUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
+
+  const stopCameraStream = () => {
+    if (videoRef.current?.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+      videoRef.current.srcObject = null;
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -69,20 +78,33 @@ export function UpdateImageDialog({
       setLinkUrl(currentUrl || '');
       setImageFile(null);
       setSourceForUpload(null);
+      setHasCameraPermission(null);
+    } else {
+      // Ensure camera is off when dialog is closed
+      stopCameraStream();
     }
     return () => {
-      if (videoRef.current?.srcObject) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-      }
+      // Cleanup on unmount
+      stopCameraStream();
     };
   }, [open, currentUrl]);
 
-  const handleCamera = async () => {
+  const handleCameraRequest = async () => {
+    if (hasCameraPermission === true) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch {
-      toast({ variant: 'destructive', title: 'Camera non accessibile', description: 'Permesso negato o camera non trovata.' });
+      if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+      }
+      setHasCameraPermission(true);
+    } catch(error) {
+      console.error('Error accessing camera:', error);
+      setHasCameraPermission(false);
+      toast({
+        variant: 'destructive',
+        title: 'Accesso Camera Negato',
+        description: 'Per favore, abilita i permessi della fotocamera nelle impostazioni del tuo browser per usare questa funzione.',
+      });
     }
   };
 
@@ -97,7 +119,7 @@ export function UpdateImageDialog({
   };
 
   const handleCapture = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current || !videoRef.current.srcObject) return;
     const ctx = canvasRef.current.getContext('2d');
     if (!ctx) return;
     canvasRef.current.width = videoRef.current.videoWidth;
@@ -108,8 +130,7 @@ export function UpdateImageDialog({
     setSourceForUpload('camera');
     const file = dataURLtoFile(dataUrl, 'capture.jpg');
     if (file) setImageFile(file);
-    (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
-    videoRef.current.srcObject = null;
+    stopCameraStream();
   };
 
   const handleSubmit = async () => {
@@ -180,12 +201,18 @@ export function UpdateImageDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="upload">
+        <Tabs defaultValue="upload" onValueChange={(value) => {
+          if (value === 'camera') {
+            handleCameraRequest();
+          } else {
+            stopCameraStream();
+          }
+        }}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="upload"><Upload />Carica</TabsTrigger>
             <TabsTrigger value="url"><LinkIcon />URL</TabsTrigger>
             <TabsTrigger value="gallery"><ImageIcon />Galleria</TabsTrigger>
-            <TabsTrigger value="camera" onClick={handleCamera}><Camera />Camera</TabsTrigger>
+            <TabsTrigger value="camera"><Camera />Camera</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upload" className="py-4 space-y-4">
@@ -211,9 +238,27 @@ export function UpdateImageDialog({
             </div>
           </TabsContent>
           <TabsContent value="camera" className="py-4 space-y-4">
-            <video ref={videoRef} className="w-full aspect-video bg-muted rounded-md" autoPlay playsInline muted />
+              <div className="relative aspect-video w-full bg-muted rounded-md">
+                <video ref={videoRef} className={cn("h-full w-full rounded-md", {'hidden': !videoRef.current?.srcObject})} autoPlay playsInline muted />
+                {hasCameraPermission === false && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white p-4 rounded-md text-center">
+                        <Alert variant="destructive" className="border-0 bg-transparent text-destructive-foreground">
+                            <AlertTitle className="text-white">Accesso Camera Richiesto</AlertTitle>
+                            <AlertDescription>
+                                Per favore, consenti l'accesso alla fotocamera. Potrebbe essere necessario modificare i permessi del sito nelle impostazioni del browser.
+                            </AlertDescription>
+                        </Alert>
+                    </div>
+                )}
+                 {hasCameraPermission === null && !videoRef.current?.srcObject && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <Camera className="h-16 w-16 text-muted-foreground" />
+                        <p className="text-muted-foreground">In attesa della fotocamera...</p>
+                    </div>
+                )}
+              </div>
             <canvas ref={canvasRef} className="hidden" />
-            <Button onClick={handleCapture} disabled={!videoRef.current?.srcObject}>Scatta Foto</Button>
+            <Button onClick={handleCapture} disabled={hasCameraPermission !== true || !videoRef.current?.srcObject}>Scatta Foto</Button>
           </TabsContent>
         </Tabs>
 
