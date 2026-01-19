@@ -11,7 +11,7 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Table,
   TableHeader,
@@ -310,73 +310,76 @@ export default function AdminSponsorsPage() {
                         {format(new Date(sponsor.registrationDate), 'dd MMM yyyy', { locale: it })}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem disabled>Apri Dettagli</DropdownMenuItem>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem
-                                className={cn(
-                                  sponsor.approvalStatus !== 'approved' && 'text-green-600 focus:bg-green-100 focus:text-green-700'
-                                )}
-                                disabled={sponsor.approvalStatus === 'approved'}
-                              >
-                                Approva
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                             <AlertDialogTrigger asChild>
-                               <DropdownMenuItem
-                                className={cn(
-                                  sponsor.approvalStatus === 'approved' && 'text-yellow-600 focus:bg-yellow-100 focus:text-yellow-700'
-                                )}
-                                disabled={sponsor.approvalStatus !== 'approved'}
-                               >
-                                Sospendi
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                             <AlertDialogTrigger asChild>
-                               <DropdownMenuItem 
-                                className="text-red-600 focus:bg-red-100 focus:text-red-700"
-                                disabled={sponsor.approvalStatus === 'rejected'}
-                               >
-                                 Rifiuta
-                               </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <AlertDialog>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem disabled>Apri Dettagli</DropdownMenuItem>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  className={cn(
+                                    sponsor.approvalStatus !== 'approved' && 'text-green-600 focus:bg-green-100 focus:text-green-700'
+                                  )}
+                                  disabled={sponsor.approvalStatus === 'approved'}
+                                  onClick={(e) => e.preventDefault()}
+                                >
+                                  Approva
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  className={cn(
+                                    sponsor.approvalStatus === 'approved' && 'text-yellow-600 focus:bg-yellow-100 focus:text-yellow-700'
+                                  )}
+                                  disabled={sponsor.approvalStatus !== 'approved'}
+                                  onClick={(e) => e.preventDefault()}
+                                >
+                                  Sospendi
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:bg-red-100 focus:text-red-700"
+                                  disabled={sponsor.approvalStatus === 'rejected'}
+                                  onClick={(e) => e.preventDefault()}
+                                >
+                                  Rifiuta
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
 
-                        {/* This Alert Dialog handles all actions */}
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Stai per modificare lo stato di <strong>{sponsor.companyName}</strong>. Questa azione può essere modificata in seguito.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Annulla</AlertDialogCancel>
-                             {sponsor.approvalStatus !== 'approved' && 
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Seleziona la nuova azione per <strong>{sponsor.companyName}</strong>.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annulla</AlertDialogCancel>
+                              {sponsor.approvalStatus !== 'approved' &&
                                 <AlertDialogAction onClick={() => handleStatusUpdate(sponsor.id, 'approved')}>
                                   Approva
                                 </AlertDialogAction>
-                             }
-                             {sponsor.approvalStatus === 'approved' &&
-                                <AlertDialogAction className={cn(buttonVariants({variant: "secondary"}))} onClick={() => handleStatusUpdate(sponsor.id, 'pending')}>
+                              }
+                              {sponsor.approvalStatus === 'approved' &&
+                                <AlertDialogAction className={cn(buttonVariants({ variant: "secondary" }))} onClick={() => handleStatusUpdate(sponsor.id, 'pending')}>
                                   Sospendi
                                 </AlertDialogAction>
-                             }
-                             {sponsor.approvalStatus !== 'rejected' &&
-                                <AlertDialogAction className={cn(buttonVariants({variant: "destructive"}))} onClick={() => handleStatusUpdate(sponsor.id, 'rejected')}>
+                              }
+                              {sponsor.approvalStatus !== 'rejected' &&
+                                <AlertDialogAction className={cn(buttonVariants({ variant: "destructive" }))} onClick={() => handleStatusUpdate(sponsor.id, 'rejected')}>
                                   Rifiuta
                                 </AlertDialogAction>
-                             }
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-
+                              }
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))
@@ -391,12 +394,7 @@ export default function AdminSponsorsPage() {
             </Table>
           </div>
         </CardContent>
-        {/* <CardFooter>
-            Pagination would go here
-        </CardFooter> */}
       </Card>
     </div>
   );
 }
-
-    
