@@ -27,10 +27,9 @@ export function ProductCard({ product, bakery }: { product: any; bakery: any }) 
       
       setAdding(true);
 
-      const priceString = String(product.price || '0').replace('€', '').replace('CHF', '').trim();
-      const priceNumber = parseFloat(priceString);
+      const priceNumber = product.price;
 
-      if (isNaN(priceNumber)) {
+      if (typeof priceNumber !== 'number' || isNaN(priceNumber)) {
         toast({
             variant: "destructive",
             title: "Prezzo non valido",
@@ -80,7 +79,7 @@ export function ProductCard({ product, bakery }: { product: any; bakery: any }) 
           <div>
             <h3 className="font-semibold text-base">{product.name}</h3>
             <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-            <p className="mt-1 font-bold text-sm text-accent-foreground">{`${String(product.price || '').replace(/€|CHF/g, '').trim()} CHF`}</p>
+            <p className="mt-1 font-bold text-sm text-accent-foreground">{typeof product.price === 'number' ? `${product.price.toFixed(2)} CHF` : 'Prezzo non disponibile'}</p>
           </div>
           <Button
             variant="outline"
@@ -110,3 +109,5 @@ export function ProductCardSkeleton() {
     </Card>
   );
 }
+
+    

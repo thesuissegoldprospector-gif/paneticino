@@ -20,14 +20,6 @@ service cloud.firestore {
       }
       return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
-
-    function docExists() {
-      return resource != null;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && docExists();
-    }
     
     function isApprovedBaker() {
         // Guard clause to ensure user is signed in before accessing auth.uid
@@ -47,18 +39,21 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
 
-      allow create: if isOwner(userId)
+      // CREATE: A user can create their own document with a valid role.
+      allow create: if request.auth != null && request.auth.uid == userId
         && request.resource.data.id == userId
         && (request.resource.data.role == 'customer'
             || request.resource.data.role == 'baker'
             || request.resource.data.role == 'sponsor');
 
-      allow update: if (isExistingOwner(userId) || isAdmin())
-        && request.resource.data.id == resource.data.id
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.registrationDate == resource.data.registrationDate;
+      // UPDATE: A user can update their profile, but not critical fields. Admins can update.
+      allow update: if (isOwner(userId)
+                    && request.resource.data.id == resource.data.id
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.registrationDate == resource.data.registrationDate)
+                    || isAdmin();
 
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
 
       // Cart Subcollection
       match /cart/{cartItemId} {
@@ -76,10 +71,10 @@ service cloud.firestore {
       allow create: if isOwner(customerId)
         && request.resource.data.userId == customerId;
 
-      allow update: if (isExistingOwner(customerId) || isAdmin())
+      allow update: if (isOwner(customerId) || isAdmin())
         && request.resource.data.userId == resource.data.userId;
 
-      allow delete: if isExistingOwner(customerId) || isAdmin();
+      allow delete: if isOwner(customerId) || isAdmin();
     }
 
     // ----------------------------------------------------------------
@@ -94,9 +89,8 @@ service cloud.firestore {
 
       allow update: if
         (
-          isExistingOwner(bakerId)
-          && request.resource.data.userId == resource.data.userId
-          && request.resource.data.approvalStatus == resource.data.approvalStatus
+          (isOwner(bakerId) && request.resource.data.userId == resource.data.userId
+          && request.resource.data.approvalStatus == resource.data.approvalStatus)
         )
         || isAdmin();
 
@@ -144,11 +138,16 @@ service cloud.firestore {
     // ----------------------------------------------------------------
     match /sponsors/{sponsorId} {
       allow read: if true;
-      allow create: if isOwner(sponsorId)
+      
+      // CREATE: A user can create their own sponsor profile, but only with 'pending' status.
+      allow create: if request.auth != null && request.auth.uid == sponsorId
         && request.resource.data.userId == sponsorId
         && request.resource.data.approvalStatus == 'pending';
-      allow update: if (isExistingOwner(sponsorId) && request.resource.data.approvalStatus == resource.data.approvalStatus)
+        
+      // UPDATE: An owner can update their profile but NOT the approval status. Admins can update.
+      allow update: if (isOwner(sponsorId) && request.resource.data.approvalStatus == resource.data.approvalStatus)
                 || isAdmin();
+                
       allow delete: if isAdmin();
     }
 

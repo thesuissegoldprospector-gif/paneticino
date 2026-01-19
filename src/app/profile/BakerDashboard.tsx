@@ -47,7 +47,7 @@ const bakerProfileFormSchema = z.object({
 const productFormSchema = z.object({
   name: z.string().min(2, { message: "Il nome del prodotto è obbligatorio." }),
   description: z.string().min(5, { message: "La descrizione è obbligatoria." }),
-  price: z.string().min(1, { message: "Il prezzo è obbligatorio." }),
+  price: z.string().refine(val => !isNaN(parseFloat(String(val).replace(',', '.'))), { message: "Il prezzo deve essere un numero valido." }),
   imageUrl: z.string().url({ message: "L'URL dell'immagine non è valido." }).or(z.literal('')),
 });
 
@@ -204,7 +204,15 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
 
     async function onProductSubmit(values: z.infer<typeof productFormSchema>) {
         if (!firestore || !user) return;
-        addDocumentNonBlocking(collection(firestore, 'products'), { ...values, bakerId: user.uid });
+        const priceNumber = parseFloat(values.price.replace(',', '.'));
+        const productData = {
+            name: values.name,
+            description: values.description,
+            price: priceNumber,
+            imageUrl: values.imageUrl,
+            bakerId: user.uid
+        };
+        addDocumentNonBlocking(collection(firestore, 'products'), productData);
         toast({ title: 'Prodotto aggiunto!' });
         productForm.reset();
         setIsProductDialogOpen(false);
@@ -442,7 +450,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                                 <Form {...productForm}>
                                     <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
                                         <FormField control={productForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Prodotto</FormLabel><FormControl><Input placeholder="Pagnotta Artigianale" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                        <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo</FormLabel><FormControl><Input placeholder="4.50 CHF" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                        <FormField control={productForm.control} name="price" render={({ field }) => (<FormItem><FormLabel>Prezzo (es. 4.50)</FormLabel><FormControl><Input placeholder="4.50" {...field} /></FormControl><FormMessage /></FormItem>)} />
                                         <FormField control={productForm.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descrizione</FormLabel><FormControl><Textarea placeholder="Breve descrizione..." {...field} /></FormControl><FormMessage /></FormItem>)} />
                                         
                                         <FormField
@@ -481,7 +489,7 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
                                         <CardContent className="p-3">
                                             <h4 className="truncate font-bold">{product.name}</h4>
                                             <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
-                                            <p className="mt-2 font-bold">{`${String(product.price || '').replace(/€|CHF/g, '').trim()} CHF`}</p>
+                                            <p className="mt-2 font-bold">{typeof product.price === 'number' ? `${product.price.toFixed(2)} CHF` : 'N/A'}</p>
                                             <Button variant="destructive" size="icon" className="absolute right-2 top-2 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteProduct(product.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </CardContent>
                                     </Card>
@@ -499,3 +507,5 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
         </>
     );
 }
+
+    
