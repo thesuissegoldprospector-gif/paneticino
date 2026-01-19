@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Header } from '@/components/layout/header';
+import { Footer } from '@/components/layout/Footer';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { FirebaseClientProvider } from '@/firebase';
 
@@ -29,7 +30,8 @@ export default function RootLayout({
         <FirebaseClientProvider>
             <div className="relative flex min-h-screen w-full flex-col">
               <Header />
-              <main className="flex-1 pb-24 pt-16">{children}</main>
+              <main className="flex-1 pt-16 pb-24 md:pb-0">{children}</main>
+              <Footer />
               <BottomNav />
             </div>
             <Toaster />
