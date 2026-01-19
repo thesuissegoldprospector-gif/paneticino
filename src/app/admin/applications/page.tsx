@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useUser, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, query, where, doc, getDocs, orderBy, Timestamp, updateDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -140,28 +140,50 @@ function AdminDashboard() {
   const firestore = useFirestore();
   const router = useRouter();
 
-  // Queries
+  // Queries for bakers and customers
   const allBakersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'bakers')) : null, [firestore]);
-  
-  // OPTIMIZATION: Query only orders from the last 30 days for the dashboard
-  const thirtyDaysAgo = useMemo(() => subDays(new Date(), 30), []);
-  const recentOrdersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'orders'),
-      where('createdAt', '>=', thirtyDaysAgo),
-      orderBy('createdAt', 'desc')
-    );
-  }, [firestore, thirtyDaysAgo]);
-
   const allCustomersQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'customer')) : null, [firestore]);
 
-  // Data fetching
+  // Data fetching for bakers and customers (real-time)
   const { data: bakers, isLoading: isLoadingBakers } = useCollection(allBakersQuery);
-  const { data: recentOrders, isLoading: isLoadingOrders } = useCollection(recentOrdersQuery);
   const { data: customers, isLoading: isLoadingCustomers } = useCollection(allCustomersQuery);
   
-  // Memoized calculations for performance (now using recentOrders)
+  // State and one-time fetch for recent orders (non-real-time)
+  const [recentOrders, setRecentOrders] = useState<any[] | null>(null);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const thirtyDaysAgo = useMemo(() => subDays(new Date(), 30), []);
+  
+  useEffect(() => {
+    if (!firestore) {
+        setIsLoadingOrders(false);
+        return;
+    }
+
+    const fetchOrders = async () => {
+        setIsLoadingOrders(true);
+        try {
+            const ordersQuery = query(
+                collection(firestore, 'orders'),
+                where('createdAt', '>=', thirtyDaysAgo),
+                orderBy('createdAt', 'desc')
+            );
+            const querySnapshot = await getDocs(ordersQuery);
+            const ordersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setRecentOrders(ordersData);
+        } catch (error) {
+            console.error("Admin: Failed to fetch recent orders:", error);
+            setRecentOrders([]); // Set to empty array to prevent breaking downstream logic
+        } finally {
+            // Crucial: Always set loading to false to avoid infinite loading state.
+            setIsLoadingOrders(false);
+        }
+    };
+
+    fetchOrders();
+  }, [firestore, thirtyDaysAgo]);
+
+  
+  // Memoized calculations for performance
   const stats = useMemo(() => {
     if (!recentOrders || !bakers) return { total: 0, completed: 0, pending: 0 };
     return {

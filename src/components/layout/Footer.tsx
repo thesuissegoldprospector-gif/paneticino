@@ -1,7 +1,18 @@
+'use client';
+
 import Link from 'next/link';
 import { Copyright, Mail, Phone, MapPin } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export function Footer() {
+  // Initialize state to null. This will be the same on server and client initial render.
+  const [year, setYear] = useState<number | null>(null);
+
+  // This effect runs only on the client, after hydration.
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
+
   return (
     <footer className="bg-black text-neutral-400 pb-24 md:pb-0 no-print">
       <div className="container mx-auto px-4 py-10">
@@ -57,8 +68,13 @@ export function Footer() {
         </div>
 
         <div className="mt-8 pt-6 border-t border-neutral-800 text-center text-xs">
-          <p className="flex items-center justify-center gap-1.5">
-            <Copyright className="h-4 w-4" /> {new Date().getFullYear()} KappelerIncorporate Svizzera. Tutti i diritti riservati.
+          {/* Only render the year once it's available on the client to prevent hydration mismatch */}
+          <p className="flex items-center justify-center gap-1.5 h-4">
+            {year && (
+              <>
+                <Copyright className="h-4 w-4" /> {year} KappelerIncorporate Svizzera. Tutti i diritti riservati.
+              </>
+            )}
           </p>
         </div>
       </div>
