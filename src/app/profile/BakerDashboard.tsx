@@ -265,8 +265,43 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
         <>
             <style jsx global>{`
                 @media print {
-                    .no-print { display: none !important; }
-                    body { background-color: #fff !important; }
+                    /* Hide elements that shouldn't be printed */
+                    .no-print { 
+                        display: none !important; 
+                    }
+                    body { 
+                        background-color: #fff !important; 
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    
+                    /* Reset padding/margin for print */
+                    .print-container {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                    }
+
+                    /* --- Pagination Control for Slips --- */
+
+                    /* Prevent a slip from being cut across two pages */
+                    .production-sheet, .delivery-slip {
+                        break-inside: avoid;
+                        page-break-inside: avoid; /* fallback */
+                    }
+                    
+                    /* Force a new page after each slip */
+                    .delivery-slip {
+                        page-break-after: always; /* fallback */
+                        break-after: page;
+                    }
+                    
+                    /* Prevent an extra blank page after the final slip */
+                    .delivery-slips-container > .delivery-slip:last-of-type {
+                        page-break-after: auto;
+                        break-after: auto;
+                    }
                 }
             `}</style>
             <div className={cn("space-y-8", printJob ? 'no-print' : '')}>

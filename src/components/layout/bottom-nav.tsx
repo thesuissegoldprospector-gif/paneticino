@@ -20,7 +20,7 @@ export function BottomNav() {
 
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 h-20 border-t bg-background/95 backdrop-blur-sm md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 h-20 border-t bg-background/95 backdrop-blur-sm md:hidden no-print">
       <ul className="flex h-full items-center justify-around">
         {navItems.map((item) => {
           if (item.auth && !user) return null;

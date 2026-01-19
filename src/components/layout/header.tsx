@@ -13,7 +13,7 @@ export function Header() {
 
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 border-b bg-secondary/80 backdrop-blur-sm">
+    <header className="fixed top-0 left-0 right-0 z-40 border-b bg-secondary/80 backdrop-blur-sm no-print">
       <div className="container mx-auto flex h-16 items-center justify-between">
         <Link href="/" className="text-2xl font-bold font-headline text-primary">
           PaneDelivery

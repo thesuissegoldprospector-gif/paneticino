@@ -49,10 +49,10 @@ export function DeliverySlips({ fromDate, toDate }: Props) {
     }
     
     return (
-        <div className="space-y-8">
+        <div className="delivery-slips-container">
             {filteredOrders && filteredOrders.length > 0 ? (
                 filteredOrders.map(order => (
-                    <Card key={order.id} className="delivery-slip shadow-none border-none" style={{ pageBreakAfter: 'always' }}>
+                    <Card key={order.id} className="delivery-slip shadow-none border-none">
                         <CardHeader>
                             <div className="flex justify-between items-start">
                                 <div>
