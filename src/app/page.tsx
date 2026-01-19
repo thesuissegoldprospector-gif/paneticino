@@ -9,7 +9,7 @@ import { collection, query, where, limit } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { BakeryCard } from '@/components/bakeries/bakery-card';
 import { ProductCard, ProductCardSkeleton } from '@/components/products/product-card';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 
 export default function Home() {
   const firestore = useFirestore();
@@ -119,7 +119,17 @@ export default function Home() {
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
             
-            <Card className="lg:col-span-3 flex flex-col justify-between transition-transform duration-200 hover:-translate-y-1">
+            <Card className="lg:col-span-3 flex flex-col justify-between transition-transform duration-200 hover:-translate-y-1 overflow-hidden">
+                <div className="relative aspect-video w-full">
+                    <Image
+                        src="https://picsum.photos/seed/fornilocali/600/400"
+                        alt="Interno di una panetteria locale"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover"
+                        data-ai-hint="local bakery"
+                    />
+                </div>
                 <CardHeader>
                     <div className="flex items-center gap-4">
                         <div className="bg-primary/10 p-3 rounded-full">
@@ -128,14 +138,24 @@ export default function Home() {
                         <CardTitle>I Migliori Forni Locali</CardTitle>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-grow">
                     <CardDescription>
                         Abbiamo selezionato solo i migliori panettieri artigianali per garantirti prodotti di altissima qualità, realizzati con passione e ingredienti genuini.
                     </CardDescription>
                 </CardContent>
             </Card>
 
-            <Card className="lg:col-span-3 flex flex-col justify-between transition-transform duration-200 hover:-translate-y-1">
+            <Card className="lg:col-span-3 flex flex-col justify-between transition-transform duration-200 hover:-translate-y-1 overflow-hidden">
+                 <div className="relative aspect-video w-full">
+                    <Image
+                        src="https://picsum.photos/seed/partnerbakery/600/400"
+                        alt="Panettiere al lavoro"
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover"
+                        data-ai-hint="bakery partner"
+                    />
+                </div>
                 <CardHeader>
                      <div className="flex items-center gap-4">
                         <div className="bg-accent/20 p-3 rounded-full">
@@ -149,18 +169,28 @@ export default function Home() {
                         Sei un panettiere e vuoi raggiungere più clienti? Unisciti alla nostra piattaforma per far crescere la tua attività e portare le tue creazioni nelle case di tutti.
                     </CardDescription>
                 </CardContent>
-                <div className="p-6 pt-0">
+                <CardFooter>
                     <Button variant="secondary">Scopri di più</Button>
-                </div>
+                </CardFooter>
             </Card>
 
-            <Card className="lg:col-span-2 text-center flex flex-col items-center justify-start transition-transform duration-200 hover:-translate-y-1">
-                <CardHeader>
-                    <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto">
+            <Card className="lg:col-span-2 text-center flex flex-col justify-start transition-transform duration-200 hover:-translate-y-1 overflow-hidden">
+                <div className="relative aspect-video w-full">
+                    <Image
+                        src="https://picsum.photos/seed/freshbread/400/300"
+                        alt="Pane appena sfornato"
+                        fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        className="object-cover"
+                        data-ai-hint="fresh bread"
+                    />
+                </div>
+                <CardHeader className="items-center">
+                    <div className="bg-background p-3 rounded-full w-fit mx-auto -mt-8 relative z-10 ring-8 ring-background">
                         <Sparkles className="h-6 w-6 text-primary" />
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                     <CardTitle className="text-lg">Freschezza Garantita</CardTitle>
                     <CardDescription className="mt-2">
                         Il tuo ordine viene preparato poco prima della consegna per assicurarti la massima freschezza.
@@ -168,13 +198,23 @@ export default function Home() {
                 </CardContent>
             </Card>
 
-            <Card className="lg:col-span-2 text-center flex flex-col items-center justify-start transition-transform duration-200 hover:-translate-y-1">
-                <CardHeader>
-                     <div className="bg-secondary p-3 rounded-full w-fit mx-auto">
+            <Card className="lg:col-span-2 text-center flex flex-col justify-start transition-transform duration-200 hover:-translate-y-1 overflow-hidden">
+                <div className="relative aspect-video w-full">
+                    <Image
+                        src="https://picsum.photos/seed/fastdelivery/400/300"
+                        alt="Consegna veloce"
+                        fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        className="object-cover"
+                        data-ai-hint="fast delivery"
+                    />
+                </div>
+                <CardHeader className="items-center">
+                     <div className="bg-background p-3 rounded-full w-fit mx-auto -mt-8 relative z-10 ring-8 ring-background">
                         <Rocket className="h-6 w-6 text-secondary-foreground" />
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                     <CardTitle className="text-lg">Consegna Veloce</CardTitle>
                      <CardDescription className="mt-2">
                         Ricevi il pane e i dolci che ami in tempi rapidi, direttamente alla porta di casa tua.
@@ -182,13 +222,23 @@ export default function Home() {
                 </CardContent>
             </Card>
 
-            <Card className="lg:col-span-2 text-center flex flex-col items-center justify-start transition-transform duration-200 hover:-translate-y-1">
-                <CardHeader>
-                    <div className="bg-accent/20 p-3 rounded-full w-fit mx-auto">
+            <Card className="lg:col-span-2 text-center flex flex-col justify-start transition-transform duration-200 hover:-translate-y-1 overflow-hidden">
+                <div className="relative aspect-video w-full">
+                    <Image
+                        src="https://picsum.photos/seed/easyorder/400/300"
+                        alt="Persona che ordina da smartphone"
+                        fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        className="object-cover"
+                        data-ai-hint="easy ordering"
+                    />
+                </div>
+                <CardHeader className="items-center">
+                    <div className="bg-background p-3 rounded-full w-fit mx-auto -mt-8 relative z-10 ring-8 ring-background">
                         <MousePointerClick className="h-6 w-6 text-accent-foreground" />
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                     <CardTitle className="text-lg">Semplice da Usare</CardTitle>
                     <CardDescription className="mt-2">
                         Ordina in pochi click dal tuo smartphone o computer, in modo facile e intuitivo.
