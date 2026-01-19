@@ -1,9 +1,31 @@
+'use client';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useFirebase, setDocumentNonBlocking } from '@/firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc } from 'firebase/firestore';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Building, CalendarCheck, Lock, Mail, ShieldCheck, UploadCloud, UserPlus } from 'lucide-react';
+import { Building, CalendarCheck, Lock, Mail, ShieldCheck, UploadCloud, UserPlus, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useToast } from '@/hooks/use-toast';
+
+const registerSchema = z.object({
+  companyName: z.string().min(2, { message: 'Il nome azienda è obbligatorio.' }),
+  email: z.string().email({ message: 'Email non valida.' }),
+  password: z.string().min(6, { message: 'La password deve contenere almeno 6 caratteri.' }),
+});
+
+const loginSchema = z.object({
+  email: z.string().email({ message: 'Email non valida.' }),
+  password: z.string().min(1, { message: 'La password è obbligatoria.' }),
+});
 
 const steps = [
   {
@@ -27,6 +49,187 @@ const steps = [
     description: "Dopo una rapida approvazione da parte del nostro team, la tua sponsorizzazione sarà attiva e visibile a migliaia di utenti.",
   },
 ];
+
+function SponsorAuthForm() {
+  const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
+  const [isLoading, setIsLoading] = useState(false);
+  const { auth, firestore } = useFirebase();
+  const { toast } = useToast();
+
+  const registerForm = useForm<z.infer<typeof registerSchema>>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { companyName: '', email: '', password: '' },
+  });
+
+  const loginForm = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  });
+
+  const handleRegister = async (values: z.infer<typeof registerSchema>) => {
+    setIsLoading(true);
+    if (!auth || !firestore) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Servizio di autenticazione non disponibile.' });
+      setIsLoading(false);
+      return;
+    }
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      const userDocRef = doc(firestore, 'users', user.uid);
+      setDocumentNonBlocking(userDocRef, {
+        id: user.uid,
+        email: user.email,
+        role: 'sponsor',
+        registrationDate: new Date().toISOString(),
+        firstName: values.companyName,
+        lastName: '(Sponsor)',
+        photoURL: '',
+      }, {});
+
+      const sponsorDocRef = doc(firestore, 'sponsors', user.uid);
+      setDocumentNonBlocking(sponsorDocRef, {
+        id: user.uid,
+        userId: user.uid,
+        companyName: values.companyName,
+        approvalStatus: 'pending',
+      }, {});
+      
+      await updateProfile(user, { displayName: values.companyName });
+      
+      toast({
+        title: 'Richiesta Inviata!',
+        description: "Il tuo account è stato creato e inviato per l'approvazione.",
+      });
+      registerForm.reset();
+
+    } catch (error: any) {
+      console.error(error);
+      const message = error.code === 'auth/email-already-in-use' ? 'Questa email è già in uso.' : 'Si è verificato un errore.';
+      toast({ variant: 'destructive', title: 'Errore di registrazione', description: message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogin = async (values: z.infer<typeof loginSchema>) => {
+    setIsLoading(true);
+    if (!auth) {
+       toast({ variant: 'destructive', title: 'Errore', description: 'Servizio di autenticazione non disponibile.' });
+       setIsLoading(false);
+       return;
+    }
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      toast({
+        title: 'Accesso Riuscito!',
+        description: 'Benvenuto sponsor. A breve verrà implementata la tua dashboard.',
+      });
+      loginForm.reset();
+    } catch (error: any) {
+      console.error(error);
+      toast({ variant: 'destructive', title: 'Errore di accesso', description: 'Email o password non corretti.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Card className="max-w-lg mx-auto shadow-lg">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl">{authMode === 'register' ? 'Richiedi Accesso' : 'Accedi Sponsor'}</CardTitle>
+        <CardDescription>
+          {authMode === 'register' ? 'Entra a far parte della nostra rete di sponsor.' : 'Accedi al tuo account sponsor.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {authMode === 'register' ? (
+          <Form {...registerForm}>
+            <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
+              <FormField control={registerForm.control} name="companyName" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome Azienda</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="La Tua Azienda SRL" {...field} className="pl-10" />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={registerForm.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input type="email" placeholder="contatto@la-tua-azienda.ch" {...field} className="pl-10" />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={registerForm.control} name="password" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input type="password" placeholder="••••••••" {...field} className="pl-10" />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <Button className="w-full" type="submit" disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Richiedi Accesso</Button>
+            </form>
+          </Form>
+        ) : (
+          <Form {...loginForm}>
+            <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
+              <FormField control={loginForm.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input type="email" placeholder="contatto@la-tua-azienda.ch" {...field} className="pl-10" />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={loginForm.control} name="password" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input type="password" placeholder="••••••••" {...field} className="pl-10" />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <Button className="w-full" type="submit" disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Accedi</Button>
+            </form>
+          </Form>
+        )}
+        <Button variant="link" className="w-full" onClick={() => setAuthMode(authMode === 'register' ? 'login' : 'register')} disabled={isLoading}>
+          {authMode === 'register' ? 'Hai già un account? Accedi' : 'Non hai un account? Richiedi accesso'}
+        </Button>
+        {authMode === 'register' && (
+            <p className="pt-2 text-center text-xs text-muted-foreground">
+                Il tuo account sarà in attesa di approvazione prima di poter acquistare spazi sponsor.
+            </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function SponsorsPage() {
   return (
@@ -85,41 +288,7 @@ export default function SponsorsPage() {
       {/* Registration/Login Section */}
       <section className="py-16 md:py-24 bg-muted/50">
         <div className="container mx-auto px-4">
-           <Card className="max-w-lg mx-auto shadow-lg">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">Richiedi Accesso</CardTitle>
-                    <CardDescription>
-                        Entra a far parte della nostra rete di sponsor.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="companyName">Nome Azienda</Label>
-                        <div className="relative">
-                             <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input id="companyName" placeholder="La Tua Azienda SRL" className="pl-10" />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                         <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input id="email" type="email" placeholder="contatto@la-tua-azienda.ch" className="pl-10"/>
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input id="password" type="password" placeholder="••••••••" className="pl-10" />
-                        </div>
-                    </div>
-                    <Button className="w-full">Richiedi Accesso</Button>
-                    <p className="pt-2 text-center text-xs text-muted-foreground">
-                        Il tuo account sarà in attesa di approvazione prima di poter acquistare spazi sponsor.
-                    </p>
-                </CardContent>
-            </Card>
+            <SponsorAuthForm />
         </div>
       </section>
     </div>

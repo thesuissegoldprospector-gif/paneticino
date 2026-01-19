@@ -50,7 +50,8 @@ service cloud.firestore {
       allow create: if isOwner(userId)
         && request.resource.data.id == userId
         && (request.resource.data.role == 'customer'
-            || request.resource.data.role == 'baker');
+            || request.resource.data.role == 'baker'
+            || request.resource.data.role == 'sponsor');
 
       allow update: if (isExistingOwner(userId) || isAdmin())
         && request.resource.data.id == resource.data.id
@@ -136,6 +137,19 @@ service cloud.firestore {
       
       // DELETE: Orders cannot be deleted.
       allow delete: if false;
+    }
+
+    // ----------------------------------------------------------------
+    // SPONSORS
+    // ----------------------------------------------------------------
+    match /sponsors/{sponsorId} {
+      allow read: if true;
+      allow create: if isOwner(sponsorId)
+        && request.resource.data.userId == sponsorId
+        && request.resource.data.approvalStatus == 'pending';
+      allow update: if (isExistingOwner(sponsorId) && request.resource.data.approvalStatus == resource.data.approvalStatus)
+                || isAdmin();
+      allow delete: if isAdmin();
     }
 
     // ----------------------------------------------------------------
