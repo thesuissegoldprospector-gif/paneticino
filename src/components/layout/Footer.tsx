@@ -21,6 +21,7 @@ export function Footer() {
               <li><Link href="#" className="hover:text-white hover:underline">Chi Siamo</Link></li>
               <li><Link href="#" className="hover:text-white hover:underline">FAQ</Link></li>
               <li><Link href="/baker-application" className="hover:text-white hover:underline">Diventa un Panettiere</Link></li>
+              <li><Link href="#" className="hover:text-white hover:underline">Spazio Sponsor</Link></li>
               <li><Link href="#" className="hover:text-white hover:underline">Termini di Servizio</Link></li>
             </ul>
           </div>
