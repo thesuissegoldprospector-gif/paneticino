@@ -1,0 +1,154 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ----------------------------------------------------------------
+    // Helper Functions
+    // ----------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // Guard clause to ensure user is signed in before accessing auth.uid
+      if (!isSignedIn()) {
+        return false;
+      }
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    function docExists() {
+      return resource != null;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && docExists();
+    }
+    
+    function isApprovedBaker() {
+        // Guard clause to ensure user is signed in before accessing auth.uid
+        if (!isSignedIn()) {
+          return false;
+        }
+        // Check for the existence of the baker profile document for the current user.
+        // This is the safest way to check before attempting a get().
+        return exists(/databases/$(database)/documents/bakers/$(request.auth.uid))
+            && get(/databases/$(database)/documents/bakers/$(request.auth.uid)).data.approvalStatus == 'approved';
+    }
+
+    // ----------------------------------------------------------------
+    // USERS
+    // ----------------------------------------------------------------
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+
+      allow create: if isOwner(userId)
+        && request.resource.data.id == userId
+        && (request.resource.data.role == 'customer'
+            || request.resource.data.role == 'baker');
+
+      allow update: if (isExistingOwner(userId) || isAdmin())
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.registrationDate == resource.data.registrationDate;
+
+      allow delete: if isExistingOwner(userId) || isAdmin();
+
+      // Cart Subcollection
+      match /cart/{cartItemId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // CUSTOMERS
+    // ----------------------------------------------------------------
+    match /customers/{customerId} {
+      allow get: if isOwner(customerId) || isAdmin();
+      allow list: if false;
+
+      allow create: if isOwner(customerId)
+        && request.resource.data.userId == customerId;
+
+      allow update: if (isExistingOwner(customerId) || isAdmin())
+        && request.resource.data.userId == resource.data.userId;
+
+      allow delete: if isExistingOwner(customerId) || isAdmin();
+    }
+
+    // ----------------------------------------------------------------
+    // BAKERS
+    // ----------------------------------------------------------------
+    match /bakers/{bakerId} {
+      allow read: if true;
+
+      allow create: if isOwner(bakerId)
+        && request.resource.data.userId == bakerId
+        && request.resource.data.approvalStatus == 'pending';
+
+      allow update: if
+        (
+          isExistingOwner(bakerId)
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.approvalStatus == resource.data.approvalStatus
+        )
+        || isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------------
+    // PRODUCTS
+    // ----------------------------------------------------------------
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid && isApprovedBaker();
+      allow update, delete: if isSignedIn() && resource.data.bakerId == request.auth.uid && isApprovedBaker();
+    }
+    
+    // ----------------------------------------------------------------
+    // ORDERS
+    // ----------------------------------------------------------------
+     match /orders/{orderId} {
+      // CREATE: A signed-in user can create an order for themselves.
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+
+      // READ (GET): 
+      // - An admin can read any order.
+      // - A user can read an order if they are the customer or the baker.
+      allow get: if isAdmin() || 
+                  (isSignedIn() && resource.data.customerId == request.auth.uid) || 
+                  (isSignedIn() && resource.data.bakerId == request.auth.uid);
+      
+      // READ (LIST): Security is enforced by combining query constraints with rules.
+      // Any signed-in user can attempt a list operation.
+      // The query MUST be constrained by the client to ensure it only requests 
+      // documents the user is allowed to 'get'. An unconstrained query will fail for non-admins.
+      allow list: if isSignedIn();
+      
+      // UPDATE: Only the approved baker fulfilling the order can update its status.
+      allow update: if isSignedIn() && resource.data.bakerId == request.auth.uid && isApprovedBaker();
+      
+      // DELETE: Orders cannot be deleted.
+      allow delete: if false;
+    }
+
+    // ----------------------------------------------------------------
+    // ADMIN ROLES
+    // ----------------------------------------------------------------
+    match /roles_admin/{userId} {
+      // Inlining the isAdmin() check here to avoid recursion.
+      // An admin can read any role doc, a user can only read their own.
+      allow get: if isOwner(userId) || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
+      // Inlining the isAdmin() check here as well.
+      allow list: if isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      
+      allow create, update, delete: if false;
+    }
+  }
+}

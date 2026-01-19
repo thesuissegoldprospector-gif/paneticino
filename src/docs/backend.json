@@ -1,0 +1,423 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the PaneDelivery application. This entity stores common user information, regardless of their role (customer or baker).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user, either 'customer' or 'baker'.",
+          "enum": [
+            "customer",
+            "baker"
+          ]
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "The date and time the user registered.",
+          "format": "date-time"
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "photoURL": {
+            "type": "string",
+            "description": "URL of the user's profile picture.",
+            "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "role",
+        "registrationDate",
+        "firstName",
+        "lastName"
+      ]
+    },
+    "CustomerProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CustomerProfile",
+      "type": "object",
+      "description": "Represents the profile information for a customer user in the PaneDelivery application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CustomerProfile entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 CustomerProfile)"
+        },
+        "deliveryAddresses": {
+          "type": "array",
+          "description": "A list of delivery addresses associated with the customer.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "favoriteBakeries": {
+          "type": "array",
+          "description": "A list of bakery ids that the customer has marked as favorites.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "userId"
+      ]
+    },
+    "BakerProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BakerProfile",
+      "type": "object",
+      "description": "Represents the profile information for a baker user in the PaneDelivery application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the BakerProfile entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 BakerProfile)"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "The name of the bakery company."
+        },
+        "address": {
+          "type": "string",
+          "description": "The physical address of the bakery."
+        },
+        "companyNumber": {
+          "type": "string",
+          "description": "The official company registration number."
+        },
+        "deliveryZones": {
+          "type": "array",
+          "description": "A list of postal codes or regions where the baker delivers.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "profilePictureUrl": {
+          "type": "string",
+          "description": "URL to the profile picture of the bakery.",
+          "format": "uri"
+        },
+        "coverPhotoUrl": {
+          "type": "string",
+          "description": "URL to the cover photo of the bakery.",
+          "format": "uri"
+        },
+        "approvalStatus": {
+          "type": "string",
+          "description": "The approval status of the baker's account. Possible values: 'pending', 'approved', 'rejected'.",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "deliveryConditions": {
+          "type": "string",
+          "description": "Specific conditions for delivery (e.g., minimum order, delivery times)."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "companyName",
+        "address",
+        "companyNumber",
+        "approvalStatus"
+      ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a product sold by a baker.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
+        },
+        "bakerId": {
+          "type": "string",
+          "description": "Reference to the baker who sells this product. (Relationship: BakerProfile 1:N Product)"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the product."
+        },
+        "price": {
+          "type": "string",
+          "description": "The price of the product (e.g., '€4.50')."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL to an image of the product.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "bakerId",
+        "name",
+        "price"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents a customer's order from a specific baker.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the order."
+        },
+        "bakerId": {
+          "type": "string",
+          "description": "The UID of the baker fulfilling the order."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "The UID of the customer who placed the order."
+        },
+        "customerName": {
+            "type": "string",
+            "description": "The name of the customer."
+        },
+        "items": {
+          "type": "array",
+          "description": "The list of products in the order.",
+          "items": {
+            "$ref": "#/entities/OrderItem"
+          }
+        },
+        "total": {
+          "type": "number",
+          "description": "The total cost of the order."
+        },
+        "deliveryAddress": {
+          "type": "string",
+          "description": "The address for delivery."
+        },
+        "deliveryZone": {
+          "type": "string",
+          "description": "The delivery zone (e.g., postal code or city)."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the order.",
+          "enum": [
+            "pending",
+            "accepted",
+            "preparing",
+            "delivering",
+            "completed",
+            "rejected"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The timestamp when the order was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "bakerId",
+        "customerId",
+        "items",
+        "total",
+        "deliveryAddress",
+        "status",
+        "createdAt"
+      ]
+    },
+    "OrderItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OrderItem",
+      "type": "object",
+      "description": "Represents a single item within an order.",
+      "properties": {
+        "productId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "quantity": { "type": "integer" },
+        "imageUrl": { "type": "string", "format": "uri" }
+      },
+      "required": ["productId", "name", "price", "quantity"]
+    },
+    "CartItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CartItem",
+      "type": "object",
+      "description": "Represents an item in the shopping cart.",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "bakerId": { "type": "string" },
+        "bakerName": { "type": "string" }
+      },
+      "required": ["id", "productId", "name", "price", "quantity"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous",
+      "google"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores core user information. Access is restricted to the user themselves and admins.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+       {
+        "path": "/users/{userId}/cart/{cartItemId}",
+        "definition": {
+          "entityName": "CartItem",
+          "schema": {
+            "$ref": "#/backend/entities/CartItem"
+          },
+          "description": "Stores items in a user's shopping cart. Access is restricted to the user themselves.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The user's ID."
+            },
+            {
+                "name": "cartItemId",
+                "description": "The cart item's ID (usually the product ID)."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customers/{customerId}",
+        "definition": {
+          "entityName": "CustomerProfile",
+          "schema": {
+            "$ref": "#/backend/entities/CustomerProfile"
+          },
+          "description": "Stores customer-specific profile information. Access is restricted to the user themselves and admins.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "The unique identifier for the customer's profile."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/bakers/{bakerId}",
+        "definition": {
+          "entityName": "BakerProfile",
+          "schema": {
+            "$ref": "#/backend/entities/BakerProfile"
+          },
+          "description": "Stores baker-specific profile and application information. Includes 'approvalStatus' for authorization independence.",
+          "params": [
+            {
+              "name": "bakerId",
+              "description": "The unique identifier for the baker's profile."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Stores product information. Access is controlled by the baker who owns it.",
+          "params": [
+            {
+              "name": "productId",
+              "description": "The unique identifier for the product."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/orders/{orderId}",
+        "definition": {
+            "entityName": "Order",
+            "schema": {
+                "$ref": "#/entities/Order"
+            },
+            "description": "Stores customer orders. Access restricted to the user who placed it and the baker fulfilling it.",
+            "params": [
+                {
+                    "name": "orderId",
+                    "description": "The unique identifier for the order."
+                }
+            ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "adminRole",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Indicates admin privileges. Existence of a document grants admin access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the admin user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "This Firestore data structure is designed to support the PaneDelivery application, focusing on a clear separation of user roles (customer and baker) and efficient data access while adhering to the core design principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are Not Filters).\\n\\n**Authorization Independence (CRITICAL):**\\nTo avoid hierarchical authorization dependencies and enable atomic operations, the `BakerProfile` includes an `approvalStatus` field.  This allows rules to grant access based on the baker's approval status directly, without needing to read data from another document or collection.  This is especially important during the baker application process. No `get()` calls are required.\\n\\n**Structural Segregation (Homogeneous Security Posture):**\\nUser data is separated into `/users` for core user information, `/customers/{customerId}` for customer-specific profiles, and `/bakers/{bakerId}` for baker-specific profiles. This segregation simplifies security rules by ensuring that each collection has a consistent security posture. For example, only the user themselves can modify their `/users/{userId}` document (with some exceptions for admin-level updates), while baker profiles have stricter access controls based on their `approvalStatus` and admin roles.\\n\\n**Access Modeling (Standardization and Consistency):**\\n*   **Private Data:**  Customer and baker profile data are stored under `/customers/{customerId}` and `/bakers/{bakerId}`. This path-based ownership provides a clear and secure way to manage access to individual profiles.\\n*   **Global Roles (DBAC):** The `/roles_admin/{uid}` collection is used to grant administrative privileges. The existence of a document in this collection grants admin access. Rules are defined based on the existence of these role documents.\\n\\n**QAPs (Rules are Not Filters):**\\nThe structure supports secure `list` operations by using structural segregation and explicit state modeling.  For example, listing approved bakers is done via the `/bakers` collection combined with a rule that filters based on the `approvalStatus` field. Since rules are not filters, the `approvalStatus` field cannot be read directly from other document. Admin users can bypass certain restrictions for management purposes, facilitated by the `/roles_admin/{uid}` collection.\\n\\n**Invariants:**\\nThe structure supports the integrity of ownership.  The `userId` field within both `CustomerProfile` and `BakerProfile` explicitly links the profiles to the associated user accounts, maintaining a clear ownership relationship.  Timestamps can be managed within each document as needed (though not explicitly defined in the provided schema, it is implied as a best practice).\\n"
+  }
+}
