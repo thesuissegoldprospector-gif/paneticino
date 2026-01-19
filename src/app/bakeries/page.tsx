@@ -29,9 +29,11 @@ export default function BakeriesPage() {
     <div className="container mx-auto px-4 py-6">
       <h1 className="mb-8 text-center font-headline text-4xl text-foreground">I Nostri Panettieri</h1>
       {bakeries && bakeries.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4">
           {bakeries.map((bakery) => (
-            <BakeryCard key={bakery.id} bakery={bakery} />
+            <div key={bakery.id} className="w-80 flex-shrink-0">
+              <BakeryCard bakery={bakery} />
+            </div>
           ))}
         </div>
       ) : (
