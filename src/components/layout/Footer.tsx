@@ -3,7 +3,7 @@ import { Copyright, Mail, Phone, MapPin } from 'lucide-react';
 
 export function Footer() {
   return (
-    <footer className="bg-black text-neutral-400 hidden md:block">
+    <footer className="bg-black text-neutral-400 pb-24 md:pb-0">
       <div className="container mx-auto px-4 py-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
           {/* About Section */}

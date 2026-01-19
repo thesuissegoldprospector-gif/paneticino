@@ -30,7 +30,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
             <div className="relative flex min-h-screen w-full flex-col">
               <Header />
-              <main className="flex-1 pt-16 pb-24 md:pb-0">{children}</main>
+              <main className="flex-1 pt-16">{children}</main>
               <Footer />
               <BottomNav />
             </div>
