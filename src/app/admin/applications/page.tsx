@@ -5,7 +5,7 @@ import { useFirestore, useUser } from '@/firebase';
 import { collection, query, where, doc, getDocs, orderBy, updateDoc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ShieldX, AlertTriangle, Users, ShoppingCart, CheckCircle, Clock } from 'lucide-react';
+import { Loader2, ShieldX, AlertTriangle, Users, ShoppingCart, CheckCircle, Clock, Handshake } from 'lucide-react';
 import Link from 'next/link';
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -303,6 +303,24 @@ function AdminDashboard() {
                         </TableBody>
                     </Table>
                 )}
+            </CardContent>
+        </Card>
+        
+        {/* Sponsor Card */}
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Handshake />
+                    Dashboard Sponsor
+                </CardTitle>
+                <CardDescription>
+                    Accedi al pannello dedicato per la gestione degli sponsor e delle loro richieste.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild>
+                    <Link href="/admin/sponsors">Vai alla Gestione Sponsor</Link>
+                </Button>
             </CardContent>
         </Card>
     </div>
