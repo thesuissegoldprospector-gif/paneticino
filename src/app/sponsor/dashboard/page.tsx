@@ -1,28 +1,17 @@
 'use client';
 
-import { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, doc, query } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase, useUser, useCollection } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut } from 'lucide-react';
+import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAuth, signOut } from 'firebase/auth';
-import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from '@/lib/utils';
-
-
-// Helper for status badge, will be used inside the main component
-const statusConfig: Record<string, { label: string; color: string }> = {
-  available: { label: 'Disponibile', color: 'bg-green-500 hover:bg-green-500/80' },
-  booked: { label: 'Prenotato', color: 'bg-yellow-500 hover:bg-yellow-500/80' },
-};
-
-const StatusBadge = ({ status }: { status: string }) => {
-  const config = statusConfig[status] || { label: 'Sconosciuto', color: 'bg-gray-400' };
-  return <Badge className={cn('text-white', config.color)}>{config.label}</Badge>;
-};
-
+import { addDays, format, startOfWeek, subDays, eachDayOfInterval, getDay } from 'date-fns';
+import { it } from 'date-fns/locale';
 
 function useUserDoc(userId?: string) {
   const firestore = useFirestore();
@@ -30,39 +19,202 @@ function useUserDoc(userId?: string) {
   return useDoc(userRef);
 }
 
+// --- Hardcoded data matching the image ---
+const bookingData: { [key: string]: { status: 'Libero' | 'Prenotato' | 'In Revisione' | 'Non Disponibile' | 'Libero-no-price', price?: number } } = {
+  // Lunedì 24
+  '2024-06-24_06:00 - 07:00': { status: 'Libero', price: 8 },
+  '2024-06-24_07:00 - 08:00': { status: 'Libero', price: 8 },
+  '2024-06-24_08:00 - 09:00': { status: 'Libero', price: 10 },
+  '2024-06-24_09:00 - 10:00': { status: 'Libero', price: 15 },
+  '2024-06-24_10:00 - 11:00': { status: 'Libero', price: 12 },
+  '2024-06-24_11:00 - 12:00': { status: 'Libero', price: 12 },
+  // Martedì 25
+  '2024-06-25_06:00 - 07:00': { status: 'Libero', price: 8 },
+  '2024-06-25_07:00 - 08:00': { status: 'Prenotato' },
+  '2024-06-25_08:00 - 09:00': { status: 'Libero', price: 10 },
+  '2024-06-25_09:00 - 10:00': { status: 'Libero', price: 15 },
+  '2024-06-25_10:00 - 11:00': { status: 'Prenotato' },
+  '2024-06-25_11:00 - 12:00': { status: 'Prenotato' },
+  // Mercoledì 26
+  '2024-06-26_06:00 - 07:00': { status: 'Prenotato' }, // This one is orange in the image
+  '2024-06-26_07:00 - 08:00': { status: 'In Revisione' },
+  '2024-06-26_08:00 - 09:00': { status: 'Libero', price: 10 },
+  '2024-06-26_09:00 - 10:00': { status: 'Libero', price: 15 },
+  '2024-06-26_10:00 - 11:00': { status: 'Libero', price: 12 },
+  '2024-06-26_11:00 - 12:00': { status: 'Libero', price: 12 },
+  // Giovedì 27
+  '2024-06-27_06:00 - 07:00': { status: 'Libero', price: 8 },
+  '2024-06-27_07:00 - 08:00': { status: 'Libero', price: 8 },
+  '2024-06-27_08:00 - 09:00': { status: 'Libero', price: 10 },
+  '2024-06-27_09:00 - 10:00': { status: 'Libero', price: 15 },
+  '2024-06-27_10:00 - 11:00': { status: 'Libero', price: 12 },
+  '2024-06-27_11:00 - 12:00': { status: 'Libero', price: 12 },
+  // Venerdì 28
+  '2024-06-28_06:00 - 07:00': { status: 'Libero', price: 8 },
+  '2024-06-28_07:00 - 08:00': { status: 'Prenotato' },
+  '2024-06-28_08:00 - 09:00': { status: 'Prenotato' }, // This one is red/orange
+  '2024-06-28_09:00 - 10:00': { status: 'Libero', price: 15 },
+  '2024-06-28_10:00 - 11:00': { status: 'Libero', price: 12 },
+  '2024-06-28_11:00 - 12:00': { status: 'Libero', price: 12 },
+  // Sabato 29
+  '2024-06-29_06:00 - 07:00': { status: 'Libero', price: 8 },
+  '2024-06-29_07:00 - 08:00': { status: 'Libero', price: 8 },
+  '2024-06-29_08:00 - 09:00': { status: 'Libero', price: 10 },
+  '2024-06-29_09:00 - 10:00': { status: 'Libero', price: 15 },
+  '2024-06-29_10:00 - 11:00': { status: 'Libero', price: 12 },
+  '2024-06-29_11:00 - 12:00': { status: 'Libero', price: 12 },
+  // Domenica 30
+  '2024-06-30_06:00 - 07:00': { status: 'Libero', price: 8 },
+  '2024-06-30_07:00 - 08:00': { status: 'Libero', price: 8 },
+  '2024-06-30_08:00 - 09:00': { status: 'Libero', price: 10 },
+  '2024-06-30_09:00 - 10:00': { status: 'Libero', price: 15 },
+  '2024-06-30_10:00 - 11:00': { status: 'Libero-no-price' },
+  '2024-06-30_11:00 - 12:00': { status: 'Non Disponibile' },
+};
+
+// --- New Calendar Component ---
+const SponsorBookingCalendar = () => {
+    const [currentDate, setCurrentDate] = useState(new Date('2024-06-24'));
+    const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+
+    const weekStartsOn = 1; // Monday
+    const start = startOfWeek(currentDate, { weekStartsOn });
+    const end = addDays(start, 6);
+    const weekDays = eachDayOfInterval({ start, end });
+
+    const timeSlots = [
+        '06:00 - 07:00', '07:00 - 08:00', '08:00 - 09:00',
+        '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00',
+    ];
+    
+    const handlePrevWeek = () => setCurrentDate(subDays(currentDate, 7));
+    const handleNextWeek = () => setCurrentDate(addDays(currentDate, 7));
+
+    const toggleSlotSelection = (slotKey: string) => {
+        const slotData = bookingData[slotKey];
+        if (slotData?.status !== 'Libero' && slotData?.status !== 'Libero-no-price') return;
+
+        setSelectedSlots(prev => 
+            prev.includes(slotKey) ? prev.filter(s => s !== slotKey) : [...prev, slotKey]
+        );
+    };
+
+    const getStatusClass = (status: string, key: string, isOrange: boolean) => {
+        const isSelected = selectedSlots.includes(key);
+        const baseClass = 'w-full h-full text-xs font-semibold text-white p-1 rounded-md flex flex-col justify-center items-center text-center';
+        
+        if (isSelected) return cn(baseClass, 'ring-2 ring-offset-2 ring-blue-500 bg-green-600');
+
+        switch (status) {
+            case 'Libero':
+            case 'Libero-no-price':
+                return cn(baseClass, 'bg-green-500 hover:bg-green-600');
+            case 'Prenotato':
+                if (isOrange) return cn(baseClass, 'bg-orange-500 cursor-not-allowed');
+                // The image shows a red-ish one too, let's make a special case
+                if (key === '2024-06-28_08:00 - 09:00') return cn(baseClass, 'bg-red-500 cursor-not-allowed');
+                return cn(baseClass, 'bg-gray-400 cursor-not-allowed');
+            case 'In Revisione':
+                return cn(baseClass, 'bg-yellow-500 cursor-not-allowed');
+            case 'Non Disponibile':
+                return cn(baseClass, 'bg-gray-300 !text-gray-600 cursor-not-allowed');
+            default:
+                return cn(baseClass, 'bg-gray-200 !text-gray-500');
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 space-y-1">
+                    <label className="text-sm font-medium">Seleziona Pagina:</label>
+                    <Select defaultValue="home">
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="home">Home</SelectItem></SelectContent>
+                    </Select>
+                </div>
+                <div className="flex-1 space-y-1">
+                    <label className="text-sm font-medium">Seleziona Slot:</label>
+                    <Select defaultValue="card1">
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="card1">Card 1</SelectItem></SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            {/* Week Navigation */}
+            <div className="flex items-center justify-between">
+                <Button variant="ghost" onClick={handlePrevWeek}><ChevronLeft className="mr-2 h-4 w-4" /> Settimana Prec</Button>
+                <span className="font-semibold text-lg">{format(start, 'd')} - {format(end, 'd MMMM yyyy', { locale: it })}</span>
+                <Button variant="ghost" onClick={handleNextWeek}>Settimana Succ <ChevronRight className="ml-2 h-4 w-4" /></Button>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="overflow-x-auto">
+                <div className="grid grid-cols-[auto_repeat(7,1fr)] gap-1 min-w-[700px]">
+                    {/* Header Row */}
+                    <div /> {/* Empty corner */}
+                    {weekDays.map(day => (
+                        <div key={day.toString()} className="text-center font-semibold p-2 capitalize">
+                           {format(day, 'eeee d', { locale: it })}
+                        </div>
+                    ))}
+
+                    {/* Time Slot Rows */}
+                    {timeSlots.map(time => (
+                        <React.Fragment key={time}>
+                            <div className="text-sm text-muted-foreground p-2 text-right">{time}</div>
+                            {weekDays.map(day => {
+                                const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
+                                const slotData = bookingData[key];
+                                const isBookedOrange = key === '2024-06-26_06:00 - 07:00';
+                                
+                                return (
+                                    <div key={key} className="p-1 h-16">
+                                        {slotData ? (
+                                            <button 
+                                                className={getStatusClass(slotData.status, key, isBookedOrange)}
+                                                onClick={() => toggleSlotSelection(key)}
+                                                disabled={slotData.status !== 'Libero' && slotData.status !== 'Libero-no-price'}
+                                            >
+                                                <span>{slotData.status.replace('-no-price', '')}</span>
+                                                {slotData.price && <span>CHF {slotData.price}</span>}
+                                            </button>
+                                        ) : <div className="w-full h-full bg-gray-100 rounded-md" />}
+                                    </div>
+                                );
+                            })}
+                        </React.Fragment>
+                    ))}
+                </div>
+            </div>
+
+             {/* Action Button */}
+            <div className="flex justify-end pt-4">
+                <Button size="lg" disabled={selectedSlots.length === 0}>
+                    Prenota Spazio
+                </Button>
+            </div>
+        </div>
+    );
+};
+
 
 // --- Main Page Component ---
-
 export default function SponsorDashboardPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
-  const firestore = useFirestore();
 
   // User and Sponsor profile fetching
   const { data: userDoc, isLoading: isUserDocLoading } = useUserDoc(user?.uid);
   const sponsorDocRef = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return doc(firestore, 'sponsors', user.uid);
-  }, [firestore, user]);
+    if (!useFirestore || !user) return null;
+    return doc(useFirestore(), 'sponsors', user.uid);
+  }, [user]);
   const { data: sponsorProfile, isLoading: isSponsorProfileLoading } = useDoc(sponsorDocRef);
 
-  // --- Ad Spaces Fetching Logic ---
-  const adSpacesQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null; // Only run query if user is authenticated
-    console.log("Auth confirmed, preparing ad_spaces query.");
-    return query(collection(firestore, 'ad_spaces'));
-  }, [user, firestore]);
-
-  const { data: adSpaces, isLoading: isAdSpacesLoading } = useCollection(adSpacesQuery);
-  
-  useEffect(() => {
-    if (user && adSpaces) {
-      console.log(`Query for ad_spaces completed. Documents found: ${adSpaces.length}`);
-    }
-  }, [adSpaces, user]);
-
-
-  // Combined loading state for the entire page
+  // Combined loading state
   const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading;
 
   const handleLogout = async () => {
@@ -70,36 +222,29 @@ export default function SponsorDashboardPage() {
     router.push('/login');
   };
 
-  const fullPageLoader = (
-    <div className="flex h-full min-h-[calc(100vh-8rem)] items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-    </div>
-  );
-
-  // Page-level loading and redirects
   if (isLoading) {
-    return fullPageLoader;
+    return (
+        <div className="flex h-full min-h-[calc(100vh-8rem)] items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+    );
   }
 
   if (!user) {
     router.replace('/login');
-    return fullPageLoader;
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin"/></div>;
   }
   if (userDoc?.role !== 'sponsor') {
     router.replace('/profile');
-    return fullPageLoader;
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin"/></div>;
   }
 
   if (!sponsorProfile) {
     return (
         <div className="container mx-auto max-w-2xl px-4 py-8">
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><AlertTriangle /> Profilo Sponsor non trovato</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p>Non abbiamo trovato un profilo sponsor associato al tuo account. Questo potrebbe essere un errore.</p>
-                </CardContent>
+                <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle /> Profilo Sponsor non trovato</CardTitle></CardHeader>
+                <CardContent><p>Non abbiamo trovato un profilo sponsor associato al tuo account.</p></CardContent>
             </Card>
         </div>
     );
@@ -107,105 +252,25 @@ export default function SponsorDashboardPage() {
 
   const status = sponsorProfile.approvalStatus;
 
-  // --- UI Rendering ---
-  const renderAdSpacesContent = () => {
-    if (isAdSpacesLoading) {
-      return (
-        <div className="flex justify-center items-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <p className="ml-2 text-muted-foreground">Caricamento spazi...</p>
-        </div>
-      );
-    }
-    if (!adSpaces || adSpaces.length === 0) {
-      return (
-        <p className="py-8 text-center text-muted-foreground">
-          Nessuno spazio pubblicitario disponibile al momento.
-        </p>
-      );
-    }
-    return (
-      <div className="space-y-4">
-        {/* Desktop-only Header */}
-        <div className="hidden rounded-md bg-muted/50 p-4 md:grid md:grid-cols-[2fr_1fr_1fr_auto] md:gap-4">
-          <h3 className="font-semibold">Spazio Pubblicitario</h3>
-          <h3 className="font-semibold">Prezzo</h3>
-          <h3 className="font-semibold text-center">Stato</h3>
-          <h3 className="font-semibold text-right">Azione</h3>
-        </div>
-  
-        {/* Ad Spaces List */}
-        <div className="space-y-4">
-          {adSpaces.map((space) => (
-            <Card key={space.id} className="overflow-hidden md:grid md:grid-cols-[2fr_1fr_1fr_auto] md:items-center md:gap-4 md:rounded-lg md:p-4">
-              
-              {/* --- Mobile View --- */}
-              <div className="md:hidden">
-                <CardHeader>
-                    <CardTitle>{space.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Prezzo</span>
-                        <span className="font-medium">{space.price ? `${space.price.toFixed(2)} CHF` : 'N/D'}</span>
-                    </div>
-                     <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Stato</span>
-                        <StatusBadge status={space.status} />
-                    </div>
-                </CardContent>
-                <CardFooter>
-                     <Button disabled className="w-full">
-                        Prenota
-                    </Button>
-                </CardFooter>
-              </div>
-
-              {/* --- Desktop View (uses grid columns) --- */}
-              <div className="hidden md:block font-semibold">
-                {space.name}
-              </div>
-              <div className="hidden md:block">
-                {space.price ? `${space.price.toFixed(2)} CHF` : 'N/D'}
-              </div>
-              <div className="hidden md:flex md:justify-center">
-                <StatusBadge status={space.status} />
-              </div>
-              <div className="hidden md:block text-right">
-                <Button disabled>
-                  Prenota
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="container mx-auto max-w-7xl px-4 py-8">
         <div className="space-y-8">
             {status === 'pending' && (
                 <Card className="border-yellow-500">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-yellow-600"><Clock /> Richiesta in Revisione</CardTitle>
-                        <CardDescription>Il tuo profilo sponsor è in attesa di approvazione da parte del nostro team. Riceverai una notifica non appena sarà stato revisionato.</CardDescription>
+                        <CardDescription>Il tuo profilo sponsor è in attesa di approvazione. Riceverai una notifica non appena sarà stato revisionato.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <p>Grazie per la tua pazienza. Di solito esaminiamo le richieste entro 24-48 ore.</p>
-                    </CardContent>
                 </Card>
             )}
 
             {status === 'approved' && (
-                <Card className="border-green-500">
+                <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-green-600"><CheckCircle /> Benvenuto, Sponsor!</CardTitle>
-                        <CardDescription>Il tuo account è stato approvato. Di seguito trovi gli spazi pubblicitari disponibili.</CardDescription>
+                        <CardTitle>Gestione Spazi Pubblicitari</CardTitle>
                     </CardHeader>
                     <CardContent>
-                       {renderAdSpacesContent()}
+                       <SponsorBookingCalendar />
                     </CardContent>
                 </Card>
             )}
@@ -214,11 +279,8 @@ export default function SponsorDashboardPage() {
                 <Card className="border-destructive">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-destructive"><XCircle /> Richiesta Rifiutata</CardTitle>
-                        <CardDescription>Purtroppo, la tua richiesta di sponsorizzazione non è stata approvata in questo momento.</CardDescription>
+                        <CardDescription>Purtroppo, la tua richiesta di sponsorizzazione non è stata approvata. Contatta il supporto per maggiori informazioni.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <p>Se ritieni che ci sia stato un errore o desideri maggiori informazioni, non esitare a contattare il nostro supporto.</p>
-                    </CardContent>
                 </Card>
             )}
         </div>
