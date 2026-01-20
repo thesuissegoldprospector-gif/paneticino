@@ -4,15 +4,12 @@ import { useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, doc, query } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase, useUser, useCollection } from '@/firebase';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut, Package, BarChart } from 'lucide-react';
-import Link from 'next/link';
+import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut } from 'lucide-react';
 import { getAuth, signOut } from 'firebase/auth';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 // Helper for status badge, will be used inside the main component
@@ -51,20 +48,19 @@ export default function SponsorDashboardPage() {
 
   // --- Ad Spaces Fetching Logic ---
   const adSpacesQuery = useMemoFirebase(() => {
-    if (!firestore || !user) {
-      return null;
-    }
-    console.log("Query per ad_spaces avviata perché l'utente è autenticato.");
+    if (!user || !firestore) return null; // Only run query if user is authenticated
+    console.log("Auth confirmed, preparing ad_spaces query.");
     return query(collection(firestore, 'ad_spaces'));
-  }, [firestore, user]);
+  }, [user, firestore]);
 
   const { data: adSpaces, isLoading: isAdSpacesLoading } = useCollection(adSpacesQuery);
-
+  
   useEffect(() => {
     if (user && adSpaces) {
-      console.log(`Query per ad_spaces completata. Documenti trovati: ${adSpaces.length}`);
+      console.log(`Query for ad_spaces completed. Documents found: ${adSpaces.length}`);
     }
   }, [adSpaces, user]);
+
 
   // Combined loading state for the entire page
   const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading;
@@ -129,35 +125,60 @@ export default function SponsorDashboardPage() {
       );
     }
     return (
-      <div className="border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome spazio</TableHead>
-              <TableHead>Prezzo</TableHead>
-              <TableHead>Stato</TableHead>
-              <TableHead className="text-right">Azione</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {adSpaces.map((space) => (
-              <TableRow key={space.id}>
-                <TableCell className="font-medium">{space.name}</TableCell>
-                <TableCell>{space.price ? `${space.price.toFixed(2)} CHF` : 'N/D'}</TableCell>
-                <TableCell><StatusBadge status={space.status} /></TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant={space.status === 'available' ? 'default' : 'secondary'}
-                    size="sm"
-                    disabled={true}
-                  >
-                    {space.status === 'available' ? 'Prenota' : 'Non disponibile'}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="space-y-4">
+        {/* Desktop-only Header */}
+        <div className="hidden rounded-md bg-muted/50 p-4 md:grid md:grid-cols-[2fr_1fr_1fr_auto] md:gap-4">
+          <h3 className="font-semibold">Spazio Pubblicitario</h3>
+          <h3 className="font-semibold">Prezzo</h3>
+          <h3 className="font-semibold text-center">Stato</h3>
+          <h3 className="font-semibold text-right">Azione</h3>
+        </div>
+  
+        {/* Ad Spaces List */}
+        <div className="space-y-4">
+          {adSpaces.map((space) => (
+            <Card key={space.id} className="overflow-hidden md:grid md:grid-cols-[2fr_1fr_1fr_auto] md:items-center md:gap-4 md:rounded-lg md:p-4">
+              
+              {/* --- Mobile View --- */}
+              <div className="md:hidden">
+                <CardHeader>
+                    <CardTitle>{space.name}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Prezzo</span>
+                        <span className="font-medium">{space.price ? `${space.price.toFixed(2)} CHF` : 'N/D'}</span>
+                    </div>
+                     <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Stato</span>
+                        <StatusBadge status={space.status} />
+                    </div>
+                </CardContent>
+                <CardFooter>
+                     <Button disabled className="w-full">
+                        Prenota
+                    </Button>
+                </CardFooter>
+              </div>
+
+              {/* --- Desktop View (uses grid columns) --- */}
+              <div className="hidden md:block font-semibold">
+                {space.name}
+              </div>
+              <div className="hidden md:block">
+                {space.price ? `${space.price.toFixed(2)} CHF` : 'N/D'}
+              </div>
+              <div className="hidden md:flex md:justify-center">
+                <StatusBadge status={space.status} />
+              </div>
+              <div className="hidden md:block text-right">
+                <Button disabled>
+                  Prenota
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   };
