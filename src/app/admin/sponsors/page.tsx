@@ -8,7 +8,6 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -35,7 +34,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
   Dialog,
@@ -64,7 +62,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -119,6 +117,7 @@ export default function AdminSponsorsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<SponsorStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [dialogAction, setDialogAction] = useState<{ action: SponsorStatus; sponsor: SponsorData } | null>(null);
 
   useEffect(() => {
     if (!firestore) return;
@@ -129,6 +128,12 @@ export default function AdminSponsorsPage() {
         const sponsorsQuery = query(collection(firestore, 'sponsors'));
         const sponsorsSnapshot = await getDocs(sponsorsQuery);
         const sponsorProfiles = sponsorsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        if (sponsorProfiles.length === 0) {
+            setSponsors([]);
+            setIsLoading(false);
+            return;
+        }
 
         const userIds = sponsorProfiles.map(s => s.userId).filter(Boolean);
         if (userIds.length === 0) {
@@ -309,76 +314,37 @@ export default function AdminSponsorsPage() {
                         {format(new Date(sponsor.registrationDate), 'dd MMM yyyy', { locale: it })}
                       </TableCell>
                       <TableCell className="text-right">
-                        <AlertDialog>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem disabled>Apri Dettagli</DropdownMenuItem>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem
-                                  className={cn(
-                                    sponsor.approvalStatus !== 'approved' && 'text-green-600 focus:bg-green-100 focus:text-green-700'
-                                  )}
-                                  disabled={sponsor.approvalStatus === 'approved'}
-                                  onClick={(e) => e.preventDefault()}
-                                >
-                                  Approva
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem
-                                  className={cn(
-                                    sponsor.approvalStatus === 'approved' && 'text-yellow-600 focus:bg-yellow-100 focus:text-yellow-700'
-                                  )}
-                                  disabled={sponsor.approvalStatus !== 'approved'}
-                                  onClick={(e) => e.preventDefault()}
-                                >
-                                  Sospendi
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem
-                                  className="text-red-600 focus:bg-red-100 focus:text-red-700"
-                                  disabled={sponsor.approvalStatus === 'rejected'}
-                                  onClick={(e) => e.preventDefault()}
-                                >
-                                  Rifiuta
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Seleziona la nuova azione per <strong>{sponsor.companyName}</strong>.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annulla</AlertDialogCancel>
-                              {sponsor.approvalStatus !== 'approved' &&
-                                <AlertDialogAction onClick={() => handleStatusUpdate(sponsor.id, 'approved')}>
-                                  Approva
-                                </AlertDialogAction>
-                              }
-                              {sponsor.approvalStatus === 'approved' &&
-                                <AlertDialogAction className={cn(buttonVariants({ variant: "secondary" }))} onClick={() => handleStatusUpdate(sponsor.id, 'pending')}>
-                                  Sospendi
-                                </AlertDialogAction>
-                              }
-                              {sponsor.approvalStatus !== 'rejected' &&
-                                <AlertDialogAction className={cn(buttonVariants({ variant: "destructive" }))} onClick={() => handleStatusUpdate(sponsor.id, 'rejected')}>
-                                  Rifiuta
-                                </AlertDialogAction>
-                              }
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem disabled>Apri Dettagli</DropdownMenuItem>
+                            <DropdownMenuItem
+                              className='text-green-600 focus:text-green-700'
+                              disabled={sponsor.approvalStatus === 'approved'}
+                              onSelect={() => setDialogAction({ action: 'approved', sponsor })}
+                            >
+                              Approva
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className='text-yellow-600 focus:text-yellow-700'
+                              disabled={sponsor.approvalStatus !== 'approved'}
+                              onSelect={() => setDialogAction({ action: 'pending', sponsor })}
+                            >
+                              Sospendi
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-700"
+                              disabled={sponsor.approvalStatus === 'rejected'}
+                              onSelect={() => setDialogAction({ action: 'rejected', sponsor })}
+                            >
+                              Rifiuta
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -394,6 +360,36 @@ export default function AdminSponsorsPage() {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Confirmation Dialog */}
+      <AlertDialog open={!!dialogAction} onOpenChange={(open) => !open && setDialogAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Conferma Azione</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler cambiare lo stato di <strong>{dialogAction?.sponsor.companyName}</strong> in "{statusConfig[dialogAction?.action || 'pending'].label}"?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDialogAction(null)}>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (dialogAction) {
+                  handleStatusUpdate(dialogAction.sponsor.id, dialogAction.action);
+                  setDialogAction(null);
+                }
+              }}
+              className={cn({
+                  'bg-green-600 text-white hover:bg-green-700': dialogAction?.action === 'approved',
+                  'bg-yellow-500 text-white hover:bg-yellow-600': dialogAction?.action === 'pending',
+                  [buttonVariants({ variant: 'destructive' })]: dialogAction?.action === 'rejected',
+              })}
+            >
+              Conferma
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
