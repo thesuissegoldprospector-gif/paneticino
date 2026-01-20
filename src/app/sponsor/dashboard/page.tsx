@@ -6,8 +6,9 @@ import { doc } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut } from 'lucide-react';
 import Link from 'next/link';
+import { getAuth, signOut } from 'firebase/auth';
 
 
 function useUserDoc(userId?: string) {
@@ -32,6 +33,11 @@ export default function SponsorDashboardPage() {
   const { data: sponsorProfile, isLoading: isSponsorProfileLoading } = useDoc(sponsorDocRef);
 
   const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading;
+
+  const handleLogout = async () => {
+    await signOut(getAuth());
+    router.push('/login');
+  };
 
   const fullPageLoader = (
     <div className="flex h-full min-h-[calc(100vh-8rem)] items-center justify-center">
@@ -124,6 +130,11 @@ export default function SponsorDashboardPage() {
                     </CardFooter>
                 </Card>
             )}
+        </div>
+        <div className="mt-8 flex justify-center">
+            <Button variant="destructive" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" /> Esci
+            </Button>
         </div>
     </div>
   );
