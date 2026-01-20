@@ -104,7 +104,7 @@ function SponsorAuthForm() {
         title: 'Richiesta Inviata!',
         description: "Il tuo account è stato creato. Verrai reindirizzato al tuo profilo.",
       });
-      router.push('/profile');
+      window.location.assign('/profile');
 
     } catch (error: any) {
       console.error(error);
@@ -128,7 +128,7 @@ function SponsorAuthForm() {
         title: 'Accesso Riuscito!',
         description: 'Benvenuto! Verrai reindirizzato al tuo profilo.',
       });
-      router.push('/profile');
+      window.location.assign('/profile');
     } catch (error: any) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Errore di accesso', description: 'Email o password non corretti.' });
