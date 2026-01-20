@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import CustomerDashboard from './CustomerDashboard';
 import BakerDashboard from './BakerDashboard';
+import SponsorDashboard from './SponsorDashboard';
 
 function useUserDoc(userId?: string) {
   const firestore = useFirestore();
@@ -83,6 +84,7 @@ export default function ProfilePage() {
 
       {role === 'baker' && <BakerDashboard user={user} userDoc={userDoc} />}
       {role === 'customer' && <CustomerDashboard user={user} userDoc={userDoc} />}
+      {role === 'sponsor' && <SponsorDashboard user={user} />}
 
       <div className="flex justify-center pt-8">
         <Button variant="destructive" onClick={handleLogout}>

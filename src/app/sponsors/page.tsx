@@ -15,6 +15,7 @@ import { Building, CalendarCheck, Lock, Mail, ShieldCheck, UploadCloud, UserPlus
 import Image from 'next/image';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const registerSchema = z.object({
   companyName: z.string().min(2, { message: 'Il nome azienda è obbligatorio.' }),
@@ -55,6 +56,7 @@ function SponsorAuthForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { auth, firestore } = useFirebase();
   const { toast } = useToast();
+  const router = useRouter();
 
   const registerForm = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -100,9 +102,9 @@ function SponsorAuthForm() {
       
       toast({
         title: 'Richiesta Inviata!',
-        description: "Il tuo account è stato creato e inviato per l'approvazione.",
+        description: "Il tuo account è stato creato. Verrai reindirizzato al tuo profilo.",
       });
-      registerForm.reset();
+      router.push('/profile');
 
     } catch (error: any) {
       console.error(error);
@@ -124,9 +126,9 @@ function SponsorAuthForm() {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
         title: 'Accesso Riuscito!',
-        description: 'Benvenuto sponsor. A breve verrà implementata la tua dashboard.',
+        description: 'Benvenuto! Verrai reindirizzato al tuo profilo.',
       });
-      loginForm.reset();
+      router.push('/profile');
     } catch (error: any) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Errore di accesso', description: 'Email o password non corretti.' });
