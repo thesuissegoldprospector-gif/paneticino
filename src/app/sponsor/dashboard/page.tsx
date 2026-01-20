@@ -32,22 +32,24 @@ export default function SponsorDashboardPage() {
 
   const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading;
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
+  const fullPageLoader = (
+    <div className="flex h-full min-h-[calc(100vh-8rem)] items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
+    </div>
+  );
+
+  if (isLoading) {
+    return fullPageLoader;
   }
 
   // Route Protection
   if (!user) {
-    router.replace('/login'); // Not logged in, go to login
-    return null; // Render nothing while redirecting
+    router.replace('/login');
+    return fullPageLoader;
   }
   if (userDoc?.role !== 'sponsor') {
-    router.replace('/profile'); // Not a sponsor, go to regular profile
-    return null; // Render nothing while redirecting
+    router.replace('/profile');
+    return fullPageLoader;
   }
 
   if (!sponsorProfile) {
@@ -96,9 +98,9 @@ export default function SponsorDashboardPage() {
                     <CardContent>
                         <p>Usa i link sottostanti per gestire le tue campagne e visualizzare le performance.</p>
                     </CardContent>
-                    <CardFooter className="gap-4">
-                        <Button disabled>Gestisci Spazi Pubblicitari (Presto disponibile)</Button>
-                        <Button variant="secondary" disabled>Visualizza Statistiche (Presto disponibile)</Button>
+                    <CardFooter className="flex-col sm:flex-row gap-4">
+                        <Button>Gestisci Spazi Pubblicitari</Button>
+                        <Button variant="secondary">Visualizza Statistiche</Button>
                     </CardFooter>
                 </Card>
             )}
