@@ -152,8 +152,12 @@ export default function SponsorDashboardPage() {
                 <TableCell>{space.price ? `${space.price.toFixed(2)} CHF` : 'N/D'}</TableCell>
                 <TableCell><StatusBadge status={space.status} /></TableCell>
                 <TableCell className="text-right">
-                  <Button variant="outline" size="sm" disabled>
-                    Prenota
+                  <Button
+                    variant={space.status === 'available' ? 'default' : 'secondary'}
+                    size="sm"
+                    disabled={space.status !== 'available'}
+                  >
+                    {space.status === 'available' ? 'Prenota' : 'Non disponibile'}
                   </Button>
                 </TableCell>
               </TableRow>
