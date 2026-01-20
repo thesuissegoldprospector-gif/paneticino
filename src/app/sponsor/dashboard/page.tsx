@@ -8,11 +8,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 
 function useUserDoc(userId?: string) {
@@ -105,19 +100,8 @@ export default function SponsorDashboardPage() {
                         <p>Usa i link sottostanti per gestire le tue campagne e visualizzare le performance.</p>
                     </CardContent>
                     <CardFooter className="flex-col sm:flex-row gap-4">
-                        <Button asChild>
-                            <Link href="/sponsors">Gestisci Spazi Pubblicitari</Link>
-                        </Button>
-                         <Tooltip>
-                            <TooltipTrigger asChild>
-                                <span tabIndex={0}>
-                                    <Button variant="secondary" disabled>Visualizza Statistiche</Button>
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Funzionalità in arrivo!</p>
-                            </TooltipContent>
-                        </Tooltip>
+                        <Button disabled>Gestisci Spazi Pubblicitari</Button>
+                        <Button variant="secondary" disabled>Visualizza Statistiche</Button>
                     </CardFooter>
                 </Card>
             )}
