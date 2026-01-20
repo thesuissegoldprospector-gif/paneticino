@@ -98,14 +98,11 @@ const SponsorBookingCalendar = () => {
     const end = addDays(start, 6);
     const weekDays = eachDayOfInterval({ start, end });
 
-    const timeSlots = [
-        '00:00 - 01:00', '01:00 - 02:00', '02:00 - 03:00', '03:00 - 04:00',
-        '04:00 - 05:00', '05:00 - 06:00', '06:00 - 07:00', '07:00 - 08:00',
-        '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00',
-        '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00',
-        '16:00 - 17:00', '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00',
-        '20:00 - 21:00', '21:00 - 22:00', '22:00 - 23:00', '23:00 - 24:00'
-    ];
+    const timeSlots = Array.from({ length: 24 }, (_, i) => {
+        const startHour = i.toString().padStart(2, '0');
+        const endHour = (i + 1).toString().padStart(2, '0');
+        return `${startHour}:00 - ${endHour}:00`;
+    });
     
     const handlePrevWeek = () => setCurrentDate(subDays(currentDate, 7));
     const handleNextWeek = () => setCurrentDate(addDays(currentDate, 7));
@@ -164,19 +161,28 @@ const SponsorBookingCalendar = () => {
             </div>
 
             {/* Week Navigation */}
-            <div className="flex items-center justify-between">
-                <Button variant="ghost" onClick={handlePrevWeek}><ChevronLeft className="mr-2 h-4 w-4" /> Settimana Prec</Button>
-                <span className="font-semibold text-lg">{format(start, 'd')} - {format(end, 'd MMMM yyyy', { locale: it })}</span>
-                <Button variant="ghost" onClick={handleNextWeek}>Settimana Succ <ChevronRight className="ml-2 h-4" /></Button>
+            <div className="flex items-center justify-between rounded-md border bg-card p-3">
+              <Button variant="outline" size="icon" onClick={handlePrevWeek}>
+                <ChevronLeft className="h-4 w-4" />
+                <span className="sr-only">Settimana Precedente</span>
+              </Button>
+              <div className="text-center">
+                <p className="text-sm font-medium text-muted-foreground">Settimana</p>
+                <p className="font-semibold">{format(start, 'd')} - {format(end, 'd MMMM yyyy', { locale: it })}</p>
+              </div>
+              <Button variant="outline" size="icon" onClick={handleNextWeek}>
+                <ChevronRight className="h-4 w-4" />
+                <span className="sr-only">Settimana Successiva</span>
+              </Button>
             </div>
 
             {/* Calendar Grid */}
-            <div className="overflow-auto max-h-[600px] relative border rounded-md">
+            <div className="overflow-auto relative border rounded-md max-h-[60vh]">
                 <div className="grid grid-cols-[auto_repeat(7,1fr)] gap-1 min-w-[900px]">
                     {/* Header Row */}
                     <div className="sticky top-0 bg-background z-10" /> {/* Empty corner */}
                     {weekDays.map(day => (
-                        <div key={day.toString()} className="text-center font-semibold p-2 capitalize sticky top-0 bg-background z-10">
+                        <div key={day.toString()} className="text-center font-semibold p-2 capitalize sticky top-0 bg-card z-10 border-b">
                            {format(day, 'eeee d', { locale: it })}
                         </div>
                     ))}
@@ -184,14 +190,14 @@ const SponsorBookingCalendar = () => {
                     {/* Time Slot Rows */}
                     {timeSlots.map(time => (
                         <React.Fragment key={time}>
-                            <div className="text-sm text-muted-foreground p-2 text-right sticky left-0 bg-background">{time}</div>
+                            <div className="text-sm text-muted-foreground p-2 text-right sticky left-0 bg-card border-r">{time}</div>
                             {weekDays.map(day => {
                                 const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
                                 const slotData = bookingData[key];
                                 const isBookedOrange = key === '2024-06-26_06:00 - 07:00';
                                 
                                 return (
-                                    <div key={key} className="p-1 h-16">
+                                    <div key={key} className="p-1 h-16 border-b border-r">
                                         {slotData ? (
                                             <button 
                                                 className={getStatusClass(slotData.status, key, isBookedOrange)}
