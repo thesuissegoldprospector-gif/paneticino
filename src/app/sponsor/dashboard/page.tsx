@@ -100,8 +100,12 @@ export default function SponsorDashboardPage() {
                         <p>Usa i link sottostanti per gestire le tue campagne e visualizzare le performance.</p>
                     </CardContent>
                     <CardFooter className="flex-col sm:flex-row gap-4">
-                        <Button disabled>Gestisci Spazi Pubblicitari</Button>
-                        <Button variant="secondary" disabled>Visualizza Statistiche</Button>
+                        <Button asChild>
+                            <Link href="/sponsor/spaces">Gestisci Spazi Pubblicitari</Link>
+                        </Button>
+                        <Button asChild variant="secondary">
+                            <Link href="/sponsor/stats">Visualizza Statistiche</Link>
+                        </Button>
                     </CardFooter>
                 </Card>
             )}
