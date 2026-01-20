@@ -2,13 +2,85 @@
 
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { collection, doc, query } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, useUser, useCollection } from '@/firebase';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { getAuth, signOut } from 'firebase/auth';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+// --- Sub-components ---
+
+function AdSpacesList() {
+  const firestore = useFirestore();
+
+  const adSpacesQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'ad_spaces'));
+  }, [firestore]);
+
+  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
+
+  const statusConfig: Record<string, { label: string; color: string }> = {
+    available: { label: 'Disponibile', color: 'bg-green-500 hover:bg-green-500/80' },
+    booked: { label: 'Prenotato', color: 'bg-yellow-500 hover:bg-yellow-500/80' },
+  };
+  
+  const StatusBadge = ({ status }: { status: string }) => {
+    const config = statusConfig[status] || { label: 'Sconosciuto', color: 'bg-gray-400' };
+    return <Badge className={cn('text-white', config.color)}>{config.label}</Badge>;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <p className="ml-2 text-muted-foreground">Caricamento spazi...</p>
+      </div>
+    );
+  }
+
+  if (!adSpaces || adSpaces.length === 0) {
+    return (
+      <p className="py-8 text-center text-muted-foreground">
+        Nessuno spazio pubblicitario disponibile al momento.
+      </p>
+    );
+  }
+
+  return (
+    <div className="border rounded-md">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nome spazio</TableHead>
+            <TableHead>Prezzo</TableHead>
+            <TableHead>Stato</TableHead>
+            <TableHead className="text-right">Azione</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {adSpaces.map((space) => (
+            <TableRow key={space.id}>
+              <TableCell className="font-medium">{space.name}</TableCell>
+              <TableCell>{space.price ? `${space.price.toFixed(2)} CHF` : 'N/D'}</TableCell>
+              <TableCell><StatusBadge status={space.status} /></TableCell>
+              <TableCell className="text-right">
+                <Button variant="outline" size="sm" disabled>
+                  Prenota
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
 
 
 function useUserDoc(userId?: string) {
@@ -17,15 +89,16 @@ function useUserDoc(userId?: string) {
   return useDoc(userRef);
 }
 
+
+// --- Main Page Component ---
+
 export default function SponsorDashboardPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = useFirestore();
 
-  // Fetch user role to protect the route
   const { data: userDoc, isLoading: isUserDocLoading } = useUserDoc(user?.uid);
   
-  // Fetch sponsor profile
   const sponsorDocRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'sponsors', user.uid);
@@ -49,7 +122,6 @@ export default function SponsorDashboardPage() {
     return fullPageLoader;
   }
 
-  // Route Protection
   if (!user) {
     router.replace('/login');
     return fullPageLoader;
@@ -69,11 +141,6 @@ export default function SponsorDashboardPage() {
                 <CardContent>
                     <p>Non abbiamo trovato un profilo sponsor associato al tuo account. Questo potrebbe essere un errore.</p>
                 </CardContent>
-                <CardFooter>
-                    <Button asChild variant="outline">
-                        <Link href="/sponsors">Torna alla pagina Sponsor</Link>
-                    </Button>
-                </CardFooter>
             </Card>
         </div>
     );
@@ -82,7 +149,7 @@ export default function SponsorDashboardPage() {
   const status = sponsorProfile.approvalStatus;
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
+    <div className="container mx-auto max-w-4xl px-4 py-8">
         <div className="space-y-8">
             {status === 'pending' && (
                 <Card className="border-yellow-500">
@@ -100,19 +167,11 @@ export default function SponsorDashboardPage() {
                 <Card className="border-green-500">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-green-600"><CheckCircle /> Benvenuto, Sponsor!</CardTitle>
-                        <CardDescription>Il tuo account è stato approvato. Ora puoi iniziare a esplorare le opzioni di sponsorizzazione.</CardDescription>
+                        <CardDescription>Il tuo account è stato approvato. Di seguito trovi gli spazi pubblicitari disponibili per la prenotazione.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p>Usa i link sottostanti per gestire le tue campagne e visualizzare le performance.</p>
+                       <AdSpacesList />
                     </CardContent>
-                    <CardFooter className="flex-col sm:flex-row gap-4">
-                        <Button asChild>
-                            <Link href="/sponsor/spaces">Gestisci Spazi Pubblicitari</Link>
-                        </Button>
-                        <Button asChild variant="secondary">
-                            <Link href="/sponsor/stats">Visualizza Statistiche</Link>
-                        </Button>
-                    </CardFooter>
                 </Card>
             )}
 
@@ -125,9 +184,6 @@ export default function SponsorDashboardPage() {
                     <CardContent>
                         <p>Se ritieni che ci sia stato un errore o desideri maggiori informazioni, non esitare a contattare il nostro supporto.</p>
                     </CardContent>
-                    <CardFooter>
-                         <Button variant="outline">Contatta il Supporto</Button>
-                    </CardFooter>
                 </Card>
             )}
         </div>
@@ -139,3 +195,5 @@ export default function SponsorDashboardPage() {
     </div>
   );
 }
+
+    

@@ -329,6 +329,40 @@
         "bakerName": { "type": "string" }
       },
       "required": ["id", "productId", "name", "price", "quantity"]
+    },
+    "AdSpace": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdSpace",
+      "type": "object",
+      "description": "Represents an advertising space available for sponsors.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AdSpace."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name or description of the ad space (e.g., 'Homepage Banner')."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price to book this ad space in CHF."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the ad space.",
+          "enum": [
+            "available",
+            "booked"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price",
+        "status"
+      ]
     }
   },
   "auth": {
@@ -468,6 +502,22 @@
             {
               "name": "userId",
               "description": "The unique identifier for the admin user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/ad_spaces/{adSpaceId}",
+        "definition": {
+          "entityName": "AdSpace",
+          "schema": {
+            "$ref": "#/backend/entities/AdSpace"
+          },
+          "description": "Stores available advertising spaces for sponsors. Publicly readable.",
+          "params": [
+            {
+              "name": "adSpaceId",
+              "description": "The unique identifier for the ad space."
             }
           ]
         }
