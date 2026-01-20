@@ -8,6 +8,12 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 
 function useUserDoc(userId?: string) {
   const firestore = useFirestore();
@@ -99,8 +105,19 @@ export default function SponsorDashboardPage() {
                         <p>Usa i link sottostanti per gestire le tue campagne e visualizzare le performance.</p>
                     </CardContent>
                     <CardFooter className="flex-col sm:flex-row gap-4">
-                        <Button>Gestisci Spazi Pubblicitari</Button>
-                        <Button variant="secondary">Visualizza Statistiche</Button>
+                        <Button asChild>
+                            <Link href="/sponsors">Gestisci Spazi Pubblicitari</Link>
+                        </Button>
+                         <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span tabIndex={0}>
+                                    <Button variant="secondary" disabled>Visualizza Statistiche</Button>
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Funzionalità in arrivo!</p>
+                            </TooltipContent>
+                        </Tooltip>
                     </CardFooter>
                 </Card>
             )}
@@ -115,7 +132,7 @@ export default function SponsorDashboardPage() {
                         <p>Se ritieni che ci sia stato un errore o desideri maggiori informazioni, non esitare a contattare il nostro supporto.</p>
                     </CardContent>
                     <CardFooter>
-                        <Button variant="outline">Contatta il Supporto</Button>
+                         <Button variant="outline">Contatta il Supporto</Button>
                     </CardFooter>
                 </Card>
             )}
