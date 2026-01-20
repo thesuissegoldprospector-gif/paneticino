@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, doc, query } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase, useUser, useCollection } from '@/firebase';
@@ -13,74 +13,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-// --- Sub-components ---
 
-function AdSpacesList() {
-  const firestore = useFirestore();
+// Helper for status badge, will be used inside the main component
+const statusConfig: Record<string, { label: string; color: string }> = {
+  available: { label: 'Disponibile', color: 'bg-green-500 hover:bg-green-500/80' },
+  booked: { label: 'Prenotato', color: 'bg-yellow-500 hover:bg-yellow-500/80' },
+};
 
-  const adSpacesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'ad_spaces'));
-  }, [firestore]);
-
-  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
-
-  const statusConfig: Record<string, { label: string; color: string }> = {
-    available: { label: 'Disponibile', color: 'bg-green-500 hover:bg-green-500/80' },
-    booked: { label: 'Prenotato', color: 'bg-yellow-500 hover:bg-yellow-500/80' },
-  };
-  
-  const StatusBadge = ({ status }: { status: string }) => {
-    const config = statusConfig[status] || { label: 'Sconosciuto', color: 'bg-gray-400' };
-    return <Badge className={cn('text-white', config.color)}>{config.label}</Badge>;
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
-        <p className="ml-2 text-muted-foreground">Caricamento spazi...</p>
-      </div>
-    );
-  }
-
-  if (!adSpaces || adSpaces.length === 0) {
-    return (
-      <p className="py-8 text-center text-muted-foreground">
-        Nessuno spazio pubblicitario disponibile al momento.
-      </p>
-    );
-  }
-
-  return (
-    <div className="border rounded-md">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome spazio</TableHead>
-            <TableHead>Prezzo</TableHead>
-            <TableHead>Stato</TableHead>
-            <TableHead className="text-right">Azione</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {adSpaces.map((space) => (
-            <TableRow key={space.id}>
-              <TableCell className="font-medium">{space.name}</TableCell>
-              <TableCell>{space.price ? `${space.price.toFixed(2)} CHF` : 'N/D'}</TableCell>
-              <TableCell><StatusBadge status={space.status} /></TableCell>
-              <TableCell className="text-right">
-                <Button variant="outline" size="sm" disabled>
-                  Prenota
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
+const StatusBadge = ({ status }: { status: string }) => {
+  const config = statusConfig[status] || { label: 'Sconosciuto', color: 'bg-gray-400' };
+  return <Badge className={cn('text-white', config.color)}>{config.label}</Badge>;
+};
 
 
 function useUserDoc(userId?: string) {
@@ -97,14 +40,35 @@ export default function SponsorDashboardPage() {
   const router = useRouter();
   const firestore = useFirestore();
 
+  // User and Sponsor profile fetching
   const { data: userDoc, isLoading: isUserDocLoading } = useUserDoc(user?.uid);
-  
   const sponsorDocRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'sponsors', user.uid);
   }, [firestore, user]);
   const { data: sponsorProfile, isLoading: isSponsorProfileLoading } = useDoc(sponsorDocRef);
 
+  // --- Ad Spaces Fetching Logic ---
+  // Query is now dependent on `user` being authenticated.
+  const adSpacesQuery = useMemoFirebase(() => {
+    if (!firestore || !user) {
+      return null;
+    }
+    // Defensive console log: log when the query is about to be created.
+    console.log("Query per ad_spaces avviata perché l'utente è autenticato.");
+    return query(collection(firestore, 'ad_spaces'));
+  }, [firestore, user]);
+
+  const { data: adSpaces, isLoading: isAdSpacesLoading } = useCollection(adSpacesQuery);
+
+  // Defensive console log: log when data is received.
+  useEffect(() => {
+    if (user && adSpaces) {
+      console.log(`Query per ad_spaces completata. Documenti trovati: ${adSpaces.length}`);
+    }
+  }, [adSpaces, user]);
+
+  // Combined loading state for the entire page
   const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading;
 
   const handleLogout = async () => {
@@ -118,6 +82,7 @@ export default function SponsorDashboardPage() {
     </div>
   );
 
+  // Page-level loading and redirects
   if (isLoading) {
     return fullPageLoader;
   }
@@ -148,6 +113,57 @@ export default function SponsorDashboardPage() {
 
   const status = sponsorProfile.approvalStatus;
 
+  // --- UI Rendering ---
+  const renderAdSpacesContent = () => {
+    // Show loader while fetching ad spaces.
+    // This state is specific to the ad_spaces query.
+    if (isAdSpacesLoading) {
+      return (
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <p className="ml-2 text-muted-foreground">Caricamento spazi...</p>
+        </div>
+      );
+    }
+    // Show message if no spaces are found after loading.
+    if (!adSpaces || adSpaces.length === 0) {
+      return (
+        <p className="py-8 text-center text-muted-foreground">
+          Nessuno spazio pubblicitario disponibile al momento.
+        </p>
+      );
+    }
+    // Render the table with data
+    return (
+      <div className="border rounded-md">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome spazio</TableHead>
+              <TableHead>Prezzo</TableHead>
+              <TableHead>Stato</TableHead>
+              <TableHead className="text-right">Azione</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {adSpaces.map((space) => (
+              <TableRow key={space.id}>
+                <TableCell className="font-medium">{space.name}</TableCell>
+                <TableCell>{space.price ? `${space.price.toFixed(2)} CHF` : 'N/D'}</TableCell>
+                <TableCell><StatusBadge status={space.status} /></TableCell>
+                <TableCell className="text-right">
+                  <Button variant="outline" size="sm" disabled>
+                    Prenota
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
         <div className="space-y-8">
@@ -170,7 +186,7 @@ export default function SponsorDashboardPage() {
                         <CardDescription>Il tuo account è stato approvato. Di seguito trovi gli spazi pubblicitari disponibili per la prenotazione.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                       <AdSpacesList />
+                       {renderAdSpacesContent()}
                     </CardContent>
                 </Card>
             )}
@@ -195,5 +211,3 @@ export default function SponsorDashboardPage() {
     </div>
   );
 }
-
-    
