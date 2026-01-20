@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { DateRange } from 'react-day-picker';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useFirestore } from '@/firebase';
 import { doc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,7 +47,7 @@ export default function BakerReportClient({ bakerUserId }: Props) {
   const [subscriptionFee, setSubscriptionFee] = useState(0);
 
   // Fetch baker details on the client by querying for the userId
-  const bakerQuery = useMemoFirebase(() => {
+  const bakerQuery = useMemo(() => {
     if (!firestore || !bakerUserId) return null;
     return query(collection(firestore, 'bakers'), where('userId', '==', bakerUserId));
   }, [firestore, bakerUserId]);
@@ -56,7 +56,7 @@ export default function BakerReportClient({ bakerUserId }: Props) {
 
 
   // Fetch orders for this baker on the client
-  const ordersQuery = useMemoFirebase(() => {
+  const ordersQuery = useMemo(() => {
     if (!firestore || !bakerUserId) return null;
     return query(
       collection(firestore, "orders"),

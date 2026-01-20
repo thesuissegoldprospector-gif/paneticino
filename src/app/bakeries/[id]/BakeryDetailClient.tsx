@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
 import { useToast } from "@/hooks/use-toast";
-import { useUser, useDoc, useMemoFirebase, updateDocumentNonBlocking, useCollection } from "@/firebase";
+import { useUser, useDoc, updateDocumentNonBlocking, useCollection } from "@/firebase";
 import { doc, query, collection, where } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { cn } from "@/lib/utils";
@@ -59,20 +59,20 @@ export default function BakeryDetailClient({ bakeryId }: { bakeryId: string }) {
     const { toast } = useToast();
 
     // Fetch baker data using the document ID
-    const bakerRef = useMemoFirebase(() => {
+    const bakerRef = useMemo(() => {
         if (!firestore || !bakeryId) return null;
         return doc(firestore, 'bakers', bakeryId);
     }, [firestore, bakeryId]);
     const { data: bakery, isLoading: isBakerLoading } = useDoc(bakerRef);
 
     // Fetch products for this baker using the baker's userId
-    const productsQuery = useMemoFirebase(() => {
+    const productsQuery = useMemo(() => {
         if (!firestore || !bakery?.userId) return null;
         return query(collection(firestore, "products"), where("bakerId", "==", bakery.userId));
     }, [firestore, bakery?.userId]);
     const { data: products, isLoading: areProductsLoading } = useCollection(productsQuery);
 
-    const customerRef = useMemoFirebase(() => {
+    const customerRef = useMemo(() => {
         if (!firestore || !user) return null;
         return doc(firestore, 'customers', user.uid);
     }, [firestore, user]);

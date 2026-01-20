@@ -1,14 +1,15 @@
 'use client';
 
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { BakeryCard } from '@/components/bakeries/bakery-card';
+import { useMemo } from 'react';
 
 export default function BakeriesPage() {
   const firestore = useFirestore();
 
-  const approvedBakersQuery = useMemoFirebase(() => {
+  const approvedBakersQuery = useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'));
   }, [firestore]);

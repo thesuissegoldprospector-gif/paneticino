@@ -1,6 +1,6 @@
 'use client';
 
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { useDoc, useFirestore } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,13 +11,14 @@ import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { useMemo } from 'react';
 
 export default function OrderConfirmationPage() {
   const params = useParams();
   const id = params.id as string;
   const firestore = useFirestore();
 
-  const orderRef = useMemoFirebase(() => {
+  const orderRef = useMemo(() => {
     if (!firestore || !id) return null;
     return doc(firestore, 'orders', id);
   }, [firestore, id]);

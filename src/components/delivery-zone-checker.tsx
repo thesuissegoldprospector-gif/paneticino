@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,7 @@ export function DeliveryZoneChecker() {
     },
   });
 
-  const bakeriesQuery = useMemoFirebase(() => {
+  const bakeriesQuery = useMemo(() => {
     if (!firestore || !searchTerm) return null;
     return query(
       collection(firestore, "bakers"),

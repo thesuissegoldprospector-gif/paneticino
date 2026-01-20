@@ -1,6 +1,6 @@
 'use client';
 
-import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useDoc, useFirestore, useCollection } from '@/firebase';
 import { doc, collection, query, where } from 'firebase/firestore';
 import { useParams, notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from '@/components/ui/separator';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 function OrderReceiptPage() {
   const params = useParams();
@@ -19,7 +19,7 @@ function OrderReceiptPage() {
   const [isMounted, setIsMounted] = useState(false);
 
   // Fetch the order
-  const orderRef = useMemoFirebase(() => {
+  const orderRef = useMemo(() => {
     if (!firestore || !id) return null;
     return doc(firestore, 'orders', id);
   }, [firestore, id]);
@@ -31,7 +31,7 @@ function OrderReceiptPage() {
 
 
   // Fetch baker details using the bakerId from the order
-  const bakerQuery = useMemoFirebase(() => {
+  const bakerQuery = useMemo(() => {
       if (!firestore || !order?.bakerId) return null;
       return query(collection(firestore, 'bakers'), where('userId', '==', order.bakerId));
   }, [firestore, order?.bakerId]);

@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Loader2, Store, Handshake, Sparkles, Rocket, MousePointerClick } from 'lucide-react';
 import { collection, query, where, limit } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection } from '@/firebase';
 import { BakeryCard } from '@/components/bakeries/bakery-card';
 import { ProductCard, ProductCardSkeleton } from '@/components/products/product-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 export default function Home() {
   const firestore = useFirestore();
 
-  const featuredBakersQuery = useMemoFirebase(() => {
+  const featuredBakersQuery = React.useMemo(() => {
     if (!firestore) return null;
     return query(
       collection(firestore, 'bakers'),
@@ -26,12 +26,12 @@ export default function Home() {
   const { data: featuredBakeries, isLoading: isLoadingBakers } = useCollection(featuredBakersQuery);
 
   // Query per gli ultimi prodotti e per tutti i panettieri
-  const recentProductsQuery = useMemoFirebase(() => {
+  const recentProductsQuery = React.useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'products'), limit(8));
   }, [firestore]);
   
-  const allBakersQuery = useMemoFirebase(() => {
+  const allBakersQuery = React.useMemo(() => {
     if (!firestore) return null;
     return query(collection(firestore, 'bakers'), where('approvalStatus', '==', 'approved'));
   }, [firestore]);

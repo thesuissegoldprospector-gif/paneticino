@@ -17,7 +17,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { Badge } from '@/components/ui/badge';
 import UserProfileCard from './UserProfileCard';
 
-import { useFirestore, useMemoFirebase, useDoc, useCollection, updateDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useDoc, useCollection, updateDocumentNonBlocking } from '@/firebase';
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
     pending: { label: 'In attesa', color: 'bg-yellow-500', icon: Loader2 },
@@ -90,19 +90,19 @@ export default function CustomerDashboard({ user, userDoc }: { user: User, userD
     const [newAddress, setNewAddress] = useState('');
     const { toast } = useToast();
 
-    const customerDocRef = useMemoFirebase(() => doc(firestore, 'customers', user.uid), [firestore, user.uid]);
+    const customerDocRef = useMemo(() => doc(firestore, 'customers', user.uid), [firestore, user.uid]);
     const { data: customerProfile, isLoading: isCustomerLoading } = useDoc(customerDocRef);
     
-    const userDocRef = useMemoFirebase(() => doc(firestore, 'users', user.uid), [firestore, user.uid]);
+    const userDocRef = useMemo(() => doc(firestore, 'users', user.uid), [firestore, user.uid]);
     
-    const ordersQuery = useMemoFirebase(() => {
+    const ordersQuery = useMemo(() => {
         if (!firestore || !user) return null;
         return query(collection(firestore, 'orders'), where('customerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }, [firestore, user]);
 
     const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
-    const favoriteBakeriesQuery = useMemoFirebase(() => {
+    const favoriteBakeriesQuery = useMemo(() => {
         if (!firestore || !customerProfile?.favoriteBakeries || customerProfile.favoriteBakeries.length === 0) return null;
         return query(collection(firestore, 'bakers'), where('__name__', 'in', customerProfile.favoriteBakeries));
     }, [firestore, customerProfile?.favoriteBakeries]);

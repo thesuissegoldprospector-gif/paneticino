@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useFirestore, useDoc, useUser, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useDoc, useUser, updateDocumentNonBlocking } from '@/firebase';
 import { doc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
@@ -17,7 +17,7 @@ export function BakeryCard({ bakery }: { bakery: any }) {
   const { toast } = useToast();
 
   // Reference to the customer's profile document
-  const customerRef = useMemoFirebase(() => {
+  const customerRef = useMemo(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'customers', user.uid);
   }, [firestore, user]);

@@ -5,7 +5,7 @@ import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingCart, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { useUser, useFirestore, useDoc, useMemoFirebase, addDocumentNonBlocking, useCollection } from "@/firebase";
+import { useUser, useFirestore, useDoc, addDocumentNonBlocking, useCollection } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -24,13 +24,13 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Memoize customer profile fetching
-  const customerRef = useMemoFirebase(() => {
+  const customerRef = useMemo(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'customers', user.uid);
   }, [firestore, user]);
   const { data: customerProfile, isLoading: isCustomerLoading } = useDoc(customerRef);
   
-  const userRef = useMemoFirebase(() => {
+  const userRef = useMemo(() => {
     if (!firestore || !user) return null;
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);

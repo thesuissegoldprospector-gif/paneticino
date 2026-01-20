@@ -27,7 +27,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
 
-import { useUser, useFirestore, useMemoFirebase, useDoc, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateUserProfileAndAuth } from '@/firebase';
+import { useUser, useFirestore, useDoc, useCollection, updateDocumentNonBlocking, addDocumentNonBlocking, deleteDocumentNonBlocking, updateUserProfileAndAuth } from '@/firebase';
 import { UpdateImageDialog } from './dialogs';
 import UserProfileCard from './UserProfileCard';
 import { ProductionSheet } from './ProductionSheet';
@@ -136,18 +136,18 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
     const [endTime, setEndTime] = useState('23:59');
     const [printJob, setPrintJob] = useState<{ type: 'production' | 'delivery'; fromDate: Date; toDate: Date; } | null>(null);
 
-    const bakerDocRef = useMemoFirebase(() => doc(firestore, 'bakers', user.uid), [firestore, user.uid]);
+    const bakerDocRef = useMemo(() => doc(firestore, 'bakers', user.uid), [firestore, user.uid]);
     const { data: bakerProfile, isLoading: isBakerLoading } = useDoc(bakerDocRef);
 
-    const userDocRef = useMemoFirebase(() => doc(firestore, 'users', user.uid), [firestore, user.uid]);
+    const userDocRef = useMemo(() => doc(firestore, 'users', user.uid), [firestore, user.uid]);
 
-    const ordersQuery = useMemoFirebase(() => {
+    const ordersQuery = useMemo(() => {
         if (!firestore || !user) return null;
         return query(collection(firestore, 'orders'), where('bakerId', '==', user.uid), orderBy('createdAt', 'desc'));
     }, [firestore, user]);
     const { data: orders, isLoading: areOrdersLoading } = useCollection(ordersQuery);
 
-    const productsQuery = useMemoFirebase(() => {
+    const productsQuery = useMemo(() => {
         if (!firestore || !user) return null;
         return query(collection(firestore, 'products'), where('bakerId', '==', user.uid));
     }, [firestore, user]);
@@ -507,5 +507,3 @@ export default function BakerDashboard({ user, userDoc }: { user: User, userDoc:
         </>
     );
 }
-
-    

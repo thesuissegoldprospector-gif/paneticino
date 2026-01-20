@@ -11,19 +11,19 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { useUser, useFirestore, useDoc } from '@/firebase';
 import CustomerDashboard from './CustomerDashboard';
 import BakerDashboard from './BakerDashboard';
 
 function useUserDoc(userId?: string) {
   const firestore = useFirestore();
-  const userRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'users', userId) : null), [firestore, userId]);
+  const userRef = useMemo(() => (firestore && userId ? doc(firestore, 'users', userId) : null), [firestore, userId]);
   return useDoc(userRef);
 }
 
 function useAdminRole(userId?: string) {
     const firestore = useFirestore();
-    const adminRef = useMemoFirebase(() => (firestore && userId ? doc(firestore, 'roles_admin', userId) : null), [firestore, userId]);
+    const adminRef = useMemo(() => (firestore && userId ? doc(firestore, 'roles_admin', userId) : null), [firestore, userId]);
     return useDoc(adminRef);
 }
 
