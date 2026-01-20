@@ -6,12 +6,13 @@ import { collection, doc, query } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase, useUser, useCollection } from '@/firebase';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut } from 'lucide-react';
+import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut, Package, BarChart } from 'lucide-react';
 import Link from 'next/link';
 import { getAuth, signOut } from 'firebase/auth';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 // Helper for status badge, will be used inside the main component
@@ -49,19 +50,16 @@ export default function SponsorDashboardPage() {
   const { data: sponsorProfile, isLoading: isSponsorProfileLoading } = useDoc(sponsorDocRef);
 
   // --- Ad Spaces Fetching Logic ---
-  // Query is now dependent on `user` being authenticated.
   const adSpacesQuery = useMemoFirebase(() => {
     if (!firestore || !user) {
       return null;
     }
-    // Defensive console log: log when the query is about to be created.
     console.log("Query per ad_spaces avviata perché l'utente è autenticato.");
     return query(collection(firestore, 'ad_spaces'));
   }, [firestore, user]);
 
   const { data: adSpaces, isLoading: isAdSpacesLoading } = useCollection(adSpacesQuery);
 
-  // Defensive console log: log when data is received.
   useEffect(() => {
     if (user && adSpaces) {
       console.log(`Query per ad_spaces completata. Documenti trovati: ${adSpaces.length}`);
@@ -115,8 +113,6 @@ export default function SponsorDashboardPage() {
 
   // --- UI Rendering ---
   const renderAdSpacesContent = () => {
-    // Show loader while fetching ad spaces.
-    // This state is specific to the ad_spaces query.
     if (isAdSpacesLoading) {
       return (
         <div className="flex justify-center items-center py-8">
@@ -125,7 +121,6 @@ export default function SponsorDashboardPage() {
         </div>
       );
     }
-    // Show message if no spaces are found after loading.
     if (!adSpaces || adSpaces.length === 0) {
       return (
         <p className="py-8 text-center text-muted-foreground">
@@ -133,7 +128,6 @@ export default function SponsorDashboardPage() {
         </p>
       );
     }
-    // Render the table with data
     return (
       <div className="border rounded-md">
         <Table>
@@ -155,7 +149,7 @@ export default function SponsorDashboardPage() {
                   <Button
                     variant={space.status === 'available' ? 'default' : 'secondary'}
                     size="sm"
-                    disabled={space.status !== 'available'}
+                    disabled={true}
                   >
                     {space.status === 'available' ? 'Prenota' : 'Non disponibile'}
                   </Button>
@@ -187,7 +181,7 @@ export default function SponsorDashboardPage() {
                 <Card className="border-green-500">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-green-600"><CheckCircle /> Benvenuto, Sponsor!</CardTitle>
-                        <CardDescription>Il tuo account è stato approvato. Di seguito trovi gli spazi pubblicitari disponibili per la prenotazione.</CardDescription>
+                        <CardDescription>Il tuo account è stato approvato. Di seguito trovi gli spazi pubblicitari disponibili.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        {renderAdSpacesContent()}
