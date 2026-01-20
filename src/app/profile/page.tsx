@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, query, where, orderBy } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { useUser, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import CustomerDashboard from './CustomerDashboard';
 import BakerDashboard from './BakerDashboard';
-import SponsorDashboard from './SponsorDashboard';
 
 function useUserDoc(userId?: string) {
   const firestore = useFirestore();
@@ -41,6 +40,13 @@ export default function ProfilePage() {
   
   const isLoading = isUserLoading || isUserDocLoading || isAdminLoading;
 
+  useEffect(() => {
+    // If loading is finished and we have a user document, check the role.
+    if (!isLoading && userDoc && userDoc.role === 'sponsor') {
+      router.replace('/sponsor/dashboard');
+    }
+  }, [isLoading, userDoc, router]);
+
   const handleLogout = async () => {
     await signOut(getAuth());
     router.push('/');
@@ -48,6 +54,16 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return <div className="flex h-full min-h-[50vh] items-center justify-center"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+  }
+
+  // If the user is a sponsor, show a loading message while redirecting.
+  if (role === 'sponsor') {
+    return (
+        <div className="flex h-full min-h-[50vh] items-center justify-center">
+            <Loader2 className="animate-spin h-10 w-10 text-primary" />
+            <p className="ml-4 text-muted-foreground">Reindirizzamento alla dashboard sponsor...</p>
+        </div>
+    );
   }
 
   if (!user) {
@@ -84,7 +100,6 @@ export default function ProfilePage() {
 
       {role === 'baker' && <BakerDashboard user={user} userDoc={userDoc} />}
       {role === 'customer' && <CustomerDashboard user={user} userDoc={userDoc} />}
-      {role === 'sponsor' && <SponsorDashboard user={user} />}
 
       <div className="flex justify-center pt-8">
         <Button variant="destructive" onClick={handleLogout}>
