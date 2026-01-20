@@ -3,15 +3,17 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useUser, useCollection } from '@/firebase';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { getAuth, signOut } from 'firebase/auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from '@/lib/utils';
 import { addDays, format, startOfWeek, subDays, eachDayOfInterval, getDay } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 function useUserDoc(userId?: string) {
   const firestore = useFirestore();
@@ -22,12 +24,16 @@ function useUserDoc(userId?: string) {
 // --- Hardcoded data matching the image ---
 const bookingData: { [key: string]: { status: 'Libero' | 'Prenotato' | 'In Revisione' | 'Non Disponibile' | 'Libero-no-price', price?: number } } = {
   // Lunedì 24
+  '2024-06-24_01:00 - 02:00': { status: 'Libero-no-price' },
   '2024-06-24_06:00 - 07:00': { status: 'Libero', price: 8 },
   '2024-06-24_07:00 - 08:00': { status: 'Libero', price: 8 },
   '2024-06-24_08:00 - 09:00': { status: 'Libero', price: 10 },
   '2024-06-24_09:00 - 10:00': { status: 'Libero', price: 15 },
   '2024-06-24_10:00 - 11:00': { status: 'Libero', price: 12 },
   '2024-06-24_11:00 - 12:00': { status: 'Libero', price: 12 },
+  '2024-06-24_18:00 - 19:00': { status: 'Libero', price: 9 },
+  '2024-06-24_19:00 - 20:00': { status: 'Prenotato' },
+
   // Martedì 25
   '2024-06-25_06:00 - 07:00': { status: 'Libero', price: 8 },
   '2024-06-25_07:00 - 08:00': { status: 'Prenotato' },
@@ -35,6 +41,7 @@ const bookingData: { [key: string]: { status: 'Libero' | 'Prenotato' | 'In Revis
   '2024-06-25_09:00 - 10:00': { status: 'Libero', price: 15 },
   '2024-06-25_10:00 - 11:00': { status: 'Prenotato' },
   '2024-06-25_11:00 - 12:00': { status: 'Prenotato' },
+
   // Mercoledì 26
   '2024-06-26_06:00 - 07:00': { status: 'Prenotato' }, // This one is orange in the image
   '2024-06-26_07:00 - 08:00': { status: 'In Revisione' },
@@ -42,6 +49,9 @@ const bookingData: { [key: string]: { status: 'Libero' | 'Prenotato' | 'In Revis
   '2024-06-26_09:00 - 10:00': { status: 'Libero', price: 15 },
   '2024-06-26_10:00 - 11:00': { status: 'Libero', price: 12 },
   '2024-06-26_11:00 - 12:00': { status: 'Libero', price: 12 },
+  '2024-06-26_22:00 - 23:00': { status: 'Libero', price: 5 },
+
+
   // Giovedì 27
   '2024-06-27_06:00 - 07:00': { status: 'Libero', price: 8 },
   '2024-06-27_07:00 - 08:00': { status: 'Libero', price: 8 },
@@ -49,6 +59,7 @@ const bookingData: { [key: string]: { status: 'Libero' | 'Prenotato' | 'In Revis
   '2024-06-27_09:00 - 10:00': { status: 'Libero', price: 15 },
   '2024-06-27_10:00 - 11:00': { status: 'Libero', price: 12 },
   '2024-06-27_11:00 - 12:00': { status: 'Libero', price: 12 },
+
   // Venerdì 28
   '2024-06-28_06:00 - 07:00': { status: 'Libero', price: 8 },
   '2024-06-28_07:00 - 08:00': { status: 'Prenotato' },
@@ -56,6 +67,9 @@ const bookingData: { [key: string]: { status: 'Libero' | 'Prenotato' | 'In Revis
   '2024-06-28_09:00 - 10:00': { status: 'Libero', price: 15 },
   '2024-06-28_10:00 - 11:00': { status: 'Libero', price: 12 },
   '2024-06-28_11:00 - 12:00': { status: 'Libero', price: 12 },
+  '2024-06-28_23:00 - 24:00': { status: 'In Revisione' },
+
+
   // Sabato 29
   '2024-06-29_06:00 - 07:00': { status: 'Libero', price: 8 },
   '2024-06-29_07:00 - 08:00': { status: 'Libero', price: 8 },
@@ -63,7 +77,9 @@ const bookingData: { [key: string]: { status: 'Libero' | 'Prenotato' | 'In Revis
   '2024-06-29_09:00 - 10:00': { status: 'Libero', price: 15 },
   '2024-06-29_10:00 - 11:00': { status: 'Libero', price: 12 },
   '2024-06-29_11:00 - 12:00': { status: 'Libero', price: 12 },
+
   // Domenica 30
+  '2024-06-30_00:00 - 01:00': { status: 'Non Disponibile' },
   '2024-06-30_06:00 - 07:00': { status: 'Libero', price: 8 },
   '2024-06-30_07:00 - 08:00': { status: 'Libero', price: 8 },
   '2024-06-30_08:00 - 09:00': { status: 'Libero', price: 10 },
@@ -83,8 +99,12 @@ const SponsorBookingCalendar = () => {
     const weekDays = eachDayOfInterval({ start, end });
 
     const timeSlots = [
-        '06:00 - 07:00', '07:00 - 08:00', '08:00 - 09:00',
-        '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00',
+        '00:00 - 01:00', '01:00 - 02:00', '02:00 - 03:00', '03:00 - 04:00',
+        '04:00 - 05:00', '05:00 - 06:00', '06:00 - 07:00', '07:00 - 08:00',
+        '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00',
+        '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00',
+        '16:00 - 17:00', '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00',
+        '20:00 - 21:00', '21:00 - 22:00', '22:00 - 23:00', '23:00 - 24:00'
     ];
     
     const handlePrevWeek = () => setCurrentDate(subDays(currentDate, 7));
@@ -147,16 +167,16 @@ const SponsorBookingCalendar = () => {
             <div className="flex items-center justify-between">
                 <Button variant="ghost" onClick={handlePrevWeek}><ChevronLeft className="mr-2 h-4 w-4" /> Settimana Prec</Button>
                 <span className="font-semibold text-lg">{format(start, 'd')} - {format(end, 'd MMMM yyyy', { locale: it })}</span>
-                <Button variant="ghost" onClick={handleNextWeek}>Settimana Succ <ChevronRight className="ml-2 h-4 w-4" /></Button>
+                <Button variant="ghost" onClick={handleNextWeek}>Settimana Succ <ChevronRight className="ml-2 h-4" /></Button>
             </div>
 
             {/* Calendar Grid */}
-            <div className="overflow-x-auto">
-                <div className="grid grid-cols-[auto_repeat(7,1fr)] gap-1 min-w-[700px]">
+            <div className="overflow-auto max-h-[600px] relative border rounded-md">
+                <div className="grid grid-cols-[auto_repeat(7,1fr)] gap-1 min-w-[900px]">
                     {/* Header Row */}
-                    <div /> {/* Empty corner */}
+                    <div className="sticky top-0 bg-background z-10" /> {/* Empty corner */}
                     {weekDays.map(day => (
-                        <div key={day.toString()} className="text-center font-semibold p-2 capitalize">
+                        <div key={day.toString()} className="text-center font-semibold p-2 capitalize sticky top-0 bg-background z-10">
                            {format(day, 'eeee d', { locale: it })}
                         </div>
                     ))}
@@ -164,7 +184,7 @@ const SponsorBookingCalendar = () => {
                     {/* Time Slot Rows */}
                     {timeSlots.map(time => (
                         <React.Fragment key={time}>
-                            <div className="text-sm text-muted-foreground p-2 text-right">{time}</div>
+                            <div className="text-sm text-muted-foreground p-2 text-right sticky left-0 bg-background">{time}</div>
                             {weekDays.map(day => {
                                 const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
                                 const slotData = bookingData[key];
