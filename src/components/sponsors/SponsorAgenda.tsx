@@ -241,7 +241,7 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-auto" style={{ maxHeight: '70vh', scrollbarWidth: 'thin' }}>
-                        {isLoadingAdSpace ? <div className="h-96 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> : (
+                        {isLoadingAdSpace || adSpaceData === undefined ? <div className="h-96 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> : (
                             <div className="relative grid grid-cols-[auto_repeat(7,1fr)]">
                                 <div className="sticky left-0 z-10 bg-card">
                                 <div className="h-12 border-b"></div>
@@ -337,94 +337,107 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
 
 
 const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: DocumentData[] | null; isLoading: boolean; onSelectCard: (adSpaceId: string) => void }) => {
-    const [openPage, setOpenPage] = useState<string | null>('Home');
+  const [openPage, setOpenPage] = useState<string | null>('Home');
 
-    const adCardPages = useMemo(() => {
-        if (!adSpaces) return {};
-        return adSpaces.reduce((acc, space) => {
-          const page = String(space.page || 'Altro').trim();
-          if (!page) return acc; // Skip spaces with no page name
+  // Memoize the processed and sorted list of ad spaces grouped by page
+  const sortedPages = useMemo(() => {
+    if (!adSpaces) return [];
 
-          if (!acc[page]) acc[page] = [];
-          acc[page].push(space);
-          
-          // Sort cards by their index to ensure stable order
-          acc[page].sort((a, b) => (Number(a.cardIndex) || 0) - (Number(b.cardIndex) || 0));
+    // Group cards by page
+    const pagesMap = adSpaces.reduce((acc, space) => {
+      // Normalize page name for consistency
+      const pageName = String(space.page || 'Altro').trim();
+      if (!pageName) return acc;
 
-          return acc;
-        }, {} as Record<string, DocumentData[]>);
-    }, [adSpaces]);
+      if (!acc[pageName]) {
+        acc[pageName] = [];
+      }
+      acc[pageName].push(space);
+      return acc;
+    }, {} as Record<string, DocumentData[]>);
 
-    if (isLoading) {
-        return (
-             <Card>
-                <CardHeader>
-                    <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
-                    <CardDescription>Caricamento spazi disponibili...</CardDescription>
-                </CardHeader>
-                <CardContent className="h-48 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                </CardContent>
-            </Card>
-        )
-    }
-    
-    if (!isLoading && (!adSpaces || adSpaces.length === 0)) {
-         return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Spazi Pubblicitari non disponibili</CardTitle>
-                    <CardDescription>Non ci sono spazi pubblicitari configurati al momento.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-center text-muted-foreground py-8">Controlla la configurazione o contatta un amministratore.</p>
-                </CardContent>
-            </Card>
-        );
-    }
+    // Convert map to array, sort pages alphabetically, and sort cards within each page
+    return Object.entries(pagesMap)
+      .sort(([pageA], [pageB]) => pageA.localeCompare(pageB)) // Sort pages
+      .map(([pageName, cards]) => ({
+        pageName,
+        cards: cards.sort((a, b) => (Number(a.cardIndex) || 0) - (Number(b.cardIndex) || 0)), // Sort cards by index
+      }));
+  }, [adSpaces]);
 
+  // Defensive Rendering: Loading State
+  if (isLoading) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
-                <CardDescription>Scegli una pagina e una card per visualizzare il calendario delle disponibilità.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                {Object.entries(adCardPages).map(([pageName, cards]) => (
-                    <div key={pageName}>
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start text-lg font-semibold"
-                            onClick={() => setOpenPage(openPage === pageName ? null : pageName)}
-                        >
-                            <CalendarIcon className="mr-4 text-primary" />
-                            {pageName}
-                            <ChevronRight className={cn("ml-auto h-5 w-5 transition-transform", openPage === pageName && "rotate-90")} />
-                        </Button>
-                        {openPage === pageName && (
-                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 pl-8">
-                                {cards.map(card => {
-                                    return (
-                                        <Card 
-                                            key={card.id} 
-                                            className="cursor-pointer hover:shadow-md hover:border-primary transition-all"
-                                            onClick={() => onSelectCard(card.id)}
-                                        >
-                                            <CardHeader>
-                                                <CardTitle>{card.name}</CardTitle>
-                                                <CardDescription>Visualizza agenda</CardDescription>
-                                            </CardHeader>
-                                        </Card>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </CardContent>
-        </Card>
-    )
-}
+      <Card>
+        <CardHeader>
+          <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
+          <CardDescription>Caricamento spazi disponibili...</CardDescription>
+        </CardHeader>
+        <CardContent className="h-48 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </CardContent>
+      </Card>
+    );
+  }
+  
+  // Defensive Rendering: Empty State
+  if (!sortedPages || sortedPages.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Spazi Pubblicitari non disponibili</CardTitle>
+          <CardDescription>Non ci sono spazi pubblicitari configurati al momento.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-center text-muted-foreground py-8">Controlla la configurazione o contatta un amministratore.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
+        <CardDescription>Scegli una pagina e una card per visualizzare il calendario delle disponibilità.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {sortedPages.map(({ pageName, cards }) => (
+          <div key={pageName}>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-lg font-semibold"
+              onClick={() => setOpenPage(openPage === pageName ? null : pageName)}
+            >
+              <CalendarIcon className="mr-4 text-primary" />
+              {pageName}
+              <ChevronRight className={cn("ml-auto h-5 w-5 transition-transform", openPage === pageName && "rotate-90")} />
+            </Button>
+            {openPage === pageName && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 pl-8">
+                {cards.map(card => {
+                  return (
+                    <Card 
+                      key={card.id} 
+                      className="cursor-pointer hover:shadow-md hover:border-primary transition-all"
+                      onClick={() => onSelectCard(card.id)}
+                    >
+                      <CardHeader>
+                        <CardTitle>{card.name}</CardTitle>
+                        <CardDescription>Visualizza agenda</CardDescription>
+                      </CardHeader>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+};
+
 
 // --- Main Component ---
 export default function SponsorAgenda() {
