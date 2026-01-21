@@ -339,13 +339,10 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
 const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: DocumentData[] | null; isLoading: boolean; onSelectCard: (adSpaceId: string) => void }) => {
   const [openPage, setOpenPage] = useState<string | null>('Home');
 
-  // Memoize the processed and sorted list of ad spaces grouped by page
   const sortedPages = useMemo(() => {
     if (!adSpaces) return [];
 
-    // Group cards by page
     const pagesMap = adSpaces.reduce((acc, space) => {
-      // Normalize page name for consistency
       const pageName = String(space.page || 'Altro').trim();
       if (!pageName) return acc;
 
@@ -356,44 +353,15 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
       return acc;
     }, {} as Record<string, DocumentData[]>);
 
-    // Convert map to array, sort pages alphabetically, and sort cards within each page
     return Object.entries(pagesMap)
-      .sort(([pageA], [pageB]) => pageA.localeCompare(pageB)) // Sort pages
+      .sort(([pageA], [pageB]) => pageA.localeCompare(pageB))
       .map(([pageName, cards]) => ({
         pageName,
-        cards: cards.sort((a, b) => (Number(a.cardIndex) || 0) - (Number(b.cardIndex) || 0)), // Sort cards by index
+        cards: cards.sort((a, b) => (Number(a.cardIndex) || 0) - (Number(b.cardIndex) || 0)),
       }));
   }, [adSpaces]);
-
-  // Defensive Rendering: Loading State
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
-          <CardDescription>Caricamento spazi disponibili...</CardDescription>
-        </CardHeader>
-        <CardContent className="h-48 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </CardContent>
-      </Card>
-    );
-  }
   
-  // Defensive Rendering: Empty State
-  if (!sortedPages || sortedPages.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Spazi Pubblicitari non disponibili</CardTitle>
-          <CardDescription>Non ci sono spazi pubblicitari configurati al momento.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-center text-muted-foreground py-8">Controlla la configurazione o contatta un amministratore.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const hasData = !isLoading && sortedPages && sortedPages.length > 0;
 
   return (
     <Card>
@@ -402,37 +370,48 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
         <CardDescription>Scegli una pagina e una card per visualizzare il calendario delle disponibilità.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {sortedPages.map(({ pageName, cards }) => (
-          <div key={pageName}>
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-lg font-semibold"
-              onClick={() => setOpenPage(openPage === pageName ? null : pageName)}
-            >
-              <CalendarIcon className="mr-4 text-primary" />
-              {pageName}
-              <ChevronRight className={cn("ml-auto h-5 w-5 transition-transform", openPage === pageName && "rotate-90")} />
-            </Button>
-            {openPage === pageName && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 pl-8">
-                {cards.map(card => {
-                  return (
-                    <Card 
-                      key={card.id} 
-                      className="cursor-pointer hover:shadow-md hover:border-primary transition-all"
-                      onClick={() => onSelectCard(card.id)}
-                    >
-                      <CardHeader>
-                        <CardTitle>{card.name}</CardTitle>
-                        <CardDescription>Visualizza agenda</CardDescription>
-                      </CardHeader>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
+        {isLoading ? (
+             <div className="h-48 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin"/>
+                <p className="ml-4 text-muted-foreground">Caricamento spazi...</p>
+            </div>
+        ) : hasData ? (
+            sortedPages.map(({ pageName, cards }) => (
+            <div key={pageName}>
+                <Button
+                variant="ghost"
+                className="w-full justify-start text-lg font-semibold"
+                onClick={() => setOpenPage(openPage === pageName ? null : pageName)}
+                >
+                <CalendarIcon className="mr-4 text-primary" />
+                {pageName}
+                <ChevronRight className={cn("ml-auto h-5 w-5 transition-transform", openPage === pageName && "rotate-90")} />
+                </Button>
+                {openPage === pageName && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 pl-8">
+                    {cards.map(card => {
+                    return (
+                        <Card 
+                        key={card.id} 
+                        className="cursor-pointer hover:shadow-md hover:border-primary transition-all"
+                        onClick={() => onSelectCard(card.id)}
+                        >
+                        <CardHeader>
+                            <CardTitle>{card.name}</CardTitle>
+                            <CardDescription>Visualizza agenda</CardDescription>
+                        </CardHeader>
+                        </Card>
+                    );
+                    })}
+                </div>
+                )}
+            </div>
+            ))
+        ) : (
+            <div className="h-48 flex items-center justify-center">
+                 <p className="text-center text-muted-foreground py-8">Nessuno spazio pubblicitario configurato. Contatta un amministratore.</p>
+            </div>
+        )}
       </CardContent>
     </Card>
   );
