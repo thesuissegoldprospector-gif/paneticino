@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useDoc, useUser } from '@/firebase';
 import { collection, query, orderBy, doc, updateDoc, serverTimestamp, deleteField, type DocumentData, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import adData from '@/lib/ad-spaces.json';
 
 // --- Static Data & Types ---
 const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
@@ -362,7 +361,34 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
       }));
   }, [adSpaces]);
   
-  const hasData = !isLoading && sortedPages && sortedPages.length > 0;
+  if (isLoading) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
+                <CardDescription>Caricamento spazi disponibili...</CardDescription>
+            </CardHeader>
+            <CardContent className="h-48 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin"/>
+            </CardContent>
+        </Card>
+    );
+  }
+
+  if (!sortedPages.length) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Spazi Pubblicitari non disponibili</CardTitle>
+                <CardDescription>Non ci sono spazi pubblicitari configurati al momento.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-center text-muted-foreground py-8">Controlla la configurazione o contatta un amministratore.</p>
+            </CardContent>
+        </Card>
+    );
+  }
+
 
   return (
     <Card>
@@ -371,13 +397,7 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
         <CardDescription>Scegli una pagina e una card per visualizzare il calendario delle disponibilità.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {isLoading ? (
-             <div className="h-48 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin"/>
-                <p className="ml-4 text-muted-foreground">Caricamento spazi...</p>
-            </div>
-        ) : hasData ? (
-            sortedPages.map(({ pageName, cards }) => (
+        {sortedPages.map(({ pageName, cards }) => (
             <div key={pageName}>
                 <Button
                 variant="ghost"
@@ -390,29 +410,24 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
                 </Button>
                 {openPage === pageName && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 pl-8">
-                    {cards.map(card => {
-                    return (
-                        <Card 
-                        key={card.id} 
-                        className="cursor-pointer hover:shadow-md hover:border-primary transition-all"
-                        onClick={() => onSelectCard(card.id)}
-                        >
-                        <CardHeader>
-                            <CardTitle>{card.name}</CardTitle>
-                            <CardDescription>Visualizza agenda</CardDescription>
-                        </CardHeader>
-                        </Card>
-                    );
-                    })}
+                  {cards.map(card => (
+                    <Card 
+                      key={card.id} 
+                      onClick={() => onSelectCard(card.id)}
+                      className="cursor-pointer hover:shadow-md hover:border-primary transition-all"
+                    >
+                      <CardHeader>
+                        <CardTitle>{card.name}</CardTitle>
+                        <CardDescription>Visualizza agenda</CardDescription>
+                      </CardHeader>
+                    </Card>
+                  ))}
                 </div>
-                )}
+              )}
+
             </div>
             ))
-        ) : (
-            <div className="h-48 flex items-center justify-center text-center">
-                 <p className="text-muted-foreground">Nessuno spazio pubblicitario configurato.<br/>Contatta un amministratore.</p>
-            </div>
-        )}
+        }
       </CardContent>
     </Card>
   );
@@ -429,25 +444,11 @@ export default function SponsorAgenda() {
     return query(collection(firestore, 'ad_spaces'), orderBy('page'), orderBy('cardIndex'));
   }, [firestore]);
 
-  const { data: adSpacesFromFirestore, isLoading: isLoadingSpaces } = useCollection(adSpacesQuery);
-
-  const adSpaces = useMemo(() => {
-    // If we are actively loading from Firestore, return null to show the loading UI.
-    if (isLoadingSpaces) {
-      return null;
-    }
-    // If Firestore has data, prioritize it.
-    if (adSpacesFromFirestore && adSpacesFromFirestore.length > 0) {
-      return adSpacesFromFirestore;
-    }
-    // If loading is finished and Firestore is empty, fall back to the static JSON for development.
-    return adData.adSlots;
-  }, [adSpacesFromFirestore, isLoadingSpaces]);
-
+  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
 
   if (selectedAdSpaceId) {
     return <BookingView adSpaceId={selectedAdSpaceId} onBack={() => setSelectedAdSpaceId(null)} />;
   }
   
-  return <SelectionView adSpaces={adSpaces} isLoading={adSpaces === null} onSelectCard={setSelectedAdSpaceId} />;
+  return <SelectionView adSpaces={adSpaces} isLoading={isLoading} onSelectCard={setSelectedAdSpaceId} />;
 }
