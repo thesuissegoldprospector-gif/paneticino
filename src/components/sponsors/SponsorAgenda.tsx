@@ -3,48 +3,28 @@
 import React, { useState, useMemo } from 'react';
 import { addDays, format, startOfWeek, endOfWeek } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, ArrowLeft } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 
+// --- Static Data ---
 
-// Mock data per la struttura UI dell'agenda, in attesa di adattare il backend.
+const adCardPages: Record<string, string[]> = {
+  'Home': ['Card 1', 'Card 2', 'Card 3'],
+  'Panettieri': ['Card 1', 'Card 2', 'Card 3'],
+  'Vicino a te': ['Card 1', 'Card 2', 'Card 3'],
+  'Profilo': ['Card 1', 'Card 2', 'Card 3'],
+};
+
 const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-const prices = [
-    2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 5, // 00:00 - 06:00
-    10, 10, 15, 15, 15, // 07:00 - 11:00
-    20, 20, // 12:00 - 13:00
-    10, 10, 10, // 14:00 - 16:00
-    15, 15, 15, // 17:00 - 19:00
-    10, 10, // 20:00 - 21:00
-    5, 2.5 // 22:00, 23:00
-];
+const prices = [ 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 5, 10, 10, 15, 15, 15, 20, 20, 10, 10, 10, 15, 15, 15, 10, 10, 5, 2.5 ];
 
-const mockAdSpaces = timeSlots.map((time, index) => ({
-  id: `slot-${index}`,
-  name: `Banner in Homepage - ${time}`,
-  price: prices[index],
-  status: Math.random() > 0.7 ? 'booked' : 'available',
-}));
+// --- Calendar View Component ---
 
-
-export default function SponsorAgenda() {
-  const firestore = useFirestore();
-  
-  // FIX: La query Firestore è ora avvolta in useMemo.
-  // Questo assicura che l'oggetto query sia stabile tra i rendering,
-  // interrompendo il loop infinito causato da useCollection.
-  const adSpacesQuery = useMemo(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'ad_spaces'));
-  }, [firestore]);
-
-  // La chiamata a useCollection ora riceve una dipendenza stabile.
-  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
-
+const CalendarView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => void }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const weekDays = useMemo(() => {
@@ -52,18 +32,36 @@ export default function SponsorAgenda() {
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
   }, [currentDate]);
 
+  const mockAdSpaces = useMemo(() => {
+    const seed = adSpaceId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return timeSlots.map((time, index) => {
+        const pseudoRandom = (seed * (index + 1)) % 100 / 100;
+        return {
+            id: `slot-${index}`,
+            name: `Banner - ${time}`,
+            price: prices[index],
+            status: pseudoRandom > 0.7 ? 'booked' : 'available',
+        };
+    });
+  }, [adSpaceId]);
+
   const handlePrevWeek = () => setCurrentDate(prev => addDays(prev, -7));
   const handleNextWeek = () => setCurrentDate(prev => addDays(prev, 7));
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div>
-            <CardTitle>Agenda Spazi Pubblicitari</CardTitle>
-            <CardDescription>Visualizza gli slot disponibili e prenota la tua visibilità.</CardDescription>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className='flex items-center gap-4'>
+            <Button variant="outline" size="icon" onClick={onBack}>
+                <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <CardTitle>Agenda per: {adSpaceId}</CardTitle>
+              <CardDescription>Visualizza gli slot disponibili e prenota la tua visibilità.</CardDescription>
+            </div>
           </div>
-          <div className="flex items-center gap-4 rounded-lg border p-2">
+          <div className="flex items-center gap-4 rounded-lg border p-2 w-full sm:w-auto justify-between">
             <Button variant="ghost" size="icon" onClick={handlePrevWeek}>
               <ChevronLeft className="h-5 w-5" />
             </Button>
@@ -80,9 +78,8 @@ export default function SponsorAgenda() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-auto" style={{ maxHeight: '60vh' }}>
+        <div className="overflow-auto" style={{ maxHeight: '60vh', scrollbarWidth: 'thin' }}>
           <div className="relative grid grid-cols-[auto_repeat(7,1fr)]">
-            {/* Time column */}
             <div className="sticky left-0 z-10 bg-card">
               <div className="h-12 border-b"></div>
               {timeSlots.map(time => (
@@ -92,7 +89,6 @@ export default function SponsorAgenda() {
               ))}
             </div>
 
-            {/* Day columns */}
             {weekDays.map(day => (
               <div key={day.toISOString()} className="min-w-[120px]">
                 <div className="sticky top-0 z-10 flex h-12 flex-col items-center justify-center border-b bg-card text-center">
@@ -125,4 +121,74 @@ export default function SponsorAgenda() {
       </CardFooter>
     </Card>
   );
+};
+
+// --- Selection View Component ---
+
+const SelectionView = ({ onSelectCard }: { onSelectCard: (adSpaceId: string) => void }) => {
+    const [openPage, setOpenPage] = useState<string | null>('Home');
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
+                <CardDescription>Scegli una pagina e una card per visualizzare il calendario delle disponibilità.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {Object.entries(adCardPages).map(([pageName, cards]) => (
+                    <div key={pageName}>
+                        <Button
+                            variant="ghost"
+                            className="w-full justify-start text-lg font-semibold"
+                            onClick={() => setOpenPage(openPage === pageName ? null : pageName)}
+                        >
+                            <CalendarIcon className="mr-4 text-primary" />
+                            {pageName}
+                            <ChevronRight className={cn("ml-auto h-5 w-5 transition-transform", openPage === pageName && "rotate-90")} />
+                        </Button>
+                        {openPage === pageName && (
+                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 pl-8">
+                                {cards.map(cardName => {
+                                    const adSpaceId = `${pageName} - ${cardName}`;
+                                    return (
+                                        <Card 
+                                            key={adSpaceId} 
+                                            className="cursor-pointer hover:shadow-md hover:border-primary transition-all"
+                                            onClick={() => onSelectCard(adSpaceId)}
+                                        >
+                                            <CardHeader>
+                                                <CardTitle>{cardName}</CardTitle>
+                                                <CardDescription>Visualizza agenda</CardDescription>
+                                            </CardHeader>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
+    )
+}
+
+
+// --- Main Component ---
+
+export default function SponsorAgenda() {
+  const firestore = useFirestore();
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  
+  const adSpacesQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'ad_spaces'));
+  }, [firestore]);
+
+  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
+
+  if (selectedCard) {
+    return <CalendarView adSpaceId={selectedCard} onBack={() => setSelectedCard(null)} />;
+  }
+  
+  return <SelectionView onSelectCard={setSelectedCard} />;
 }
