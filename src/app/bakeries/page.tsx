@@ -5,6 +5,7 @@ import { collection, query, where } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { BakeryCard } from '@/components/bakeries/bakery-card';
 import { useMemo } from 'react';
+import AdDisplay from '@/components/sponsors/AdDisplay';
 
 export default function BakeriesPage() {
   const firestore = useFirestore();
@@ -40,6 +41,7 @@ export default function BakeriesPage() {
       ) : (
         <p className="py-16 text-center text-muted-foreground">Nessun panettiere approvato trovato.</p>
       )}
+      <AdDisplay />
     </div>
   );
 }

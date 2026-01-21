@@ -1,20 +1,45 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Image from 'next/image';
 import adData from '@/lib/ad-spaces.json';
 
-const { adSlots } = adData;
+// This map links the URL path to the 'page' identifier in our JSON data.
+const pageNameMap: { [key: string]: string } = {
+  '/': 'Home',
+  '/bakeries': 'Panettieri',
+  '/near-me': 'Vicino a te',
+  '/profile': 'Profilo',
+};
 
 export default function AdDisplay() {
+    const pathname = usePathname();
+    
+    // Determine the current page's name based on the URL path.
+    const currentPageName = pageNameMap[pathname] || null;
+
+    // If the current page isn't one that should display ads, render nothing.
+    if (!currentPageName) {
+        return null;
+    }
+
+    // Filter the ad slots from the JSON file to get only the ones for the current page.
+    const filteredAdSlots = adData.adSlots.filter(ad => ad.page === currentPageName);
+    
+    // If no ad slots are defined for this page, render nothing.
+    if (filteredAdSlots.length === 0) {
+        return null;
+    }
+
     return (
-        <section className="container mx-auto px-4 py-12 no-print">
+        <section className="py-12 no-print">
             <h2 className="text-2xl font-headline text-center text-foreground mb-8">
-                I Nostri Spazi Pubblicitari
+                Spazi Sponsorizzati
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {adSlots.map(ad => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredAdSlots.map(ad => (
                     <Card key={ad.id} className="overflow-hidden transition-shadow hover:shadow-lg">
                          <div className="relative aspect-[16/9] w-full bg-muted">
                             <Image
@@ -32,7 +57,7 @@ export default function AdDisplay() {
                         </CardHeader>
                         <CardContent>
                            <p className="text-sm text-muted-foreground">
-                                Questo è uno spazio pubblicitario prenotabile dai nostri sponsor. Clicca per vedere la disponibilità.
+                                Spazio prenotabile. Clicca per vedere la disponibilità.
                            </p>
                         </CardContent>
                     </Card>

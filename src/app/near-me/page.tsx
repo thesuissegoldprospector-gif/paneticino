@@ -1,4 +1,5 @@
 import { DeliveryZoneChecker } from '@/components/delivery-zone-checker';
+import AdDisplay from '@/components/sponsors/AdDisplay';
 
 export default function NearMePage() {
   return (
@@ -10,6 +11,7 @@ export default function NearMePage() {
         </p>
       </div>
       <DeliveryZoneChecker />
+      <AdDisplay />
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/Footer';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { FirebaseClientProvider } from '@/firebase';
-import AdDisplay from '@/components/sponsors/AdDisplay';
 
 export const metadata: Metadata = {
   title: 'PaneDelivery',
@@ -32,7 +31,6 @@ export default function RootLayout({
             <div className="relative flex min-h-screen w-full flex-col">
               <Header />
               <main className="flex-1 pt-16">{children}</main>
-              <AdDisplay />
               <Footer />
               <BottomNav />
             </div>

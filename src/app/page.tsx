@@ -10,6 +10,7 @@ import { useFirestore, useCollection } from '@/firebase';
 import { BakeryCard } from '@/components/bakeries/bakery-card';
 import { ProductCard, ProductCardSkeleton } from '@/components/products/product-card';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import AdDisplay from '@/components/sponsors/AdDisplay';
 
 export default function Home() {
   const firestore = useFirestore();
@@ -249,6 +250,7 @@ export default function Home() {
         </div>
       </section>
 
+      <AdDisplay />
     </div>
   );
 }
