@@ -334,39 +334,43 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AdSpace",
       "type": "object",
-      "description": "Represents an advertising space available for sponsors.",
+      "description": "Represents an advertising space and its hourly booking status.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the AdSpace."
+          "description": "Unique identifier for the AdSpace (e.g., 'home-card-1')."
         },
         "name": {
           "type": "string",
-          "description": "The name or description of the ad space (e.g., 'Homepage Banner')."
+          "description": "The name or title of the ad space (e.g., 'Spazio Pubblicitario 1')."
         },
-        "price": {
-          "type": "number",
-          "description": "The price to book this ad space in CHF."
-        },
-        "status": {
+        "page": {
           "type": "string",
-          "description": "The current status of the ad space.",
-          "enum": [
-            "available",
-            "booked"
-          ]
+          "description": "The page where the ad appears (e.g., 'Home', 'Panettieri')."
         },
-        "currentSponsorId": {
-            "type": "string",
-            "description": "The ID of the sponsor who has booked this ad space. Empty if available."
+        "cardIndex": {
+          "type": "number",
+          "description": "The position of the card on the page (e.g., 1, 2, 3)."
+        },
+        "bookings": {
+          "type": "object",
+          "description": "A map of hourly bookings. The key is in 'YYYY-MM-DD_HH:MM' format.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": ["reserved", "paid"]
+              },
+              "sponsorId": { "type": "string" },
+              "reservedAt": { "type": "object", "description": "Firestore Server Timestamp" },
+              "price": { "type": "number" }
+            },
+            "required": ["status", "sponsorId", "price"]
+          }
         }
       },
-      "required": [
-        "id",
-        "name",
-        "price",
-        "status"
-      ]
+      "required": ["id", "name", "page", "cardIndex"]
     }
   },
   "auth": {
@@ -517,7 +521,7 @@
           "schema": {
             "$ref": "#/backend/entities/AdSpace"
           },
-          "description": "Stores available advertising spaces for sponsors. Publicly readable.",
+          "description": "Stores available advertising spaces and their hourly bookings. Publicly readable.",
           "params": [
             {
               "name": "adSpaceId",
