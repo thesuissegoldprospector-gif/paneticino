@@ -342,9 +342,15 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
     const adCardPages = useMemo(() => {
         if (!adSpaces) return {};
         return adSpaces.reduce((acc, space) => {
-          const page = space.page || 'Altro';
+          const page = String(space.page || 'Altro').trim();
+          if (!page) return acc; // Skip spaces with no page name
+
           if (!acc[page]) acc[page] = [];
           acc[page].push(space);
+          
+          // Sort cards by their index to ensure stable order
+          acc[page].sort((a, b) => (Number(a.cardIndex) || 0) - (Number(b.cardIndex) || 0));
+
           return acc;
         }, {} as Record<string, DocumentData[]>);
     }, [adSpaces]);
@@ -361,6 +367,20 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
                 </CardContent>
             </Card>
         )
+    }
+    
+    if (!isLoading && (!adSpaces || adSpaces.length === 0)) {
+         return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Spazi Pubblicitari non disponibili</CardTitle>
+                    <CardDescription>Non ci sono spazi pubblicitari configurati al momento.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-center text-muted-foreground py-8">Controlla la configurazione o contatta un amministratore.</p>
+                </CardContent>
+            </Card>
+        );
     }
 
     return (
