@@ -1,0 +1,112 @@
+{
+  "adSlots": [
+    {
+      "id": "home-card-1",
+      "page": "Home",
+      "cardIndex": 1,
+      "title": "Spazio Pubblicitario 1",
+      "description": "Card 1 - Pagina Home",
+      "imageUrl": "https://picsum.photos/seed/home-ad-1/600/400",
+      "imageHint": "advertisement city"
+    },
+    {
+      "id": "home-card-2",
+      "page": "Home",
+      "cardIndex": 2,
+      "title": "Spazio Pubblicitario 2",
+      "description": "Card 2 - Pagina Home",
+      "imageUrl": "https://picsum.photos/seed/home-ad-2/600/400",
+      "imageHint": "billboard night"
+    },
+    {
+      "id": "home-card-3",
+      "page": "Home",
+      "cardIndex": 3,
+      "title": "Spazio Pubblicitario 3",
+      "description": "Card 3 - Pagina Home",
+      "imageUrl": "https://picsum.photos/seed/home-ad-3/600/400",
+      "imageHint": "shopping street"
+    },
+    {
+      "id": "panettieri-card-1",
+      "page": "Panettieri",
+      "cardIndex": 1,
+      "title": "Spazio Pubblicitario 1",
+      "description": "Card 1 - Pagina Panettieri",
+      "imageUrl": "https://picsum.photos/seed/bakeries-ad-1/600/400",
+      "imageHint": "bakery display"
+    },
+    {
+      "id": "panettieri-card-2",
+      "page": "Panettieri",
+      "cardIndex": 2,
+      "title": "Spazio Pubblicitario 2",
+      "description": "Card 2 - Pagina Panettieri",
+      "imageUrl": "https://picsum.photos/seed/bakeries-ad-2/600/400",
+      "imageHint": "fresh bread"
+    },
+    {
+      "id": "panettieri-card-3",
+      "page": "Panettieri",
+      "cardIndex": 3,
+      "title": "Spazio Pubblicitario 3",
+      "description": "Card 3 - Pagina Panettieri",
+      "imageUrl": "https://picsum.photos/seed/bakeries-ad-3/600/400",
+      "imageHint": "pastry shop"
+    },
+    {
+      "id": "vicino-a-te-card-1",
+      "page": "Vicino a te",
+      "cardIndex": 1,
+      "title": "Spazio Pubblicitario 1",
+      "description": "Card 1 - Pagina Vicino a te",
+      "imageUrl": "https://picsum.photos/seed/near-ad-1/600/400",
+      "imageHint": "city map"
+    },
+    {
+      "id": "vicino-a-te-card-2",
+      "page": "Vicino a te",
+      "cardIndex": 2,
+      "title": "Spazio Pubblicitario 2",
+      "description": "Card 2 - Pagina Vicino a te",
+      "imageUrl": "https://picsum.photos/seed/near-ad-2/600/400",
+      "imageHint": "local market"
+    },
+    {
+      "id": "vicino-a-te-card-3",
+      "page": "Vicino a te",
+      "cardIndex": 3,
+      "title": "Spazio Pubblicitario 3",
+      "description": "Card 3 - Pagina Vicino a te",
+      "imageUrl": "https://picsum.photos/seed/near-ad-3/600/400",
+      "imageHint": "neighborhood street"
+    },
+    {
+      "id": "profilo-card-1",
+      "page": "Profilo",
+      "cardIndex": 1,
+      "title": "Spazio Pubblicitario 1",
+      "description": "Card 1 - Pagina Profilo",
+      "imageUrl": "https://picsum.photos/seed/profile-ad-1/600/400",
+      "imageHint": "personal growth"
+    },
+    {
+      "id": "profilo-card-2",
+      "page": "Profilo",
+      "cardIndex": 2,
+      "title": "Spazio Pubblicitario 2",
+      "description": "Card 2 - Pagina Profilo",
+      "imageUrl": "https://picsum.photos/seed/profile-ad-2/600/400",
+      "imageHint": "online account"
+    },
+    {
+      "id": "profilo-card-3",
+      "page": "Profilo",
+      "cardIndex": 3,
+      "title": "Spazio Pubblicitario 3",
+      "description": "Card 3 - Pagina Profilo",
+      "imageUrl": "https://picsum.photos/seed/profile-ad-3/600/400",
+      "imageHint": "user dashboard"
+    }
+  ]
+}

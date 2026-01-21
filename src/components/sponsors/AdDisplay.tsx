@@ -3,25 +3,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Image from 'next/image';
+import adData from '@/lib/ad-spaces.json';
 
-const adPages = [
-    { pageName: 'Home', slots: 3 },
-    { pageName: 'Panettieri', slots: 3 },
-    { pageName: 'Vicino a te', slots: 3 },
-    { pageName: 'Profilo', slots: 3 },
-];
-
-const adSlots = adPages.flatMap(page => 
-    Array.from({ length: page.slots }, (_, i) => ({
-        id: `${page.pageName.toLowerCase().replace(/ /g, '-')}-card-${i + 1}`,
-        page: page.pageName,
-        cardIndex: i + 1,
-        title: `Spazio Pubblicitario ${i + 1}`,
-        description: `Card ${i + 1} - Pagina ${page.pageName}`,
-        imageUrl: `https://picsum.photos/seed/${page.pageName.toLowerCase()}${i + 1}/600/400`,
-        imageHint: "advertisement billboard"
-    }))
-);
+const { adSlots } = adData;
 
 export default function AdDisplay() {
     return (
