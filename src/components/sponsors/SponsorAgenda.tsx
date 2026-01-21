@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useDoc, useUser } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc, serverTimestamp, deleteField, type DocumentData } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc, serverTimestamp, deleteField, type DocumentData, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 // --- Static Data & Types ---
@@ -84,34 +84,54 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
   }, [currentDate]);
 
   const handleToggleSlot = async (day: Date, time: string) => {
-    if (!user || !adSpaceDocRef) {
+    if (!user || !firestore || !adSpaceDocRef) {
       toast({ variant: 'destructive', title: 'Errore', description: 'Utente non autenticato o riferimento allo spazio non valido.' });
       return;
     }
     
     const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
     const fieldPath = `bookings.${key}`;
-    const { status } = getSlotStatus(day, time);
 
     try {
-      if (status === 'available') {
-        const price = prices[timeSlots.indexOf(time)];
-        await updateDoc(adSpaceDocRef, {
-          [fieldPath]: {
-            sponsorId: user.uid,
-            status: 'reserved',
-            reservedAt: serverTimestamp(),
-            price: price,
-          },
+        await runTransaction(firestore, async (transaction) => {
+            const adSpaceSnap = await transaction.get(adSpaceDocRef);
+            if (!adSpaceSnap.exists()) {
+                throw "Il documento dello spazio pubblicitario non esiste.";
+            }
+
+            const bookings = adSpaceSnap.data().bookings || {};
+            const currentBooking = bookings[key];
+            const price = prices[timeSlots.indexOf(time)];
+
+            const isStale = currentBooking?.status === 'reserved' && currentBooking.reservedAt && (Date.now() > currentBooking.reservedAt.toDate().getTime() + TEN_MINUTES_MS);
+            
+            // Case 1: The slot is available (it doesn't exist or its reservation is stale)
+            if (!currentBooking || isStale) {
+                transaction.update(adSpaceDocRef, {
+                    [fieldPath]: {
+                        sponsorId: user.uid,
+                        status: 'reserved',
+                        reservedAt: serverTimestamp(),
+                        price: price,
+                    }
+                });
+            }
+            // Case 2: The slot is already reserved by the current user, so un-reserve it.
+            else if (currentBooking.status === 'reserved' && currentBooking.sponsorId === user.uid) {
+                transaction.update(adSpaceDocRef, {
+                    [fieldPath]: deleteField()
+                });
+            }
+            // Case 3: The slot is already paid for or reserved by another user. Do nothing.
+            // The UI will reflect the real state via the onSnapshot listener.
         });
-      } else if (status === 'selected') {
-        await updateDoc(adSpaceDocRef, {
-          [fieldPath]: deleteField(),
+    } catch (e) {
+        console.error("Transaction to toggle slot failed: ", e);
+        toast({
+            variant: "destructive",
+            title: "Operazione fallita",
+            description: "Qualcuno potrebbe aver appena prenotato questo slot. La vista si aggiornerà a breve.",
         });
-      }
-    } catch (error) {
-      console.error("Error toggling slot:", error);
-      toast({ variant: 'destructive', title: 'Operazione fallita', description: 'Impossibile aggiornare lo stato dello slot.' });
     }
   };
 

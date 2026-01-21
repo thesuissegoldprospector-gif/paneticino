@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, query, collection, where } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { useFirestore, useDoc, useUser } from '@/firebase';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,26 +31,31 @@ export default function SponsorDashboardPage() {
 
   const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading;
 
+  useEffect(() => {
+    // Wait until all data is loaded before attempting to redirect.
+    if (isLoading) return;
+
+    // This is a side effect and should be in a useEffect.
+    if (!user) {
+      router.replace('/login');
+    } else if (userDoc?.role !== 'sponsor') {
+      router.replace('/profile');
+    }
+  }, [user, userDoc, isLoading, router]);
+
   const handleLogout = async () => {
     await signOut(getAuth());
     router.push('/login');
   };
 
-  if (isLoading) {
+  // Render a loading state while checks are in progress or user is not yet loaded.
+  if (isLoading || !user || userDoc?.role !== 'sponsor') {
     return (
-      <div className="flex h-full min-h-[calc(100vh-8rem)] items-center justify-center">
+      <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        {userDoc && userDoc.role !== 'sponsor' && <p className="ml-4 text-muted-foreground">Reindirizzamento...</p>}
       </div>
     );
-  }
-  
-  if (!user) {
-    router.replace('/login');
-    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin"/></div>;
-  }
-  if (userDoc?.role !== 'sponsor') {
-    router.replace('/profile');
-    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin"/></div>;
   }
 
   if (!sponsorProfile) {
