@@ -7,9 +7,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useFirestore, useCollection } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
 
 
-// Mock data - same as before
+// Mock data per la struttura UI dell'agenda, in attesa di adattare il backend.
 const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
 const prices = [
     2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 5, // 00:00 - 06:00
@@ -21,7 +23,7 @@ const prices = [
     5, 2.5 // 22:00, 23:00
 ];
 
-const adSpaces = timeSlots.map((time, index) => ({
+const mockAdSpaces = timeSlots.map((time, index) => ({
   id: `slot-${index}`,
   name: `Banner in Homepage - ${time}`,
   price: prices[index],
@@ -30,6 +32,19 @@ const adSpaces = timeSlots.map((time, index) => ({
 
 
 export default function SponsorAgenda() {
+  const firestore = useFirestore();
+  
+  // FIX: La query Firestore è ora avvolta in useMemo.
+  // Questo assicura che l'oggetto query sia stabile tra i rendering,
+  // interrompendo il loop infinito causato da useCollection.
+  const adSpacesQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'ad_spaces'));
+  }, [firestore]);
+
+  // La chiamata a useCollection ora riceve una dipendenza stabile.
+  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
+
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const weekDays = useMemo(() => {
@@ -85,7 +100,7 @@ export default function SponsorAgenda() {
                   <p className="text-xs text-muted-foreground">{format(day, 'dd')}</p>
                 </div>
                 <div className="relative">
-                  {adSpaces.map(space => (
+                  {mockAdSpaces.map(space => (
                     <div key={space.id} className="relative h-12 border-b">
                       <Button
                         variant={space.status === 'available' ? 'outline' : 'secondary'}
