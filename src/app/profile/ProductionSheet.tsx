@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useCollection, useUser } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -23,7 +23,7 @@ export function ProductionSheet({ fromDate, toDate }: Props) {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
 
-    const allOrdersQuery = useMemoFirebase(() => {
+    const allOrdersQuery = useMemo(() => {
         if (!firestore || !user) return null;
         return query(
             collection(firestore, 'orders'),
@@ -36,13 +36,13 @@ export function ProductionSheet({ fromDate, toDate }: Props) {
     const aggregatedProducts = useMemo((): AggregatedProduct[] => {
         if (!allOrders) return [];
 
-        const productMap = new Map<string, number>();
-
         const filteredOrders = allOrders.filter(order => {
              const orderDate = order.createdAt?.toDate();
             if (!orderDate) return false;
             return order.status === 'accepted' && orderDate >= fromDate && orderDate <= toDate;
         });
+
+        const productMap = new Map<string, number>();
 
         filteredOrders.forEach(order => {
             order.items.forEach((item: { name: string, quantity: number }) => {

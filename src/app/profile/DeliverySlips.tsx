@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useCollection, useUser } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,7 +18,7 @@ export function DeliverySlips({ fromDate, toDate }: Props) {
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
 
-    const allOrdersQuery = useMemoFirebase(() => {
+    const allOrdersQuery = useMemo(() => {
         if (!firestore || !user) return null;
         return query(
             collection(firestore, 'orders'),

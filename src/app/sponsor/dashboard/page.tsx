@@ -3,7 +3,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { doc, collection, query } from 'firebase/firestore';
-import { useFirestore, useDoc, useUser, useCollection } from '@/firebase';
+import { useFirestore, useDoc, useUser } from '@/firebase';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Clock, CheckCircle, XCircle, LogOut, ChevronLeft, ChevronRight, Check } from 'lucide-react';
@@ -231,61 +231,20 @@ const SponsorBookingCalendar = () => {
 export default function SponsorDashboardPage() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const firestore = useFirestore();
 
   // User and Sponsor profile fetching
   const { data: userDoc, isLoading: isUserDocLoading } = useUserDoc(user?.uid);
   const sponsorDocRef = useMemo(() => {
-    if (!useFirestore || !user) return null;
-    return doc(useFirestore(), 'sponsors', user.uid);
-  }, [user]);
+    if (!firestore || !user) return null;
+    return doc(firestore, 'sponsors', user.uid);
+  }, [firestore, user]);
   const { data: sponsorProfile, isLoading: isSponsorProfileLoading } = useDoc(sponsorDocRef);
-
-  // Ad spaces fetching
-  const [adSpaces, setAdSpaces] = useState<any[]>([]);
-  const [isAdSpacesLoading, setIsAdSpacesLoading] = useState(true);
-  const firestore = useFirestore();
-
-  useEffect(() => {
-    if (!firestore || !user) {
-      if (!isUserLoading) setIsAdSpacesLoading(false);
-      return;
-    }
-    
-    console.log("Auth confirmed, starting Firestore query for ad_spaces...");
-    const adSpacesQuery = query(collection(firestore, 'ad_spaces'));
-
-    const unsubscribe = useCollection(adSpacesQuery);
-    
-    // The useCollection hook is not directly used here because we need to use onSnapshot
-    // and handle its returned value inside the useEffect.
-    const onSnapshot = (querySnapshot: any) => {
-        const spaces = querySnapshot.docs.map((doc:any) => ({ id: doc.id, ...doc.data() }));
-        console.log(`Firestore query returned ${spaces.length} documents.`);
-        setAdSpaces(spaces);
-        setIsAdSpacesLoading(false);
-    };
-    
-    // Fallback to a dummy subscription if useCollection doesn't return a function
-    let subscriber = () => {};
-    if (typeof unsubscribe === 'function') {
-        subscriber = unsubscribe;
-    } else {
-        // This part seems incorrect as useCollection returns an object, not a function.
-        // Let's assume there is a direct `onSnapshot` call missing here
-        // and that `useCollection` should not be used this way.
-        // Let's correct this by directly calling the onSnapshot from firestore.
-        
-        const q = query(collection(firestore, "ad_spaces"));
-        subscriber = require("firebase/firestore").onSnapshot(q, onSnapshot, (error: any) => {
-            console.error("Error fetching ad spaces:", error);
-            setIsAdSpacesLoading(false);
-        });
-    }
-
-    return () => subscriber();
-
-  }, [firestore, user, isUserLoading]);
   
+  // Note: The logic for fetching ad_spaces has been removed as it was violating
+  // React's Rules of Hooks and the data was not being used by the component's UI,
+  // which currently renders a static calendar.
+
   // Combined loading state
   const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading;
 

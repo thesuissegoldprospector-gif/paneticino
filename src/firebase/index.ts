@@ -4,7 +4,7 @@ import { updateProfile } from 'firebase/auth';
 import { DocumentReference, updateDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
-// This function now uses updateDoc and is awaited.
+// --- Funzione helper esistente ---
 export async function updateUserProfileAndAuth(user: User, userDocRef: DocumentReference, data: any) {
   if (!user || !userDocRef) return;
   const authUpdates: any = {};
@@ -30,6 +30,7 @@ export async function updateUserProfileAndAuth(user: User, userDocRef: DocumentR
   }
 }
 
+// --- Export esistenti ---
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';
