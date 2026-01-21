@@ -67,7 +67,6 @@ import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/fire
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { SponsorAdSpacesTable } from '@/components/sponsors/SponsorAdSpacesTable';
 
 // Types
 type SponsorStatus = 'pending' | 'approved' | 'rejected';
@@ -362,7 +361,6 @@ export default function AdminSponsorsPage() {
         </CardContent>
       </Card>
 
-      <SponsorAdSpacesTable mode="admin" />
       
       {/* Confirmation Dialog */}
       <AlertDialog open={!!dialogAction} onOpenChange={(open) => !open && setDialogAction(null)}>
