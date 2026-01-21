@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useFirestore, useCollection, useDoc, useUser } from '@/firebase';
 import { collection, query, orderBy, doc, updateDoc, serverTimestamp, deleteField, type DocumentData, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import adData from '@/lib/ad-spaces.json';
 
 // --- Static Data & Types ---
 const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
@@ -40,6 +41,10 @@ function Countdown({ expiryTimestamp, onExpire }: { expiryTimestamp: number; onE
   const [timeLeft, setTimeLeft] = useState(expiryTimestamp - Date.now());
 
   useEffect(() => {
+    if (expiryTimestamp <= Date.now()) {
+      onExpire();
+      return;
+    }
     const intervalId = setInterval(() => {
       const newTimeLeft = expiryTimestamp - Date.now();
       if (newTimeLeft <= 0) {
@@ -102,10 +107,9 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
             const bookings = adSpaceSnap.data().bookings || {};
             const currentBooking = bookings[key];
             const price = prices[timeSlots.indexOf(time)];
-
+            
             const isStale = currentBooking?.status === 'reserved' && currentBooking.reservedAt && (Date.now() > currentBooking.reservedAt.toDate().getTime() + TEN_MINUTES_MS);
             
-            // Case 1: The slot is available (it doesn't exist or its reservation is stale)
             if (!currentBooking || isStale) {
                 transaction.update(adSpaceDocRef, {
                     [fieldPath]: {
@@ -116,14 +120,11 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                     }
                 });
             }
-            // Case 2: The slot is already reserved by the current user, so un-reserve it.
             else if (currentBooking.status === 'reserved' && currentBooking.sponsorId === user.uid) {
                 transaction.update(adSpaceDocRef, {
                     [fieldPath]: deleteField()
                 });
             }
-            // Case 3: The slot is already paid for or reserved by another user. Do nothing.
-            // The UI will reflect the real state via the onSnapshot listener.
         });
     } catch (e) {
         console.error("Transaction to toggle slot failed: ", e);
@@ -149,7 +150,7 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
           slots.push({
             id: `${adSpaceId}-${key}`,
             adSpaceId: adSpaceId,
-            day: new Date(dateStr + 'T00:00:00'), // Avoid timezone issues
+            day: new Date(dateStr + 'T00:00:00'),
             time: timeStr,
             price: booking.price,
             addedAt: reservedAtTime,
@@ -408,8 +409,8 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
             </div>
             ))
         ) : (
-            <div className="h-48 flex items-center justify-center">
-                 <p className="text-center text-muted-foreground py-8">Nessuno spazio pubblicitario configurato. Contatta un amministratore.</p>
+            <div className="h-48 flex items-center justify-center text-center">
+                 <p className="text-muted-foreground">Nessuno spazio pubblicitario configurato.<br/>Contatta un amministratore.</p>
             </div>
         )}
       </CardContent>
@@ -428,11 +429,25 @@ export default function SponsorAgenda() {
     return query(collection(firestore, 'ad_spaces'), orderBy('page'), orderBy('cardIndex'));
   }, [firestore]);
 
-  const { data: adSpaces, isLoading: isLoadingSpaces } = useCollection(adSpacesQuery);
+  const { data: adSpacesFromFirestore, isLoading: isLoadingSpaces } = useCollection(adSpacesQuery);
+
+  const adSpaces = useMemo(() => {
+    // If we are actively loading from Firestore, return null to show the loading UI.
+    if (isLoadingSpaces) {
+      return null;
+    }
+    // If Firestore has data, prioritize it.
+    if (adSpacesFromFirestore && adSpacesFromFirestore.length > 0) {
+      return adSpacesFromFirestore;
+    }
+    // If loading is finished and Firestore is empty, fall back to the static JSON for development.
+    return adData.adSlots;
+  }, [adSpacesFromFirestore, isLoadingSpaces]);
+
 
   if (selectedAdSpaceId) {
     return <BookingView adSpaceId={selectedAdSpaceId} onBack={() => setSelectedAdSpaceId(null)} />;
   }
   
-  return <SelectionView adSpaces={adSpaces} isLoading={isLoadingSpaces} onSelectCard={setSelectedAdSpaceId} />;
+  return <SelectionView adSpaces={adSpaces} isLoading={adSpaces === null} onSelectCard={setSelectedAdSpaceId} />;
 }
