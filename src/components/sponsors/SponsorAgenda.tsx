@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -521,9 +520,14 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                 </div>
                             ))}
                             {/* Time slots */}
-                            {timeSlots.map(time => (
+                            {timeSlots.map(time => {
+                                const startTimeNumber = parseInt(time.split(':')[0], 10);
+                                const endTimeString = `${((startTimeNumber + 1) % 24).toString().padStart(2, '0')}:00`;
+                                return (
                                 <React.Fragment key={time}>
-                                    <div className="p-1 h-12 text-xs text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">{time}</div>
+                                    <div className="p-1 h-12 text-xs text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">
+                                        {time}–{endTimeString}
+                                    </div>
                                     {weekDays.map(day => {
                                         const { status, display } = getSlotStatus(day, time);
                                         return (
@@ -531,13 +535,13 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                                 key={day.toString()}
                                                 onClick={() => !['booked', 'processing', 'approved'].includes(status) && handleToggleSlot(day, time)}
                                                 className={cn(
-                                                    "p-1 h-12 border rounded-md text-center text-xs transition-colors flex items-center justify-center font-bold min-w-[80px]",
+                                                    "p-1 h-6 border rounded-md text-center text-[10px] transition-colors flex items-center justify-center font-bold min-w-[60px]",
                                                     {
-                                                        'cursor-pointer hover:bg-primary/20': status === 'available',
+                                                        'cursor-pointer hover:bg-green-100': status === 'available',
                                                         'bg-green-200 text-green-800 cursor-pointer': status === 'selected',
                                                         'bg-muted text-muted-foreground cursor-not-allowed': status === 'booked',
                                                         'bg-yellow-400 text-yellow-900 cursor-not-allowed': status === 'processing',
-                                                        'bg-green-500 text-white cursor-not-allowed': status === 'approved',
+                                                        'bg-green-600 text-white cursor-not-allowed': status === 'approved',
                                                         'border-dashed': status === 'available'
                                                     })}
                                             >
@@ -546,7 +550,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                         )
                                     })}
                                 </React.Fragment>
-                            ))}
+                            )})}
                         </div>
                     </div>
                 </CardContent>
