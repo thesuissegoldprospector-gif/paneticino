@@ -361,7 +361,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
             setSelectedSlots(newSelectedSlots);
         }
 
-    }, [adSpaceData, user]);
+    }, [adSpaceData, user, selectedSlots.size]);
 
 
     if (isAdSpaceLoading) {
@@ -477,7 +477,19 @@ export default function SponsorAgenda() {
     );
   }, [firestore]);
 
-  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
+  const { data: adSpacesFromDB, isLoading } = useCollection(adSpacesQuery);
+
+  const adSpaces = useMemo(() => {
+    if (adSpacesFromDB && adSpacesFromDB.length > 0) {
+      return adSpacesFromDB;
+    }
+    // Fallback to JSON data ONLY if the database is empty after loading
+    if (!isLoading && (!adSpacesFromDB || adSpacesFromDB.length === 0)) {
+        return adSpacesData.adSlots;
+    }
+    return [];
+  }, [adSpacesFromDB, isLoading]);
+
 
   const handleSelectCard = (id: string) => {
     setSelectedAdSpaceId(id);
