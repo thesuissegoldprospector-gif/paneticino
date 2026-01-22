@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -22,6 +23,8 @@ import {
   Link as LinkIcon,
   CheckCircle,
   CalendarClock,
+  AlertCircle,
+  XCircle,
 } from 'lucide-react';
 import {
   addDays,
@@ -54,6 +57,7 @@ import { Input } from '@/components/ui/input';
 import { UpdateImageDialog } from '@/app/profile/dialogs';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
@@ -77,19 +81,19 @@ function SponsorContentForm({ slot }: { slot: any }) {
   async function onSubmit(data: z.infer<typeof contentSubmissionSchema>) {
     if (!firestore) return;
     const adSpaceRef = doc(firestore, 'ad_spaces', slot.adSpaceId);
-    const updatePath = `bookings.${slot.slotKey}.content`;
     
     try {
       await runTransaction(firestore, async (transaction) => {
         const adSpaceDoc = await transaction.get(adSpaceRef);
         if (!adSpaceDoc.exists()) throw new Error("Spazio pubblicitario non trovato.");
         
-        // Prima imposta lo stato, poi il contenuto
+        // When resubmitting, always set status to 'processing' and clear admin feedback
         transaction.update(adSpaceRef, {
-            [`bookings.${slot.slotKey}.status`]: 'processing'
-        });
-        transaction.update(adSpaceRef, {
-            [updatePath]: data
+            [`bookings.${slot.slotKey}.content`]: data,
+            [`bookings.${slot.slotKey}.status`]: 'processing',
+            [`bookings.${slot.slotKey}.adminComment`]: null,
+            [`bookings.${slot.slotKey}.reviewedAt`]: null,
+            [`bookings.${slot.slotKey}.reviewedBy`]: null,
         });
 
       });
@@ -102,6 +106,13 @@ function SponsorContentForm({ slot }: { slot: any }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-4 bg-muted/50 rounded-lg">
+        {slot.status === 'rejected' && slot.adminComment && (
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Feedback dell'Admin</AlertTitle>
+                <AlertDescription>{slot.adminComment}</AlertDescription>
+            </Alert>
+        )}
         <FormField
           control={form.control}
           name="title"
@@ -146,7 +157,7 @@ function SponsorContentForm({ slot }: { slot: any }) {
         />
         <Button type="submit" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          Salva Contenuti
+          {slot.status === 'rejected' ? 'Salva e Reinvia per Approvazione' : 'Salva Contenuti'}
         </Button>
       </form>
     </Form>
@@ -275,16 +286,18 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedSlots, setSelectedSlots] = useState<Map<string, { price: number; reservedAt: Date }>>(new Map());
     
-    // Timer to force re-render every second for countdown
+    // This timer is the key to real-time countdown updates
     useEffect(() => {
       const timerId = setInterval(() => {
+        // If there are selected slots, we force a re-render to update countdowns
         if (selectedSlots.size > 0) {
-            setSelectedSlots(prevSlots => new Map(prevSlots));
+          // By creating a new Map, we trigger React's state update mechanism
+          setSelectedSlots(prevSlots => new Map(prevSlots));
         }
-      }, 1000);
+      }, 1000); // Run every second
     
-      return () => clearInterval(timerId);
-    }, [selectedSlots]);
+      return () => clearInterval(timerId); // Cleanup on unmount
+    }, [selectedSlots]); // Only re-run if selectedSlots itself changes (add/remove)
     
     const weekDays = eachDayOfInterval({
         start: startOfWeek(currentDate, { weekStartsOn: 1 }),
@@ -591,13 +604,13 @@ export default function SponsorAgenda() {
 
   const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
 
-  const processingSlots = useMemo(() => {
+  const reviewableSlots = useMemo(() => {
     if (!adSpaces || !user) return [];
     const slots: any[] = [];
     adSpaces.forEach(space => {
       if (!space.bookings) return;
       Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
-        if (booking.status === 'processing' && booking.sponsorId === user.uid) {
+        if (['processing', 'rejected'].includes(booking.status) && booking.sponsorId === user.uid) {
           const [date, time] = key.split('_');
           slots.push({
             id: key,
@@ -607,7 +620,9 @@ export default function SponsorAgenda() {
             pageName: space.page,
             date,
             time,
+            status: booking.status,
             content: booking.content,
+            adminComment: booking.adminComment,
             sponsorId: user.uid,
           });
         }
@@ -648,17 +663,17 @@ export default function SponsorAgenda() {
   
   return (
     <div className="space-y-6">
-      {processingSlots.length > 0 && (
+      {reviewableSlots.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Contenuti in Attesa di Approvazione</CardTitle>
+            <CardTitle>Contenuti da Revisionare</CardTitle>
             <CardDescription>
-              Completa i dati per gli slot che hai prenotato. Una volta salvati, saranno inviati per la revisione.
+              Completa i dati per gli slot prenotati o modifica quelli rifiutati per inviarli alla revisione.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
-              {processingSlots.map((slot) => (
+              {reviewableSlots.map((slot) => (
                 <AccordionItem value={slot.id} key={slot.id}>
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex w-full items-center justify-between pr-4">
@@ -668,7 +683,11 @@ export default function SponsorAgenda() {
                           {format(new Date(slot.date), 'eee dd MMM yyyy', {locale: it})} alle {slot.time}
                         </p>
                       </div>
-                      <Badge variant="secondary">Processing</Badge>
+                      {slot.status === 'rejected' ? (
+                        <Badge variant="destructive">Rifiutato</Badge>
+                      ) : (
+                        <Badge variant="secondary">In attesa</Badge>
+                      )}
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -727,3 +746,5 @@ export default function SponsorAgenda() {
     </div>
   );
 }
+
+    

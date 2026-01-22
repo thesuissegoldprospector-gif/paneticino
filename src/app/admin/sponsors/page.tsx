@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -58,6 +59,7 @@ import {
   ExternalLink,
   FileText,
   CalendarClock,
+  XCircle,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -66,70 +68,78 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { useFirestore } from '@/firebase';
-import { collection, doc, getDocs, query, updateDoc, where, runTransaction } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { collection, doc, getDocs, query, updateDoc, where, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { format, isPast, isToday } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import SponsorAgenda from '@/components/sponsors/SponsorAgenda';
+import { Textarea } from '@/components/ui/textarea';
 
 
 // --- Admin Approval Queue ---
 function AdminApprovalQueue() {
   const firestore = useFirestore();
+  const { user: adminUser } = useUser();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [approvalQueue, setApprovalQueue] = useState<any[]>([]);
 
-  useEffect(() => {
+  // State for rejection dialog
+  const [rejectionItem, setRejectionItem] = useState<any | null>(null);
+  const [rejectionComment, setRejectionComment] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
+
+  const fetchQueue = async () => {
     if (!firestore) {
       setIsLoading(false);
       return;
     }
-    const fetchQueue = async () => {
-      setIsLoading(true);
-      try {
-        const adSpacesQuery = query(collection(firestore, 'ad_spaces'));
-        const adSpacesSnapshot = await getDocs(adSpacesQuery);
-        const adSpaces = adSpacesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setIsLoading(true);
+    try {
+      const adSpacesQuery = query(collection(firestore, 'ad_spaces'));
+      const adSpacesSnapshot = await getDocs(adSpacesQuery);
+      const adSpaces = adSpacesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        const sponsorsQuery = query(collection(firestore, 'sponsors'));
-        const sponsorsSnapshot = await getDocs(sponsorsQuery);
-        const sponsors = sponsorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-        
-        const sponsorsMap = new Map(sponsors.map((s:any) => [s.userId, s.companyName]));
-        
-        const queue: any[] = [];
-        adSpaces.forEach((space:any) => {
-            if (!space.bookings) return;
-            Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
-                if (booking.status === 'processing' && booking.content) {
-                const [date, time] = key.split('_');
-                queue.push({
-                    slotKey: key,
-                    adSpaceId: space.id,
-                    sponsorId: booking.sponsorId,
-                    sponsorName: sponsorsMap.get(booking.sponsorId) || 'Sponsor Sconosciuto',
-                    adSpaceName: space.name,
-                    pageName: space.page,
-                    date,
-                    time,
-                    content: booking.content,
-                });
-                }
-            });
-        });
-        
-        setApprovalQueue(queue.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)));
+      const sponsorsQuery = query(collection(firestore, 'sponsors'));
+      const sponsorsSnapshot = await getDocs(sponsorsQuery);
+      const sponsors = sponsorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      
+      const sponsorsMap = new Map(sponsors.map((s:any) => [s.userId, s.companyName]));
+      
+      const queue: any[] = [];
+      adSpaces.forEach((space:any) => {
+          if (!space.bookings) return;
+          Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
+              if (booking.status === 'processing' && booking.content) {
+              const [date, time] = key.split('_');
+              queue.push({
+                  slotKey: key,
+                  adSpaceId: space.id,
+                  sponsorId: booking.sponsorId,
+                  sponsorName: sponsorsMap.get(booking.sponsorId) || 'Sponsor Sconosciuto',
+                  adSpaceName: space.name,
+                  pageName: space.page,
+                  date,
+                  time,
+                  content: booking.content,
+              });
+              }
+          });
+      });
+      
+      setApprovalQueue(queue.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)));
 
-      } catch (error) {
-        console.error("Failed to fetch approval queue:", error);
-        toast({ variant: 'destructive', title: "Errore", description: "Impossibile caricare la coda di approvazione." });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    } catch (error) {
+      console.error("Failed to fetch approval queue:", error);
+      toast({ variant: 'destructive', title: "Errore", description: "Impossibile caricare la coda di approvazione." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchQueue();
   }, [firestore, toast]);
   
@@ -145,10 +155,43 @@ function AdminApprovalQueue() {
         transaction.update(adSpaceRef, { [statusUpdatePath]: 'approved' });
       });
       toast({ title: "Slot approvato!", description: "Il contenuto è ora attivo." });
+      setApprovalQueue(prev => prev.filter(item => item.slotKey !== slotKey));
     } catch (error: any) {
       toast({ variant: 'destructive', title: "Errore", description: error.message });
     }
   }
+
+  async function handleReject() {
+    if (!firestore || !rejectionItem || !adminUser) return;
+    setIsRejecting(true);
+    const { adSpaceId, slotKey } = rejectionItem;
+    const adSpaceRef = doc(firestore, 'ad_spaces', adSpaceId);
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const adSpaceDoc = await transaction.get(adSpaceRef);
+        if (!adSpaceDoc.exists()) throw new Error("Spazio pubblicitario non trovato.");
+        
+        const bookingPathPrefix = `bookings.${slotKey}`;
+        transaction.update(adSpaceRef, {
+          [`${bookingPathPrefix}.status`]: 'rejected',
+          [`${bookingPathPrefix}.adminComment`]: rejectionComment,
+          [`${bookingPathPrefix}.reviewedAt`]: serverTimestamp(),
+          [`${bookingPathPrefix}.reviewedBy`]: adminUser.uid,
+        });
+      });
+
+      toast({ title: "Contenuto rifiutato", description: "Il feedback è stato inviato allo sponsor." });
+      setApprovalQueue(prev => prev.filter(item => item.slotKey !== slotKey));
+      setRejectionItem(null);
+      setRejectionComment('');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: "Errore durante il rifiuto", description: error.message });
+    } finally {
+      setIsRejecting(false);
+    }
+  }
+
 
   if (isLoading) {
     return <Card><CardContent className="p-6 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></CardContent></Card>;
@@ -159,60 +202,96 @@ function AdminApprovalQueue() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Coda di Approvazione Contenuti</CardTitle>
-        <CardDescription>Revisiona e approva i contenuti inviati dagli sponsor.</CardDescription>
-      </CardHeader>
-      <CardContent className="max-h-96 overflow-y-auto">
-        <Accordion type="single" collapsible className="w-full">
-          {approvalQueue.map(item => (
-            <AccordionItem key={item.slotKey} value={item.slotKey}>
-              <AccordionTrigger>
-                <div className="flex w-full items-center justify-between pr-4">
-                  <div>
-                    <p className="font-semibold">{item.adSpaceName} ({item.pageName})</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.sponsorName} - {format(new Date(item.date), 'dd MMM yyyy', {locale: it})} alle {item.time}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">In attesa</Badge>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="p-4 bg-muted/30 rounded-md">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold">Titolo Annuncio</h4>
-                    <p>{item.content.title || '-'}</p>
-                  </div>
-                  {item.content.link && (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Coda di Approvazione Contenuti</CardTitle>
+          <CardDescription>Revisiona e approva i contenuti inviati dagli sponsor.</CardDescription>
+        </CardHeader>
+        <CardContent className="max-h-96 overflow-y-auto">
+          <Accordion type="single" collapsible className="w-full">
+            {approvalQueue.map(item => (
+              <AccordionItem key={item.slotKey} value={item.slotKey}>
+                <AccordionTrigger>
+                  <div className="flex w-full items-center justify-between pr-4">
                     <div>
-                      <h4 className="font-semibold">Link</h4>
-                      <a href={item.content.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
-                        {item.content.link} <ExternalLink className="h-4 w-4" />
-                      </a>
+                      <p className="font-semibold">{item.adSpaceName} ({item.pageName})</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.sponsorName} - {format(new Date(item.date), 'dd MMM yyyy', {locale: it})} alle {item.time}
+                      </p>
                     </div>
-                  )}
-                  {item.content.fileUrl && (
-                    <div>
-                      <h4 className="font-semibold">File Caricato</h4>
-                      <a href={item.content.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
-                        Visualizza file <FileText className="h-4 w-4" />
-                      </a>
-                    </div>
-                  )}
-                  <div className="flex justify-end">
-                    <Button onClick={() => handleApprove(item.adSpaceId, item.slotKey)}>
-                      <CheckCircle className="mr-2 h-4 w-4" /> Approva Contenuto
-                    </Button>
+                    <Badge variant="secondary">In attesa</Badge>
                   </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </CardContent>
-    </Card>
+                </AccordionTrigger>
+                <AccordionContent className="p-4 bg-muted/30 rounded-md">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold">Titolo Annuncio</h4>
+                      <p>{item.content.title || '-'}</p>
+                    </div>
+                    {item.content.link && (
+                      <div>
+                        <h4 className="font-semibold">Link</h4>
+                        <a href={item.content.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                          {item.content.link} <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </div>
+                    )}
+                    {item.content.fileUrl && (
+                      <div>
+                        <h4 className="font-semibold">File Caricato</h4>
+                        <a href={item.content.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                          Visualizza file <FileText className="h-4 w-4" />
+                        </a>
+                      </div>
+                    )}
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                       <Button variant="destructive" onClick={() => setRejectionItem(item)}>
+                        <XCircle className="mr-2 h-4 w-4" /> Rifiuta
+                      </Button>
+                      <Button onClick={() => handleApprove(item.adSpaceId, item.slotKey)}>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Approva
+                      </Button>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </CardContent>
+      </Card>
+      
+      {/* Rejection Dialog */}
+      <Dialog open={!!rejectionItem} onOpenChange={(open) => !open && setRejectionItem(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rifiuta Contenuto</DialogTitle>
+            <DialogDescription>
+              Scrivi un commento per spiegare allo sponsor ({rejectionItem?.sponsorName}) il motivo del rifiuto. Questo commento sarà visibile.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Motivo del rifiuto (es. immagine non conforme, testo non appropriato...)"
+              value={rejectionComment}
+              onChange={(e) => setRejectionComment(e.target.value)}
+              rows={4}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRejectionItem(null)}>Annulla</Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={isRejecting || rejectionComment.trim().length < 5}
+            >
+              {isRejecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Invia Rifiuto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -658,3 +737,5 @@ export default function AdminSponsorsPage() {
     </div>
   );
 }
+
+    
