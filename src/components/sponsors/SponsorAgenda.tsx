@@ -165,42 +165,22 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedSlots, setSelectedSlots] = useState<Map<string, { price: number; reservedAt: Date }>>(new Map());
-    const [, setTick] = useState(0); // State to trigger re-renders for the timer
+    const [, setTick] = useState(0);
     
-    // This effect runs a timer to update the UI every second for the countdowns
-    // and cleans up expired slots from the local state.
     useEffect(() => {
         const timerId = setInterval(() => {
-            // Use functional update to get the latest state without adding it as a dependency
-            setSelectedSlots(currentSlots => {
-                const now = Date.now();
-                const newSlots = new Map(currentSlots);
-                let changed = false;
-                newSlots.forEach((value, key) => {
-                    if (now > value.reservedAt.getTime() + TEN_MINUTES_MS) {
-                        newSlots.delete(key);
-                        changed = true;
-                    }
-                });
-                // Only return a new map if something actually changed
-                return changed ? newSlots : currentSlots;
-            });
-
-            // Always update the tick to force a re-render for the countdown timer
             setTick(prev => prev + 1);
-
         }, 1000);
-
         return () => clearInterval(timerId);
-    }, []); // Empty dependency array ensures this runs only once on mount
+    }, []);
     
     const weekDays = eachDayOfInterval({
         start: startOfWeek(currentDate, { weekStartsOn: 1 }),
         end: addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), 6),
     });
 
-    const timeSlots = Array.from({ length: 13 }, (_, i) => `${(i + 8).toString().padStart(2, '0')}:00`);
-    const prices = [10, 10, 15, 15, 20, 10, 10, 15, 15, 20, 10, 10, 10]; // Prezzi fittizi
+    const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+    const prices = [5, 5, 5, 5, 5, 5, 10, 10, 15, 20, 20, 15, 15, 20, 20, 15, 15, 10, 10, 10, 10, 5, 5, 5];
     
     const getSlotStatus = (day: Date, time: string): { status: 'available' | 'selected' | 'booked'; price: number } => {
         const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
@@ -210,17 +190,14 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
         if (!booking) {
             return { status: 'available', price };
         }
-        
-        // Handle permanently booked states
+
         if (['paid', 'processing', 'approved'].includes(booking.status)) {
             return { status: 'booked', price };
         }
 
         if (booking.status === 'reserved') {
           const reservedAt = booking.reservedAt?.toDate().getTime();
-          // Check if reservation is still valid (not expired)
           if (reservedAt && Date.now() < reservedAt + TEN_MINUTES_MS) {
-            // Check if it's the current user's reservation or someone else's
             return {
               status: booking.sponsorId === user?.uid ? 'selected' : 'booked',
               price,
@@ -228,7 +205,6 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
           }
         }
         
-        // Default to available if no other condition is met (e.g., expired reservation)
         return { status: 'available', price };
     };
 
@@ -249,11 +225,9 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                 const existingBooking = currentBookings[key];
 
                 if (existingBooking) {
-                    // There's a booking, check if it's ours and in 'reserved' state to deselect it
                     if (existingBooking.sponsorId === user.uid && existingBooking.status === 'reserved') {
                         delete currentBookings[key];
                     } else if (existingBooking.status !== 'reserved' || (Date.now() > existingBooking.reservedAt.toDate().getTime() + TEN_MINUTES_MS)) {
-                       // The slot is either permanently booked, or it's an expired reservation we can take over.
                        currentBookings[key] = {
                             status: 'reserved',
                             sponsorId: user.uid,
@@ -262,11 +236,9 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                         };
                     }
                     else {
-                        // It's reserved by someone else, do nothing.
                         throw new Error("Slot già prenotato o in elaborazione.");
                     }
                 } else {
-                    // No reservation exists, create a new one
                     currentBookings[key] = {
                         status: 'reserved',
                         sponsorId: user.uid,
@@ -306,7 +278,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                 for (const key of slotsToPurchase) {
                     const booking = currentBookings[key];
                     if (booking && booking.sponsorId === user.uid && booking.status === 'reserved') {
-                        currentBookings[key].status = 'processing'; // Change state to "processing"
+                        currentBookings[key].status = 'processing';
                         purchasedCount++;
                     }
                 }
@@ -336,7 +308,6 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
         return Array.from(selectedSlots.values()).reduce((acc, { price }) => acc + price, 0);
     }, [selectedSlots]);
     
-    // Update selected slots when data from firestore changes
     useEffect(() => {
         if (!adSpaceData?.bookings || !user) {
             setSelectedSlots(new Map());
@@ -356,7 +327,6 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
             }
         }
         
-        // Prevent infinite loop by checking if the maps are actually different
         if (newSelectedSlots.size !== selectedSlots.size || Array.from(newSelectedSlots.keys()).some(k => !selectedSlots.has(k))) {
             setSelectedSlots(newSelectedSlots);
         }
@@ -370,13 +340,12 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Calendario */}
             <Card className="lg:col-span-2">
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <Button variant="outline" size="icon" onClick={onBack}><ChevronLeft /></Button>
                         <CardTitle>{adSpaceData?.name}</CardTitle>
-                        <div className="w-10"></div> {/* Spacer */}
+                        <div className="w-10"></div>
                     </div>
                     <CardDescription className="text-center">{adSpaceData?.page}</CardDescription>
                 </CardHeader>
@@ -386,43 +355,44 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                         <span className="font-semibold text-lg">{format(weekDays[0], 'dd MMM', { locale: it })} - {format(weekDays[6], 'dd MMM yyyy', { locale: it })}</span>
                         <Button variant="outline" onClick={() => setCurrentDate(addDays(currentDate, 7))}>Settimana Succ.</Button>
                     </div>
-                    <div className="grid grid-cols-8 gap-1 text-center font-semibold">
-                        <div />
-                        {weekDays.map(day => (
-                            <div key={day.toString()} className={cn("p-2 rounded-md", isToday(day) && "bg-primary text-primary-foreground")}>
-                                <div>{format(day, 'eee', { locale: it })}</div>
-                                <div>{format(day, 'd')}</div>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="grid grid-cols-8 gap-1 mt-2">
-                        {timeSlots.map(time => (
-                            <React.Fragment key={time}>
-                                <div className="p-2 text-sm text-muted-foreground text-center">{time}</div>
-                                {weekDays.map(day => {
-                                    const { status, price } = getSlotStatus(day, time);
-                                    return (
-                                        <div
-                                            key={day.toString()}
-                                            onClick={() => status !== 'booked' && handleToggleSlot(day, time)}
-                                            className={cn("p-2 border rounded-md text-center text-xs transition-colors", {
-                                                'cursor-pointer hover:bg-primary/20': status === 'available',
-                                                'bg-yellow-400 text-yellow-900 cursor-pointer': status === 'selected',
-                                                'bg-muted text-muted-foreground cursor-not-allowed line-through': status === 'booked',
-                                                'border-dashed': status === 'available'
-                                            })}
-                                        >
-                                            {price} CHF
-                                        </div>
-                                    )
-                                })}
-                            </React.Fragment>
-                        ))}
+                    <div className="overflow-x-auto">
+                        <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 text-center font-semibold min-w-[700px]">
+                            <div />
+                            {weekDays.map(day => (
+                                <div key={day.toString()} className={cn("p-2 rounded-md", isToday(day) && "bg-primary text-primary-foreground")}>
+                                    <div>{format(day, 'eee', { locale: it })}</div>
+                                    <div>{format(day, 'd')}</div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 mt-2 min-w-[700px]">
+                            {timeSlots.map(time => (
+                                <React.Fragment key={time}>
+                                    <div className="p-2 text-sm text-muted-foreground text-center flex items-center justify-center">{time}</div>
+                                    {weekDays.map(day => {
+                                        const { status, price } = getSlotStatus(day, time);
+                                        return (
+                                            <div
+                                                key={day.toString()}
+                                                onClick={() => status !== 'booked' && handleToggleSlot(day, time)}
+                                                className={cn("p-2 border rounded-md text-center text-xs transition-colors", {
+                                                    'cursor-pointer hover:bg-primary/20': status === 'available',
+                                                    'bg-yellow-400 text-yellow-900 cursor-pointer': status === 'selected',
+                                                    'bg-muted text-muted-foreground cursor-not-allowed line-through': status === 'booked',
+                                                    'border-dashed': status === 'available'
+                                                })}
+                                            >
+                                                {price} CHF
+                                            </div>
+                                        )
+                                    })}
+                                </React.Fragment>
+                            ))}
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Riepilogo */}
             <Card>
                 <CardHeader><CardTitle>Riepilogo Prenotazione</CardTitle></CardHeader>
                 <CardContent>
@@ -477,19 +447,7 @@ export default function SponsorAgenda() {
     );
   }, [firestore]);
 
-  const { data: adSpacesFromDB, isLoading } = useCollection(adSpacesQuery);
-
-  const adSpaces = useMemo(() => {
-    if (adSpacesFromDB && adSpacesFromDB.length > 0) {
-      return adSpacesFromDB;
-    }
-    // Fallback to JSON data ONLY if the database is empty after loading
-    if (!isLoading && (!adSpacesFromDB || adSpacesFromDB.length === 0)) {
-        return adSpacesData.adSlots;
-    }
-    return [];
-  }, [adSpacesFromDB, isLoading]);
-
+  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
 
   const handleSelectCard = (id: string) => {
     setSelectedAdSpaceId(id);
