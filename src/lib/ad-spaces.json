@@ -1,112 +1,76 @@
 {
   "adSlots": [
     {
-      "id": "home-card-1",
+      "id": "spot-home-alto",
+      "name": "Spot Home - Alto",
       "page": "Home",
-      "cardIndex": 1,
-      "title": "Spazio Pubblicitario 1",
-      "description": "Card 1 - Pagina Home",
-      "imageUrl": "https://picsum.photos/seed/home-ad-1/600/400",
-      "imageHint": "advertisement city"
+      "cardIndex": 1
     },
     {
-      "id": "home-card-2",
+      "id": "spot-home-medio",
+      "name": "Spot Home - Medio",
       "page": "Home",
-      "cardIndex": 2,
-      "title": "Spazio Pubblicitario 2",
-      "description": "Card 2 - Pagina Home",
-      "imageUrl": "https://picsum.photos/seed/home-ad-2/600/400",
-      "imageHint": "billboard night"
+      "cardIndex": 2
     },
     {
-      "id": "home-card-3",
+      "id": "spot-home-basso",
+      "name": "Spot Home - Basso",
       "page": "Home",
-      "cardIndex": 3,
-      "title": "Spazio Pubblicitario 3",
-      "description": "Card 3 - Pagina Home",
-      "imageUrl": "https://picsum.photos/seed/home-ad-3/600/400",
-      "imageHint": "shopping street"
+      "cardIndex": 3
     },
     {
-      "id": "panettieri-card-1",
+      "id": "spot-panettieri-alto",
+      "name": "Spot Panettieri - Alto",
       "page": "Panettieri",
-      "cardIndex": 1,
-      "title": "Spazio Pubblicitario 1",
-      "description": "Card 1 - Pagina Panettieri",
-      "imageUrl": "https://picsum.photos/seed/bakeries-ad-1/600/400",
-      "imageHint": "bakery display"
+      "cardIndex": 1
     },
     {
-      "id": "panettieri-card-2",
+      "id": "spot-panettieri-medio",
+      "name": "Spot Panettieri - Medio",
       "page": "Panettieri",
-      "cardIndex": 2,
-      "title": "Spazio Pubblicitario 2",
-      "description": "Card 2 - Pagina Panettieri",
-      "imageUrl": "https://picsum.photos/seed/bakeries-ad-2/600/400",
-      "imageHint": "fresh bread"
+      "cardIndex": 2
     },
     {
-      "id": "panettieri-card-3",
+      "id": "spot-panettieri-basso",
+      "name": "Spot Panettieri - Basso",
       "page": "Panettieri",
-      "cardIndex": 3,
-      "title": "Spazio Pubblicitario 3",
-      "description": "Card 3 - Pagina Panettieri",
-      "imageUrl": "https://picsum.photos/seed/bakeries-ad-3/600/400",
-      "imageHint": "pastry shop"
+      "cardIndex": 3
     },
     {
-      "id": "vicino-a-te-card-1",
+      "id": "spot-vicino-a-te-alto",
+      "name": "Spot Vicino a te - Alto",
       "page": "Vicino a te",
-      "cardIndex": 1,
-      "title": "Spazio Pubblicitario 1",
-      "description": "Card 1 - Pagina Vicino a te",
-      "imageUrl": "https://picsum.photos/seed/near-ad-1/600/400",
-      "imageHint": "city map"
+      "cardIndex": 1
     },
     {
-      "id": "vicino-a-te-card-2",
+      "id": "spot-vicino-a-te-medio",
+      "name": "Spot Vicino a te - Medio",
       "page": "Vicino a te",
-      "cardIndex": 2,
-      "title": "Spazio Pubblicitario 2",
-      "description": "Card 2 - Pagina Vicino a te",
-      "imageUrl": "https://picsum.photos/seed/near-ad-2/600/400",
-      "imageHint": "local market"
+      "cardIndex": 2
     },
     {
-      "id": "vicino-a-te-card-3",
+      "id": "spot-vicino-a-te-basso",
+      "name": "Spot Vicino a te - Basso",
       "page": "Vicino a te",
-      "cardIndex": 3,
-      "title": "Spazio Pubblicitario 3",
-      "description": "Card 3 - Pagina Vicino a te",
-      "imageUrl": "https://picsum.photos/seed/near-ad-3/600/400",
-      "imageHint": "neighborhood street"
+      "cardIndex": 3
     },
     {
-      "id": "profilo-card-1",
+      "id": "spot-profilo-alto",
+      "name": "Spot Profilo - Alto",
       "page": "Profilo",
-      "cardIndex": 1,
-      "title": "Spazio Pubblicitario 1",
-      "description": "Card 1 - Pagina Profilo",
-      "imageUrl": "https://picsum.photos/seed/profile-ad-1/600/400",
-      "imageHint": "personal growth"
+      "cardIndex": 1
     },
     {
-      "id": "profilo-card-2",
+      "id": "spot-profilo-medio",
+      "name": "Spot Profilo - Medio",
       "page": "Profilo",
-      "cardIndex": 2,
-      "title": "Spazio Pubblicitario 2",
-      "description": "Card 2 - Pagina Profilo",
-      "imageUrl": "https://picsum.photos/seed/profile-ad-2/600/400",
-      "imageHint": "online account"
+      "cardIndex": 2
     },
     {
-      "id": "profilo-card-3",
+      "id": "spot-profilo-basso",
+      "name": "Spot Profilo - Basso",
       "page": "Profilo",
-      "cardIndex": 3,
-      "title": "Spazio Pubblicitario 3",
-      "description": "Card 3 - Pagina Profilo",
-      "imageUrl": "https://picsum.photos/seed/profile-ad-3/600/400",
-      "imageHint": "user dashboard"
+      "cardIndex": 3
     }
   ]
 }
