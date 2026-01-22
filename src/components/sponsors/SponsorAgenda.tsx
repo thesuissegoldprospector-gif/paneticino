@@ -286,18 +286,15 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedSlots, setSelectedSlots] = useState<Map<string, { price: number; reservedAt: Date }>>(new Map());
     
-    // This timer is the key to real-time countdown updates
     useEffect(() => {
       const timerId = setInterval(() => {
-        // If there are selected slots, we force a re-render to update countdowns
         if (selectedSlots.size > 0) {
-          // By creating a new Map, we trigger React's state update mechanism
           setSelectedSlots(prevSlots => new Map(prevSlots));
         }
-      }, 1000); // Run every second
+      }, 1000); 
     
-      return () => clearInterval(timerId); // Cleanup on unmount
-    }, [selectedSlots]); // Only re-run if selectedSlots itself changes (add/remove)
+      return () => clearInterval(timerId); 
+    }, [selectedSlots]); 
     
     const weekDays = eachDayOfInterval({
         start: startOfWeek(currentDate, { weekStartsOn: 1 }),
@@ -510,7 +507,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                         </Button>
                     </div>
                     <div className="overflow-x-auto">
-                        <div className="grid grid-cols-[auto_repeat(7,minmax(120px,1fr))] gap-1 min-w-[900px]">
+                        <div className="grid grid-cols-[auto_repeat(7,minmax(100px,1fr))] gap-1 min-w-[750px]">
                             <div className="sticky left-0 bg-card z-10" />
                             {weekDays.map(day => (
                                 <div key={day.toString()} className={cn("p-2 rounded-md text-center font-semibold", isToday(day) && "bg-primary text-primary-foreground")}>
@@ -520,7 +517,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                             ))}
                             {timeSlots.map(time => (
                                 <React.Fragment key={time}>
-                                    <div className="p-4 h-24 text-base text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">{time}</div>
+                                    <div className="p-2 h-12 text-sm text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">{time}</div>
                                     {weekDays.map(day => {
                                         const { status, display } = getSlotStatus(day, time);
                                         return (
@@ -528,7 +525,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                                 key={day.toString()}
                                                 onClick={() => status !== 'booked' && handleToggleSlot(day, time)}
                                                 className={cn(
-                                                    "p-4 h-24 border rounded-md text-center text-lg transition-colors flex items-center justify-center font-bold",
+                                                    "p-2 h-12 border rounded-md text-center text-sm transition-colors flex items-center justify-center font-bold",
                                                     {
                                                         'cursor-pointer hover:bg-primary/20': status === 'available',
                                                         'bg-yellow-400 text-yellow-900 cursor-pointer': status === 'selected',
@@ -746,5 +743,3 @@ export default function SponsorAgenda() {
     </div>
   );
 }
-
-    
