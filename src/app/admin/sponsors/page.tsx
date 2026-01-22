@@ -66,7 +66,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collection, doc, getDocs, query, updateDoc, where, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -79,48 +79,59 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 function AdminApprovalQueue() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [approvalQueue, setApprovalQueue] = useState<any[]>([]);
 
-  const adSpacesQuery = useMemo(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'ad_spaces'));
-  }, [firestore]);
-  const { data: adSpaces, isLoading: isLoadingSpaces } = useCollection(adSpacesQuery);
+  useEffect(() => {
+    if (!firestore) {
+      setIsLoading(false);
+      return;
+    }
+    const fetchQueue = async () => {
+      setIsLoading(true);
+      try {
+        const adSpacesQuery = query(collection(firestore, 'ad_spaces'));
+        const adSpacesSnapshot = await getDocs(adSpacesQuery);
+        const adSpaces = adSpacesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-  const sponsorsQuery = useMemo(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'sponsors'));
-  }, [firestore]);
-  const { data: sponsors, isLoading: isLoadingSponsors } = useCollection(sponsorsQuery);
+        const sponsorsQuery = query(collection(firestore, 'sponsors'));
+        const sponsorsSnapshot = await getDocs(sponsorsQuery);
+        const sponsors = sponsorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+        
+        const sponsorsMap = new Map(sponsors.map((s:any) => [s.userId, s.companyName]));
+        
+        const queue: any[] = [];
+        adSpaces.forEach((space:any) => {
+            if (!space.bookings) return;
+            Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
+                if (booking.status === 'processing' && booking.content) {
+                const [date, time] = key.split('_');
+                queue.push({
+                    slotKey: key,
+                    adSpaceId: space.id,
+                    sponsorId: booking.sponsorId,
+                    sponsorName: sponsorsMap.get(booking.sponsorId) || 'Sponsor Sconosciuto',
+                    adSpaceName: space.name,
+                    pageName: space.page,
+                    date,
+                    time,
+                    content: booking.content,
+                });
+                }
+            });
+        });
+        
+        setApprovalQueue(queue.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)));
 
-  const sponsorsMap = useMemo(() => {
-    if (!sponsors) return new Map();
-    return new Map(sponsors.map(s => [s.userId, s.companyName]));
-  }, [sponsors]);
-
-  const approvalQueue = useMemo(() => {
-    if (!adSpaces) return [];
-    const queue: any[] = [];
-    adSpaces.forEach(space => {
-      if (!space.bookings) return;
-      Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
-        if (booking.status === 'processing' && booking.content) {
-          const [date, time] = key.split('_');
-          queue.push({
-            slotKey: key,
-            adSpaceId: space.id,
-            sponsorId: booking.sponsorId,
-            sponsorName: sponsorsMap.get(booking.sponsorId) || 'Sponsor Sconosciuto',
-            adSpaceName: space.name,
-            pageName: space.page,
-            date,
-            time,
-            content: booking.content,
-          });
-        }
-      });
-    });
-    return queue.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
-  }, [adSpaces, sponsorsMap]);
+      } catch (error) {
+        console.error("Failed to fetch approval queue:", error);
+        toast({ variant: 'destructive', title: "Errore", description: "Impossibile caricare la coda di approvazione." });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchQueue();
+  }, [firestore, toast]);
   
   async function handleApprove(adSpaceId: string, slotKey: string) {
     if (!firestore) return;
@@ -138,8 +149,6 @@ function AdminApprovalQueue() {
       toast({ variant: 'destructive', title: "Errore", description: error.message });
     }
   }
-
-  const isLoading = isLoadingSpaces || isLoadingSponsors;
 
   if (isLoading) {
     return <Card><CardContent className="p-6 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></CardContent></Card>;
@@ -267,7 +276,7 @@ export default function AdminSponsorsPage() {
       try {
         const sponsorsQuery = query(collection(firestore, 'sponsors'));
         const sponsorsSnapshot = await getDocs(sponsorsQuery);
-        const sponsorProfiles = sponsorsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        const sponsorProfiles = sponsorsSnapshot.docs.map(d => ({ id: d.id, ...d.data() as any }));
 
         if (sponsorProfiles.length === 0) {
             setSponsors([]);
@@ -282,7 +291,7 @@ export default function AdminSponsorsPage() {
             return;
         }
 
-        const usersQuery = query(collection(firestore, 'users'), where('id', 'in', userIds));
+        const usersQuery = query(collection(firestore, 'users'), where('__name__', 'in', userIds));
         const usersSnapshot = await getDocs(usersQuery);
         const usersMap = new Map(usersSnapshot.docs.map(d => [d.id, d.data()]));
 
