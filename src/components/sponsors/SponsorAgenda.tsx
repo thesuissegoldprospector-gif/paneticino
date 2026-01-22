@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -21,6 +20,8 @@ import {
   Edit,
   Save,
   Link as LinkIcon,
+  CheckCircle,
+  CalendarClock,
 } from 'lucide-react';
 import {
   addDays,
@@ -29,6 +30,7 @@ import {
   eachDayOfInterval,
   isSameDay,
   isToday,
+  isPast,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -51,6 +53,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { UpdateImageDialog } from '@/app/profile/dialogs';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
@@ -134,7 +137,7 @@ function SponsorContentForm({ slot }: { slot: any }) {
                       <Edit className="mr-2 h-4 w-4" /> Carica/Modifica File
                     </Button>
                   </UpdateImageDialog>
-                  {field.value && <LinkIcon href={field.value} target="_blank" className="text-sm text-blue-500 hover:underline ml-4 break-all">{field.value}</LinkIcon>}
+                  {field.value && <Link href={field.value} target="_blank" className="text-sm text-blue-500 hover:underline ml-4 break-all">{field.value}</Link>}
                 </div>
               </FormControl>
               <FormMessage />
@@ -613,6 +616,27 @@ export default function SponsorAgenda() {
     return slots.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   }, [adSpaces, user]);
 
+  const approvedSlots = useMemo(() => {
+    if (!adSpaces || !user) return [];
+    const slots: any[] = [];
+    adSpaces.forEach(space => {
+      if (!space.bookings) return;
+      Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
+        if (booking.status === 'approved' && booking.sponsorId === user.uid) {
+          const [date, time] = key.split('_');
+          slots.push({
+            id: key,
+            adSpaceName: space.name,
+            pageName: space.page,
+            date,
+            time,
+          });
+        }
+      });
+    });
+    return slots.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  }, [adSpaces, user]);
+
 
   const handleSelectCard = (id: string) => {
     setSelectedAdSpaceId(id);
@@ -644,7 +668,7 @@ export default function SponsorAgenda() {
                           {format(new Date(slot.date), 'eee dd MMM yyyy', {locale: it})} alle {slot.time}
                         </p>
                       </div>
-                      <Badge>Processing</Badge>
+                      <Badge variant="secondary">Processing</Badge>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -653,6 +677,44 @@ export default function SponsorAgenda() {
                 </AccordionItem>
               ))}
             </Accordion>
+          </CardContent>
+        </Card>
+      )}
+
+      {approvedSlots.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Slot Approvati</CardTitle>
+            <CardDescription>
+              Questi sono i tuoi slot pubblicitari approvati, passati e futuri.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {approvedSlots.map((slot) => {
+                const slotDate = new Date(slot.date);
+                const isSlotInThePast = isPast(slotDate) && !isToday(slotDate);
+                return (
+                     <div key={slot.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
+                        <div>
+                            <p className="font-semibold">{slot.adSpaceName} - {slot.pageName}</p>
+                            <p className="text-sm text-muted-foreground">
+                            {format(slotDate, 'eee dd MMM yyyy', {locale: it})} alle {slot.time}
+                            </p>
+                        </div>
+                        {isSlotInThePast ? (
+                             <Badge variant="outline" className="text-muted-foreground">
+                                <CalendarClock className="mr-1 h-3 w-3" />
+                                Passato
+                            </Badge>
+                        ) : (
+                            <Badge className="bg-green-600 hover:bg-green-600/80 text-white">
+                                <CheckCircle className="mr-1 h-3 w-3" />
+                                Attivo/Futuro
+                            </Badge>
+                        )}
+                    </div>
+                )
+            })}
           </CardContent>
         </Card>
       )}
