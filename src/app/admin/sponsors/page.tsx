@@ -72,6 +72,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, isPast, isToday } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import SponsorAgenda from '@/components/sponsors/SponsorAgenda';
 
 
 // --- Admin Approval Queue ---
@@ -479,6 +480,18 @@ export default function AdminSponsorsPage() {
         <StatCard title="Sponsor Totali" value={stats.total} icon={Users} isLoading={isLoading} />
         <StatCard title="Richieste in Attesa" value={stats.pending} icon={Clock} isLoading={isLoading} />
       </div>
+
+      <Card>
+        <CardHeader>
+            <CardTitle>Agenda Generale Sponsor</CardTitle>
+            <CardDescription>
+                Visualizza e prenota slot per conto di uno sponsor. Seleziona uno spazio per iniziare.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <SponsorAgenda />
+        </CardContent>
+      </Card>
 
       <AdminApprovalQueue />
 
