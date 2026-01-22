@@ -560,18 +560,6 @@ export default function AdminSponsorsPage() {
         <StatCard title="Richieste in Attesa" value={stats.pending} icon={Clock} isLoading={isLoading} />
       </div>
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Agenda Generale Sponsor</CardTitle>
-            <CardDescription>
-                Visualizza e prenota slot per conto di uno sponsor. Seleziona uno spazio per iniziare.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <SponsorAgenda />
-        </CardContent>
-      </Card>
-
       <AdminApprovalQueue />
 
       <AdminApprovedSlots />
@@ -704,6 +692,18 @@ export default function AdminSponsorsPage() {
           </div>
         </CardContent>
       </Card>
+      
+      <Card>
+        <CardHeader>
+            <CardTitle>Agenda Generale Sponsor</CardTitle>
+            <CardDescription>
+                Visualizza e prenota slot per conto di uno sponsor. Seleziona uno spazio per iniziare.
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <SponsorAgenda />
+        </CardContent>
+      </Card>
 
       {/* Confirmation Dialog */}
       <AlertDialog open={!!dialogAction} onOpenChange={(open) => !open && setDialogAction(null)}>
@@ -737,5 +737,3 @@ export default function AdminSponsorsPage() {
     </div>
   );
 }
-
-    
