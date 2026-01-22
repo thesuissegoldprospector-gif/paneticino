@@ -102,7 +102,9 @@ export default function ProfilePage() {
       {role === 'baker' && <BakerDashboard user={user} userDoc={userDoc} />}
       {role === 'customer' && <CustomerDashboard user={user} userDoc={userDoc} />}
       
-      <AdDisplay />
+      <AdDisplay cardIndex={1} />
+      <AdDisplay cardIndex={2} />
+      <AdDisplay cardIndex={3} />
 
       <div className="flex justify-center pt-8">
         <Button variant="destructive" onClick={handleLogout}>

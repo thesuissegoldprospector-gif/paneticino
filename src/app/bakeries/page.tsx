@@ -28,12 +28,12 @@ export default function BakeriesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <h1 className="mb-8 text-center font-headline text-4xl text-foreground">I Nostri Panettieri</h1>
+    <div className="container mx-auto px-4 py-6 space-y-8">
+      <h1 className="text-center font-headline text-4xl text-foreground">I Nostri Panettieri</h1>
       {bakeries && bakeries.length > 0 ? (
-        <div className="flex gap-6 overflow-x-auto pb-4 -mx-4 px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {bakeries.map((bakery) => (
-            <div key={bakery.id} className="w-80 flex-shrink-0">
+            <div key={bakery.id}>
               <BakeryCard bakery={bakery} />
             </div>
           ))}
@@ -41,7 +41,12 @@ export default function BakeriesPage() {
       ) : (
         <p className="py-16 text-center text-muted-foreground">Nessun panettiere approvato trovato.</p>
       )}
-      <AdDisplay />
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <AdDisplay cardIndex={1} />
+        <AdDisplay cardIndex={2} />
+        <AdDisplay cardIndex={3} />
+      </div>
     </div>
   );
 }

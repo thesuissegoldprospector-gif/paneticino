@@ -11,7 +11,9 @@ export default function NearMePage() {
         </p>
       </div>
       <DeliveryZoneChecker />
-      <AdDisplay />
+      <AdDisplay cardIndex={1} />
+      <AdDisplay cardIndex={2} />
+      <AdDisplay cardIndex={3} />
     </div>
   );
 }

@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { useFirestore, useCollection } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { format } from 'date-fns';
-import { Loader2 } from 'lucide-react';
 
 // This map links the URL path to the 'page' identifier in our Firestore data.
 const pageNameMap: { [key: string]: string } = {
@@ -29,7 +28,8 @@ type AdSlot = {
     link: string; // The destination link for the ad
 };
 
-export default function AdDisplay() {
+// MODIFIED: The component now accepts a 'cardIndex' to render a specific ad slot.
+export default function AdDisplay({ cardIndex }: { cardIndex: number }) {
     const pathname = usePathname();
     const firestore = useFirestore();
 
@@ -52,83 +52,77 @@ export default function AdDisplay() {
     // Determine the current page's name based on the URL path.
     const currentPageName = pageNameMap[pathname] || null;
     
-    const adSlotsForPage: AdSlot[] = useMemo(() => {
+    // MODIFIED: This memo now isolates a SINGLE ad slot based on the provided cardIndex.
+    const adSlot: AdSlot | null = useMemo(() => {
         if (!currentPageName || !adSpacesCollection || !currentHourKey) {
-            return [];
+            return null;
         }
 
-        // 1. Filter ad spaces for the current page
-        const filteredSpaces = adSpacesCollection.filter(space => space.page === currentPageName);
+        // 1. Find the specific ad space for this page and cardIndex
+        const space = adSpacesCollection.find(
+          (s) => s.page === currentPageName && s.cardIndex === cardIndex
+        );
 
-        // 2. Map spaces to AdSlot objects, checking for active, approved bookings
-        return filteredSpaces.map(space => {
-            const activeBooking = space.bookings?.[currentHourKey];
-            const isBookingActive = activeBooking?.status === 'approved' && activeBooking?.content;
+        if (!space) {
+          return null; // No ad space is configured for this specific index on this page.
+        }
 
-            if (isBookingActive) {
-                // If there's an active booking, use its content
-                return {
-                    id: space.id,
-                    page: space.page,
-                    title: activeBooking.content.title || space.name, // Fallback to space name
-                    description: 'Annuncio sponsorizzato', // Generic description for live ads
-                    imageUrl: activeBooking.content.fileUrl || `https://picsum.photos/seed/${space.id}/600/400`, // Fallback image
-                    imageHint: 'advertisement',
-                    link: activeBooking.content.link || '#', // Fallback link
-                };
-            } else {
-                // Otherwise, use the default placeholder content for the ad space
-                return {
-                    id: space.id,
-                    page: space.page,
-                    title: space.name, // Use the space's name as the title
-                    description: `Questo spazio è disponibile per la sponsorizzazione.`,
-                    imageUrl: `https://picsum.photos/seed/${space.id}/600/400`,
-                    imageHint: 'advertisement billboard',
-                    link: '/sponsors', // Link to the sponsors page
-                };
-            }
-        });
+        // 2. Check for an active, approved booking for the current hour
+        const activeBooking = space.bookings?.[currentHourKey];
+        const isBookingActive = activeBooking?.status === 'approved' && activeBooking?.content;
 
-    }, [adSpacesCollection, currentPageName, currentHourKey]);
+        if (isBookingActive) {
+            // If there's a live booking, use its content
+            return {
+                id: space.id,
+                page: space.page,
+                title: activeBooking.content.title || space.name,
+                description: 'Annuncio sponsorizzato',
+                imageUrl: activeBooking.content.fileUrl || `https://picsum.photos/seed/${space.id}/600/400`,
+                imageHint: 'advertisement',
+                link: activeBooking.content.link || '#',
+            };
+        } else {
+            // Otherwise, use the default placeholder content for the ad space
+            return {
+                id: space.id,
+                page: space.page,
+                title: space.name,
+                description: `Questo spazio è disponibile per la sponsorizzazione.`,
+                imageUrl: `https://picsum.photos/seed/${space.id}/600/400`,
+                imageHint: 'advertisement billboard',
+                link: '/sponsors',
+            };
+        }
+    }, [adSpacesCollection, currentPageName, currentHourKey, cardIndex]);
 
-    // Render nothing if not on a page with ads, or if data is still loading the key info
-    if (!currentPageName || isLoading || !currentHourKey) {
+    // Render nothing if no slot is configured for this index, or if essential data is missing.
+    if (!adSlot || isLoading || !currentHourKey) {
         return null;
     }
 
-    if (adSlotsForPage.length === 0) {
-        return null;
-    }
-
+    // MODIFIED: The component now renders a single Link/Card, not a full section.
     return (
-        <section className="py-12 no-print">
-            <h2 className="text-2xl font-headline text-center text-foreground mb-8">
-                Spazi Sponsorizzati
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {adSlotsForPage.map(ad => (
-                    <Link key={ad.id} href={ad.link} target={ad.link.startsWith('http') ? '_blank' : '_self'} rel="noopener noreferrer" className="block">
-                        <Card className="overflow-hidden transition-shadow hover:shadow-lg h-full">
-                            <div className="relative aspect-[16/9] w-full bg-muted">
-                                <Image
-                                    src={ad.imageUrl}
-                                    alt={ad.title}
-                                    fill
-                                    sizes="(max-width: 640px) 90vw, (max-width: 1024px) 50vw, 33vw"
-                                    className="object-cover"
-                                    data-ai-hint={ad.imageHint}
-                                    onError={(e) => e.currentTarget.src = `https://picsum.photos/seed/${ad.id}/600/400`} // Fallback for broken image URLs
-                                />
-                            </div>
-                            <CardHeader>
-                                <CardTitle className="text-lg">{ad.title}</CardTitle>
-                                {ad.description && <CardDescription>{ad.description}</CardDescription>}
-                            </CardHeader>
-                        </Card>
-                    </Link>
-                ))}
-            </div>
-        </section>
+        <div className="py-6 no-print">
+            <Link href={adSlot.link} target={adSlot.link.startsWith('http') ? '_blank' : '_self'} rel="noopener noreferrer" className="block">
+                <Card className="overflow-hidden transition-shadow hover:shadow-lg h-full">
+                    <div className="relative aspect-[16/9] w-full bg-muted">
+                        <Image
+                            src={adSlot.imageUrl}
+                            alt={adSlot.title}
+                            fill
+                            sizes="(max-width: 640px) 90vw, (max-width: 1024px) 50vw, 33vw"
+                            className="object-cover"
+                            data-ai-hint={adSlot.imageHint}
+                            onError={(e) => e.currentTarget.src = `https://picsum.photos/seed/${adSlot.id}/600/400`}
+                        />
+                    </div>
+                    <CardHeader>
+                        <CardTitle className="text-lg">{adSlot.title}</CardTitle>
+                        {adSlot.description && <CardDescription>{adSlot.description}</CardDescription>}
+                    </CardHeader>
+                </Card>
+            </Link>
+        </div>
     );
 }

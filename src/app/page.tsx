@@ -87,6 +87,8 @@ export default function Home() {
         )}
       </section>
 
+      <AdDisplay cardIndex={1} />
+
       <section>
         <h2 className="text-3xl font-headline text-foreground mb-4">Prodotti del giorno</h2>
         {isLoadingProducts || isLoadingAllBakers ? (
@@ -111,6 +113,8 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      <AdDisplay cardIndex={2} />
 
       {/* NEW SECTION */}
       <section className="py-12">
@@ -250,7 +254,7 @@ export default function Home() {
         </div>
       </section>
 
-      <AdDisplay />
+      <AdDisplay cardIndex={3} />
     </div>
   );
 }
