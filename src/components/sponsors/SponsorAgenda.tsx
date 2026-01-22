@@ -40,8 +40,6 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import adSpacesData from '@/lib/ad-spaces.json';
-
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
@@ -168,14 +166,26 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     
     // Timer to force re-render every second for countdown
     useEffect(() => {
-        const timerId = setInterval(() => {
-            // Check if there are any selected slots to avoid unnecessary re-renders
-            if (selectedSlots.size > 0) {
-                 setSelectedSlots(prevSlots => new Map(prevSlots)); // Force update by creating a new map instance
-            }
-        }, 1000);
-        return () => clearInterval(timerId);
-    }, [selectedSlots.size]);
+      const timerId = setInterval(() => {
+        const now = Date.now();
+        let shouldUpdate = false;
+    
+        for (const [key, value] of selectedSlots.entries()) {
+          if (now > value.reservedAt.getTime() + TEN_MINUTES_MS) {
+            shouldUpdate = true;
+            break;
+          }
+        }
+    
+        if (shouldUpdate || selectedSlots.size > 0) {
+          // Force a state update to re-render the component and show the countdown
+          // or remove expired slots.
+          setSelectedSlots(prevSlots => new Map(prevSlots));
+        }
+      }, 1000);
+    
+      return () => clearInterval(timerId);
+    }, [selectedSlots]);
     
     const weekDays = eachDayOfInterval({
         start: startOfWeek(currentDate, { weekStartsOn: 1 }),
@@ -185,34 +195,34 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
     const prices = [5, 5, 5, 5, 5, 5, 10, 10, 15, 20, 20, 15, 15, 20, 20, 15, 15, 10, 10, 10, 10, 5, 5, 5];
     
-    const getSlotStatus = (day: Date, time: string): { status: 'available' | 'selected' | 'booked'; price: number; display: string; } => {
+    const getSlotStatus = (day: Date, time: string): { status: 'available' | 'selected' | 'booked'; display: string } => {
         const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
         const booking = adSpaceData?.bookings?.[key];
         const price = prices[timeSlots.indexOf(time)];
-
+    
         const priceDisplay = `${price} CHF`;
-
+    
         if (!booking) {
-            return { status: 'available', price, display: priceDisplay };
+            return { status: 'available', display: priceDisplay };
         }
-
-        if (['paid', 'approved', 'processing'].includes(booking.status)) {
+    
+        if (['processing', 'paid', 'approved'].includes(booking.status)) {
             const statusText = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
-            return { status: 'booked', price, display: statusText };
+            return { status: 'booked', display: statusText };
         }
-
+    
         if (booking.status === 'reserved') {
-          const reservedAt = booking.reservedAt?.toDate().getTime();
-          if (reservedAt && Date.now() < reservedAt + TEN_MINUTES_MS) {
-            if (booking.sponsorId === user?.uid) {
-                return { status: 'selected', price, display: priceDisplay };
-            } else {
-                return { status: 'booked', price, display: 'Reserved' };
+            const reservedAt = booking.reservedAt?.toDate();
+            if (reservedAt && Date.now() < reservedAt.getTime() + TEN_MINUTES_MS) {
+                if (booking.sponsorId === user?.uid) {
+                    return { status: 'selected', display: priceDisplay };
+                } else {
+                    return { status: 'booked', display: 'Reserved' };
+                }
             }
-          }
         }
         
-        return { status: 'available', price, display: priceDisplay };
+        return { status: 'available', display: priceDisplay };
     };
 
     const handleToggleSlot = async (day: Date, time: string) => {
@@ -269,7 +279,6 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     const handlePurchase = async () => {
         if (!adSpaceDocRef || !user) return;
         
-        // Get slots to purchase directly from the live data, not the local state
         const slotsToPurchase = Object.entries(adSpaceData?.bookings || {})
             .filter(([, booking]) => booking.sponsorId === user.uid && booking.status === 'reserved')
             .map(([key]) => key);
@@ -297,7 +306,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                 for (const key of slotsToPurchase) {
                     const booking = currentBookings[key];
                     if (booking && booking.sponsorId === user.uid && booking.status === 'reserved') {
-                        currentBookings[key].status = 'processing'; // Set to 'processing'
+                        currentBookings[key].status = 'processing';
                         purchasedCount++;
                     }
                 }
@@ -362,32 +371,43 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
             <Card className="lg:col-span-2">
                 <CardHeader>
                     <div className="flex justify-between items-center">
-                        <Button variant="outline" size="icon" onClick={onBack}><ChevronLeft /></Button>
-                        <CardTitle>{adSpaceData?.name}</CardTitle>
+                        <Button variant="ghost" size="icon" onClick={onBack}>
+                          <ChevronLeft className="h-5 w-5" />
+                          <span className="sr-only">Indietro</span>
+                        </Button>
+                        <div className="text-center">
+                          <CardTitle>{adSpaceData?.name}</CardTitle>
+                          <CardDescription>{adSpaceData?.page}</CardDescription>
+                        </div>
                         <div className="w-10"></div>
                     </div>
-                    <CardDescription className="text-center">{adSpaceData?.page}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex justify-between items-center mb-4">
-                        <Button variant="outline" onClick={() => setCurrentDate(addDays(currentDate, -7))}>Settimana Prec.</Button>
-                        <span className="font-semibold text-lg">{format(weekDays[0], 'dd MMM', { locale: it })} - {format(weekDays[6], 'dd MMM yyyy', { locale: it })}</span>
-                        <Button variant="outline" onClick={() => setCurrentDate(addDays(currentDate, 7))}>Settimana Succ.</Button>
+                        <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
+                            <ChevronLeft className="h-4 w-4" />
+                            <span className="sr-only">Settimana Precedente</span>
+                        </Button>
+                        <span className="font-semibold text-center text-base sm:text-lg">
+                           {format(weekDays[0], 'd MMM', { locale: it })} - {format(weekDays[6], 'd MMM yyyy', { locale: it })}
+                        </span>
+                        <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
+                            <ChevronRight className="h-4 w-4" />
+                            <span className="sr-only">Settimana Successiva</span>
+                        </Button>
                     </div>
                     <div className="overflow-x-auto">
-                        <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 text-center font-semibold min-w-[700px]">
-                            <div />
+                        <div className="grid grid-cols-[auto_repeat(7,minmax(120px,1fr))] gap-1 min-w-[900px]">
+                            <div className="sticky left-0 bg-card z-10" />
                             {weekDays.map(day => (
-                                <div key={day.toString()} className={cn("p-2 rounded-md", isToday(day) && "bg-primary text-primary-foreground")}>
+                                <div key={day.toString()} className={cn("p-2 rounded-md text-center font-semibold", isToday(day) && "bg-primary text-primary-foreground")}>
                                     <div>{format(day, 'eee', { locale: it })}</div>
                                     <div>{format(day, 'd')}</div>
                                 </div>
                             ))}
-                        </div>
-                        <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 mt-2 min-w-[700px]">
                             {timeSlots.map(time => (
                                 <React.Fragment key={time}>
-                                    <div className="p-2 h-16 text-sm text-muted-foreground text-center flex items-center justify-center">{time}</div>
+                                    <div className="p-4 h-24 text-base text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">{time}</div>
                                     {weekDays.map(day => {
                                         const { status, display } = getSlotStatus(day, time);
                                         return (
@@ -395,7 +415,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                                 key={day.toString()}
                                                 onClick={() => status !== 'booked' && handleToggleSlot(day, time)}
                                                 className={cn(
-                                                    "p-4 h-16 border rounded-md text-center text-sm transition-colors flex items-center justify-center font-medium",
+                                                    "p-4 h-24 border rounded-md text-center text-sm transition-colors flex items-center justify-center font-bold",
                                                     {
                                                         'cursor-pointer hover:bg-primary/20': status === 'available',
                                                         'bg-yellow-400 text-yellow-900 cursor-pointer': status === 'selected',
