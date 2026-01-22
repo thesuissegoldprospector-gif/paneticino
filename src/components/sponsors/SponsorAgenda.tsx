@@ -165,6 +165,34 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedSlots, setSelectedSlots] = useState<Map<string, { price: number; reservedAt: Date }>>(new Map());
+    const [, setTick] = useState(0); // State to trigger re-renders for the timer
+    
+    // This effect runs a timer to update the UI every second for the countdowns
+    // and cleans up expired slots from the local state.
+    useEffect(() => {
+        const timerId = setInterval(() => {
+            // Use functional update to get the latest state without adding it as a dependency
+            setSelectedSlots(currentSlots => {
+                const now = Date.now();
+                const newSlots = new Map(currentSlots);
+                let changed = false;
+                newSlots.forEach((value, key) => {
+                    if (now > value.reservedAt.getTime() + TEN_MINUTES_MS) {
+                        newSlots.delete(key);
+                        changed = true;
+                    }
+                });
+                // Only return a new map if something actually changed
+                return changed ? newSlots : currentSlots;
+            });
+
+            // Always update the tick to force a re-render for the countdown timer
+            setTick(prev => prev + 1);
+
+        }, 1000);
+
+        return () => clearInterval(timerId);
+    }, []); // Empty dependency array ensures this runs only once on mount
     
     const weekDays = eachDayOfInterval({
         start: startOfWeek(currentDate, { weekStartsOn: 1 }),
@@ -174,25 +202,6 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     const timeSlots = Array.from({ length: 13 }, (_, i) => `${(i + 8).toString().padStart(2, '0')}:00`);
     const prices = [10, 10, 15, 15, 20, 10, 10, 15, 15, 20, 10, 10, 10]; // Prezzi fittizi
     
-    // Rimuove gli slot scaduti dallo stato locale all'intervallo
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const now = Date.now();
-            const newSelectedSlots = new Map(selectedSlots);
-            let changed = false;
-            newSelectedSlots.forEach((value, key) => {
-                if (now > value.reservedAt.getTime() + TEN_MINUTES_MS) {
-                    newSelectedSlots.delete(key);
-                    changed = true;
-                }
-            });
-            if (changed) {
-                setSelectedSlots(newSelectedSlots);
-            }
-        }, 1000); // Controlla ogni secondo
-        return () => clearInterval(interval);
-    }, [selectedSlots]);
-    
     const getSlotStatus = (day: Date, time: string): { status: 'available' | 'selected' | 'booked'; price: number } => {
         const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
         const booking = adSpaceData?.bookings?.[key];
@@ -201,14 +210,17 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
         if (!booking) {
             return { status: 'available', price };
         }
-
+        
+        // Handle permanently booked states
         if (['paid', 'processing', 'approved'].includes(booking.status)) {
             return { status: 'booked', price };
         }
 
         if (booking.status === 'reserved') {
           const reservedAt = booking.reservedAt?.toDate().getTime();
+          // Check if reservation is still valid (not expired)
           if (reservedAt && Date.now() < reservedAt + TEN_MINUTES_MS) {
+            // Check if it's the current user's reservation or someone else's
             return {
               status: booking.sponsorId === user?.uid ? 'selected' : 'booked',
               price,
@@ -216,6 +228,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
           }
         }
         
+        // Default to available if no other condition is met (e.g., expired reservation)
         return { status: 'available', price };
     };
 
@@ -236,16 +249,24 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                 const existingBooking = currentBookings[key];
 
                 if (existingBooking) {
-                    // C'è una prenotazione, controlliamo se è la nostra e se è "reserved"
+                    // There's a booking, check if it's ours and in 'reserved' state to deselect it
                     if (existingBooking.sponsorId === user.uid && existingBooking.status === 'reserved') {
-                        // È la nostra, quindi la rimuoviamo (deselezione)
                         delete currentBookings[key];
-                    } else {
-                        // È di un altro o in uno stato non cancellabile, non facciamo nulla.
+                    } else if (existingBooking.status !== 'reserved' || (Date.now() > existingBooking.reservedAt.toDate().getTime() + TEN_MINUTES_MS)) {
+                       // The slot is either permanently booked, or it's an expired reservation we can take over.
+                       currentBookings[key] = {
+                            status: 'reserved',
+                            sponsorId: user.uid,
+                            price: price,
+                            reservedAt: serverTimestamp(),
+                        };
+                    }
+                    else {
+                        // It's reserved by someone else, do nothing.
                         throw new Error("Slot già prenotato o in elaborazione.");
                     }
                 } else {
-                    // Non c'è prenotazione, la creiamo
+                    // No reservation exists, create a new one
                     currentBookings[key] = {
                         status: 'reserved',
                         sponsorId: user.uid,
@@ -285,7 +306,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                 for (const key of slotsToPurchase) {
                     const booking = currentBookings[key];
                     if (booking && booking.sponsorId === user.uid && booking.status === 'reserved') {
-                        currentBookings[key].status = 'processing'; // Cambia stato in "processing"
+                        currentBookings[key].status = 'processing'; // Change state to "processing"
                         purchasedCount++;
                     }
                 }
@@ -315,7 +336,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
         return Array.from(selectedSlots.values()).reduce((acc, { price }) => acc + price, 0);
     }, [selectedSlots]);
     
-    // Aggiorna gli slot selezionati quando i dati da firestore cambiano
+    // Update selected slots when data from firestore changes
     useEffect(() => {
         if (!adSpaceData?.bookings || !user) {
             setSelectedSlots(new Map());
@@ -334,7 +355,12 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                 }
             }
         }
-        setSelectedSlots(newSelectedSlots);
+        
+        // Prevent infinite loop by checking if the maps are actually different
+        if (newSelectedSlots.size !== selectedSlots.size || Array.from(newSelectedSlots.keys()).some(k => !selectedSlots.has(k))) {
+            setSelectedSlots(newSelectedSlots);
+        }
+
     }, [adSpaceData, user]);
 
 
@@ -467,5 +493,3 @@ export default function SponsorAgenda() {
 
   return <SelectionView onSelectCard={handleSelectCard} adSpaces={adSpaces} isLoading={isLoading} />;
 }
-
-    
