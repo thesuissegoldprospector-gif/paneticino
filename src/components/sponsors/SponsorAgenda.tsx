@@ -50,6 +50,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { UpdateImageDialog } from '@/app/profile/dialogs';
+import { Badge } from '@/components/ui/badge';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
@@ -80,7 +81,14 @@ function SponsorContentForm({ slot }: { slot: any }) {
         const adSpaceDoc = await transaction.get(adSpaceRef);
         if (!adSpaceDoc.exists()) throw new Error("Spazio pubblicitario non trovato.");
         
-        transaction.update(adSpaceRef, { [updatePath]: data });
+        // Prima imposta lo stato, poi il contenuto
+        transaction.update(adSpaceRef, {
+            [`bookings.${slot.slotKey}.status`]: 'processing'
+        });
+        transaction.update(adSpaceRef, {
+            [updatePath]: data
+        });
+
       });
       toast({ title: "Contenuto salvato!", description: "Il tuo contenuto è stato salvato e attende l'approvazione." });
     } catch (error: any) {
@@ -296,7 +304,8 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
 
         if (['processing', 'paid', 'approved'].includes(booking.status)) {
             let statusText = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
-            if (booking.status === 'paid') statusText = 'Approved'; // Visual consistency
+            if (booking.status === 'paid') statusText = 'Approved';
+            if (booking.status === 'processing') statusText = 'Processing';
             return { status: 'booked', display: statusText };
         }
 
@@ -460,11 +469,10 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2">
-                <CardHeader>
+                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <Button variant="outline" size="icon" onClick={onBack}>
                           <ChevronLeft className="h-5 w-5" />
-                          <span className="sr-only">Indietro</span>
                         </Button>
                         <div className="text-center">
                           <CardTitle>{adSpaceData?.name}</CardTitle>
@@ -477,14 +485,12 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                     <div className="flex justify-between items-center mb-4">
                         <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
                             <ChevronLeft className="h-4 w-4" />
-                            <span className="sr-only">Settimana Precedente</span>
                         </Button>
                         <span className="font-semibold text-center text-base sm:text-lg">
                            {format(weekDays[0], 'd MMM', { locale: it })} - {format(weekDays[6], 'd MMM yyyy', { locale: it })}
                         </span>
                         <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
                             <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">Settimana Successiva</span>
                         </Button>
                     </div>
                     <div className="overflow-x-auto">
