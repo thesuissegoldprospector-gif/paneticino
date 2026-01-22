@@ -166,18 +166,29 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     const booking = adSpaceData?.bookings?.[key];
     const price = prices[timeSlots.indexOf(time)];
 
-    if (!booking) return { status: 'available', price };
-    if (booking.status === 'paid') return { status: 'booked', price };
+    if (!booking) {
+      return { status: 'available', price };
+    }
 
     if (booking.status === 'reserved') {
       const reservedAt = booking.reservedAt?.toDate().getTime();
       if (reservedAt && Date.now() < reservedAt + TEN_MINUTES_MS) {
+        // It's a valid reservation. Check who owns it.
         return {
           status: booking.sponsorId === user?.uid ? 'selected' : 'booked',
           price,
         };
       }
+      // If the reservation is expired, it's available again.
+      return { status: 'available', price };
     }
+
+    // For any other status ('paid', 'processing', 'approved'), it's considered booked.
+    if (['paid', 'processing', 'approved'].includes(booking.status)) {
+        return { status: 'booked', price };
+    }
+
+    // Default case
     return { status: 'available', price };
   };
 
@@ -189,7 +200,7 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
         const key = `${format(slot.day, 'yyyy-MM-dd')}_${slot.time}`;
         updates[`bookings.${key}`] = {
             sponsorId: user.uid,
-            status: 'paid',
+            status: 'processing',
             price: slot.price,
         };
     });
@@ -197,8 +208,8 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     try {
         await updateDoc(adSpaceDocRef, updates);
         toast({
-            title: "Prenotazione Simulata!",
-            description: `Hai "acquistato" ${mySelectedSlots.length} slot per un totale di ${total.toFixed(2)} CHF.`,
+            title: "Prenotazione in Elaborazione!",
+            description: `I tuoi ${mySelectedSlots.length} slot sono in stato 'processing' e non scadranno.`,
         });
     } catch (error) {
         console.error("Error purchasing slots:", error);
@@ -336,23 +347,31 @@ const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
 };
 
 
-const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: DocumentData[] | null; isLoading: boolean; onSelectCard: (adSpaceId: string) => void }) => {
+const SelectionView = ({ onSelectCard }: { onSelectCard: (adSpaceId: string) => void }) => {
   const [openPage, setOpenPage] = useState<string | null>('Home');
+  const firestore = useFirestore();
+
+  const adSpacesQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'ad_spaces'), orderBy('page'), orderBy('cardIndex'));
+  }, [firestore]);
+  
+  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
 
   const sortedPages = useMemo(() => {
     if (!adSpaces) return [];
-
+  
     const pagesMap = adSpaces.reduce((acc, space) => {
       const pageName = String(space.page || 'Altro').trim();
       if (!pageName) return acc;
-
+  
       if (!acc[pageName]) {
         acc[pageName] = [];
       }
       acc[pageName].push(space);
       return acc;
     }, {} as Record<string, DocumentData[]>);
-
+  
     return Object.entries(pagesMap)
       .sort(([pageA], [pageB]) => pageA.localeCompare(pageB))
       .map(([pageName, cards]) => ({
@@ -360,7 +379,8 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
         cards: cards.sort((a, b) => (Number(a.cardIndex) || 0) - (Number(b.cardIndex) || 0)),
       }));
   }, [adSpaces]);
-  
+
+
   if (isLoading) {
     return (
         <Card>
@@ -374,7 +394,7 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
         </Card>
     );
   }
-
+  
   if (!sortedPages.length) {
     return (
         <Card>
@@ -383,7 +403,7 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
                 <CardDescription>Non ci sono spazi pubblicitari configurati al momento.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-center text-muted-foreground py-8">Controlla la configurazione o contatta un amministratore.</p>
+                <p className="text-center text-muted-foreground py-8">Contatta un amministratore per la configurazione.</p>
             </CardContent>
         </Card>
     );
@@ -436,19 +456,11 @@ const SelectionView = ({ adSpaces, isLoading, onSelectCard }: { adSpaces: Docume
 
 // --- Main Component ---
 export default function SponsorAgenda() {
-  const firestore = useFirestore();
   const [selectedAdSpaceId, setSelectedAdSpaceId] = useState<string | null>(null);
-
-  const adSpacesQuery = useMemo(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'ad_spaces'), orderBy('page'), orderBy('cardIndex'));
-  }, [firestore]);
-
-  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
 
   if (selectedAdSpaceId) {
     return <BookingView adSpaceId={selectedAdSpaceId} onBack={() => setSelectedAdSpaceId(null)} />;
   }
   
-  return <SelectionView adSpaces={adSpaces} isLoading={isLoading} onSelectCard={setSelectedAdSpaceId} />;
+  return <SelectionView onSelectCard={setSelectedAdSpaceId} />;
 }

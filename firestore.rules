@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ----------------------------------------------------------------
-    // Helper Functions
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
+    // Helper functions
+    // --------------------------------------------------
     function isSignedIn() {
       return request.auth != null;
     }
@@ -14,164 +14,137 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Guard clause to ensure user is signed in before accessing auth.uid
-      if (!isSignedIn()) {
-        return false;
-      }
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-    
-    function isApprovedBaker() {
-        // Guard clause to ensure user is signed in before accessing auth.uid
-        if (!isSignedIn()) {
-          return false;
-        }
-        // Check for the existence of the baker profile document for the current user.
-        // This is the safest way to check before attempting a get().
-        return exists(/databases/$(database)/documents/bakers/$(request.auth.uid))
-            && get(/databases/$(database)/documents/bakers/$(request.auth.uid)).data.approvalStatus == 'approved';
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
-    // ----------------------------------------------------------------
+    function isApprovedBaker() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/bakers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/bakers/$(request.auth.uid))
+            .data.approvalStatus == 'approved';
+    }
+
+    // --------------------------------------------------
     // USERS
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
 
-      // CREATE: A user can create their own document with a valid role.
-      allow create: if request.auth != null && request.auth.uid == userId
-        && request.resource.data.id == userId
-        && (request.resource.data.role == 'customer'
-            || request.resource.data.role == 'baker'
-            || request.resource.data.role == 'sponsor');
+      allow create: if isOwner(userId)
+        && (request.resource.data.role in ['customer', 'baker', 'sponsor']);
 
-      // UPDATE: A user can update their profile, but not critical fields. Admins can update.
       allow update: if (isOwner(userId)
-                    && request.resource.data.id == resource.data.id
-                    && request.resource.data.role == resource.data.role
-                    && request.resource.data.registrationDate == resource.data.registrationDate)
-                    || isAdmin();
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.registrationDate == resource.data.registrationDate)
+        || isAdmin();
 
       allow delete: if isOwner(userId) || isAdmin();
 
-      // Cart Subcollection
       match /cart/{cartItemId} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     // CUSTOMERS
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     match /customers/{customerId} {
       allow get: if isOwner(customerId) || isAdmin();
-      allow list: if false;
-
-      allow create: if isOwner(customerId)
-        && request.resource.data.userId == customerId;
-
-      allow update: if (isOwner(customerId) || isAdmin())
-        && request.resource.data.userId == resource.data.userId;
-
+      allow create: if isOwner(customerId);
+      allow update: if isOwner(customerId) || isAdmin();
       allow delete: if isOwner(customerId) || isAdmin();
     }
 
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     // BAKERS
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     match /bakers/{bakerId} {
       allow read: if true;
 
       allow create: if isOwner(bakerId)
-        && request.resource.data.userId == bakerId
         && request.resource.data.approvalStatus == 'pending';
 
-      allow update: if
-        (
-          (isOwner(bakerId) && request.resource.data.userId == resource.data.userId
-          && request.resource.data.approvalStatus == resource.data.approvalStatus)
-        )
+      allow update: if (isOwner(bakerId)
+        && request.resource.data.approvalStatus == resource.data.approvalStatus)
         || isAdmin();
 
       allow delete: if isAdmin();
     }
 
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     // PRODUCTS
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     match /products/{productId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.bakerId == request.auth.uid && isApprovedBaker();
-      allow update, delete: if isSignedIn() && resource.data.bakerId == request.auth.uid && isApprovedBaker();
+      allow create: if isApprovedBaker()
+        && request.resource.data.bakerId == request.auth.uid;
+      allow update, delete: if isApprovedBaker()
+        && resource.data.bakerId == request.auth.uid;
     }
-    
-    // ----------------------------------------------------------------
-    // ORDERS
-    // ----------------------------------------------------------------
-     match /orders/{orderId} {
-      // CREATE: A signed-in user can create an order for themselves.
-      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
 
-      // READ (GET): 
-      // - An admin can read any order.
-      // - A user can read an order if they are the customer or the baker.
-      allow get: if isAdmin() || 
-                  (isSignedIn() && resource.data.customerId == request.auth.uid) || 
-                  (isSignedIn() && resource.data.bakerId == request.auth.uid);
-      
-      // READ (LIST): Security is enforced by combining query constraints with rules.
-      // Any signed-in user can attempt a list operation.
-      // The query MUST be constrained by the client to ensure it only requests 
-      // documents the user is allowed to 'get'. An unconstrained query will fail for non-admins.
+    // --------------------------------------------------
+    // ORDERS
+    // --------------------------------------------------
+    match /orders/{orderId} {
+      allow create: if isSignedIn()
+        && request.resource.data.customerId == request.auth.uid;
+
+      allow get: if isAdmin()
+        || resource.data.customerId == request.auth.uid
+        || resource.data.bakerId == request.auth.uid;
+
       allow list: if isSignedIn();
-      
-      // UPDATE: Only the approved baker fulfilling the order can update its status.
-      allow update: if isSignedIn() && resource.data.bakerId == request.auth.uid && isApprovedBaker();
-      
-      // DELETE: Orders cannot be deleted.
+
+      allow update: if isApprovedBaker()
+        && resource.data.bakerId == request.auth.uid;
+
       allow delete: if false;
     }
 
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     // SPONSORS
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     match /sponsors/{sponsorId} {
       allow read: if true;
-      
-      // CREATE: A user can create their own sponsor profile, but only with 'pending' status.
-      allow create: if request.auth != null && request.auth.uid == sponsorId
-        && request.resource.data.userId == sponsorId
+
+      allow create: if isOwner(sponsorId)
         && request.resource.data.approvalStatus == 'pending';
-        
-      // UPDATE: An owner can update their profile but NOT the approval status. Admins can update.
-      allow update: if (isOwner(sponsorId) && request.resource.data.approvalStatus == resource.data.approvalStatus)
-                || isAdmin();
-                
+
+      allow update: if (isOwner(sponsorId)
+        && request.resource.data.approvalStatus == resource.data.approvalStatus)
+        || isAdmin();
+
       allow delete: if isAdmin();
     }
 
-    // ----------------------------------------------------------------
-    // AD SPACES
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
+    // AD SPACES  ⭐️ ZONA CRITICA ⭐️
+    // --------------------------------------------------
     match /ad_spaces/{adSpaceId} {
+
+      // Tutti gli utenti autenticati possono leggere
       allow read: if isSignedIn();
+
+      // Admin: controllo totale
       allow write: if isAdmin();
+
+      // Sponsor: può SOLO modificare bookings
+      allow update: if isSignedIn()
+        && request.resource.data
+          .diff(resource.data)
+          .changedKeys()
+          .hasOnly(['bookings']);
     }
 
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     // ADMIN ROLES
-    // ----------------------------------------------------------------
+    // --------------------------------------------------
     match /roles_admin/{userId} {
-      // Inlining the isAdmin() check here to avoid recursion.
-      // An admin can read any role doc, a user can only read their own.
-      allow get: if isOwner(userId) || (isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)));
-      // Inlining the isAdmin() check here as well.
-      allow list: if isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-      
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
       allow create, update, delete: if false;
     }
   }
 }
-
-    
