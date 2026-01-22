@@ -164,7 +164,7 @@ function AdminApprovalQueue() {
         <CardTitle>Coda di Approvazione Contenuti</CardTitle>
         <CardDescription>Revisiona e approva i contenuti inviati dagli sponsor.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-h-96 overflow-y-auto">
         <Accordion type="single" collapsible className="w-full">
           {approvalQueue.map(item => (
             <AccordionItem key={item.slotKey} value={item.slotKey}>
