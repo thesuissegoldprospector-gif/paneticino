@@ -1,377 +1,74 @@
+
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { addDays, format, startOfWeek, endOfWeek } from 'date-fns';
-import { it } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, ArrowLeft, ShoppingCart, Timer, Trash2, Loader2 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Loader2,
+  X,
+} from 'lucide-react';
+import {
+  addDays,
+  format,
+  startOfWeek,
+  eachDayOfInterval,
+  isSameDay,
+  isToday,
+} from 'date-fns';
+import { it } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { useFirestore, useCollection, useDoc, useUser } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc, serverTimestamp, deleteField, type DocumentData, runTransaction } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc } from '@/firebase';
+import {
+  collection,
+  query,
+  orderBy,
+  doc,
+  runTransaction,
+  serverTimestamp,
+  DocumentData,
+} from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import adSpacesData from '@/lib/ad-spaces.json';
 
-// --- Static Data & Types ---
-const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
-const basePrices = [2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 5, 10, 10, 15, 15, 15, 20, 20, 10, 10, 10, 15, 15, 15, 10, 10, 5, 2.5];
-const nightlyDiscount = 0.5; // 50% discount
-
-const prices = basePrices.map((price, index) => {
-    if (index >= 22 || index < 7) {
-        return price * nightlyDiscount;
-    }
-    return price;
-});
-
-type SelectedSlot = {
-  id: string;
-  adSpaceId: string;
-  day: Date;
-  time: string;
-  price: number;
-  addedAt: number; // JS Timestamp
-};
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
-// --- Sub-components ---
-
-function Countdown({ expiryTimestamp, onExpire }: { expiryTimestamp: number; onExpire: () => void }) {
-  const [timeLeft, setTimeLeft] = useState(expiryTimestamp - Date.now());
-
-  useEffect(() => {
-    if (expiryTimestamp <= Date.now()) {
-      onExpire();
-      return;
-    }
-    const intervalId = setInterval(() => {
-      const newTimeLeft = expiryTimestamp - Date.now();
-      if (newTimeLeft <= 0) {
-        clearInterval(intervalId);
-        onExpire();
-      } else {
-        setTimeLeft(newTimeLeft);
-      }
-    }, 1000);
-
-    return () => clearInterval(intervalId);
-  }, [expiryTimestamp, onExpire]);
-
-  if (timeLeft <= 0) return null;
-
-  const minutes = Math.floor((timeLeft / 1000 / 60) % 60);
-  const seconds = Math.floor((timeLeft / 1000) % 60);
-
-  return (
-    <span className="font-mono text-xs text-destructive">
-      {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-    </span>
-  );
-}
-
-const BookingView = ({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => void }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const { toast } = useToast();
-
-  const adSpaceDocRef = useMemo(() => {
-    if (!firestore || !adSpaceId) return null;
-    return doc(firestore, 'ad_spaces', adSpaceId);
-  }, [firestore, adSpaceId]);
-
-  const { data: adSpaceData, isLoading: isLoadingAdSpace } = useDoc(adSpaceDocRef);
-
-  const weekDays = useMemo(() => {
-    const start = startOfWeek(currentDate, { weekStartsOn: 1 });
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, [currentDate]);
-
-  const handleToggleSlot = async (day: Date, time: string) => {
-    if (!user || !firestore || !adSpaceDocRef) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Utente non autenticato o riferimento allo spazio non valido.' });
-      return;
-    }
-    
-    const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
-    const fieldPath = `bookings.${key}`;
-
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const adSpaceSnap = await transaction.get(adSpaceDocRef);
-            if (!adSpaceSnap.exists()) {
-                throw "Il documento dello spazio pubblicitario non esiste.";
-            }
-
-            const bookings = adSpaceSnap.data().bookings || {};
-            const currentBooking = bookings[key];
-            const price = prices[timeSlots.indexOf(time)];
-            
-            const isStale = currentBooking?.status === 'reserved' && currentBooking.reservedAt && (Date.now() > currentBooking.reservedAt.toDate().getTime() + TEN_MINUTES_MS);
-            
-            if (!currentBooking || isStale) {
-                transaction.update(adSpaceDocRef, {
-                    [fieldPath]: {
-                        sponsorId: user.uid,
-                        status: 'reserved',
-                        reservedAt: serverTimestamp(),
-                        price: price,
-                    }
-                });
-            }
-            else if (currentBooking.status === 'reserved' && currentBooking.sponsorId === user.uid) {
-                transaction.update(adSpaceDocRef, {
-                    [fieldPath]: deleteField()
-                });
-            }
-        });
-    } catch (e) {
-        console.error("Transaction to toggle slot failed: ", e);
-        toast({
-            variant: "destructive",
-            title: "Operazione fallita",
-            description: "Qualcuno potrebbe aver appena prenotato questo slot. La vista si aggiornerà a breve.",
-        });
-    }
-  };
-
-  const mySelectedSlots = useMemo((): SelectedSlot[] => {
-    if (!adSpaceData?.bookings || !user) return [];
-    const now = Date.now();
-    const slots: SelectedSlot[] = [];
-
-    for (const key in adSpaceData.bookings) {
-      const booking = adSpaceData.bookings[key];
-      if (booking.status === 'reserved' && booking.sponsorId === user.uid) {
-        const reservedAtTime = booking.reservedAt?.toDate().getTime();
-        if (reservedAtTime && now < reservedAtTime + TEN_MINUTES_MS) {
-          const [dateStr, timeStr] = key.split('_');
-          slots.push({
-            id: `${adSpaceId}-${key}`,
-            adSpaceId: adSpaceId,
-            day: new Date(dateStr + 'T00:00:00'),
-            time: timeStr,
-            price: booking.price,
-            addedAt: reservedAtTime,
-          });
-        }
-      }
-    }
-    return slots.sort((a, b) => a.addedAt - b.addedAt);
-  }, [adSpaceData, user, adSpaceId]);
-
-
-  const getSlotStatus = (day: Date, time: string): { status: 'available' | 'selected' | 'booked'; price: number } => {
-    const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
-    const booking = adSpaceData?.bookings?.[key];
-    const price = prices[timeSlots.indexOf(time)];
-
-    if (!booking) {
-      return { status: 'available', price };
-    }
-
-    if (booking.status === 'reserved') {
-      const reservedAt = booking.reservedAt?.toDate().getTime();
-      if (reservedAt && Date.now() < reservedAt + TEN_MINUTES_MS) {
-        // It's a valid reservation. Check who owns it.
-        return {
-          status: booking.sponsorId === user?.uid ? 'selected' : 'booked',
-          price,
-        };
-      }
-      // If the reservation is expired, it's available again.
-      return { status: 'available', price };
-    }
-
-    // For any other status ('paid', 'processing', 'approved'), it's considered booked.
-    if (['paid', 'processing', 'approved'].includes(booking.status)) {
-        return { status: 'booked', price };
-    }
-
-    // Default case
-    return { status: 'available', price };
-  };
-
-  const handlePurchase = async () => {
-    if (!user || !adSpaceDocRef || mySelectedSlots.length === 0) return;
-    
-    const updates: Record<string, any> = {};
-    mySelectedSlots.forEach(slot => {
-        const key = `${format(slot.day, 'yyyy-MM-dd')}_${slot.time}`;
-        updates[`bookings.${key}`] = {
-            sponsorId: user.uid,
-            status: 'processing',
-            price: slot.price,
-        };
-    });
-
-    try {
-        await updateDoc(adSpaceDocRef, updates);
-        toast({
-            title: "Prenotazione in Elaborazione!",
-            description: `I tuoi ${mySelectedSlots.length} slot sono in stato 'processing' e non scadranno.`,
-        });
-    } catch (error) {
-        console.error("Error purchasing slots:", error);
-        toast({ variant: 'destructive', title: 'Acquisto fallito', description: 'Impossibile confermare la prenotazione.' });
-    }
-  };
-
-  const total = useMemo(() => mySelectedSlots.reduce((sum, slot) => sum + slot.price, 0), [mySelectedSlots]);
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className="lg:col-span-2">
-            <Card>
-                 <CardHeader>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className='flex items-center gap-4'>
-                            <Button variant="outline" size="icon" onClick={onBack}>
-                                <ArrowLeft className="h-4 w-4" />
-                            </Button>
-                            <div>
-                            <CardTitle>Agenda per: {adSpaceData?.name || adSpaceId}</CardTitle>
-                            <CardDescription>Clicca su uno slot per aggiungerlo al carrello.</CardDescription>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 rounded-lg border p-2 w-full sm:w-auto justify-between">
-                            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(prev => addDays(prev, -7))}>
-                                <ChevronLeft className="h-5 w-5" />
-                            </Button>
-                            <div className="text-center">
-                                <p className="text-sm font-medium">Settimana</p>
-                                <p className="text-xs text-muted-foreground">
-                                    {format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'dd')} - {format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'dd MMM yyyy', { locale: it })}
-                                </p>
-                            </div>
-                            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(prev => addDays(prev, 7))}>
-                                <ChevronRight className="h-5 w-5" />
-                            </Button>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="overflow-auto" style={{ maxHeight: '70vh', scrollbarWidth: 'thin' }}>
-                        {isLoadingAdSpace || adSpaceData === undefined ? <div className="h-96 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div> : (
-                            <div className="relative grid grid-cols-[auto_repeat(7,1fr)]">
-                                <div className="sticky left-0 z-10 bg-card">
-                                <div className="h-12 border-b"></div>
-                                {timeSlots.map(time => (
-                                    <div key={time} className="flex h-12 items-center justify-center border-b border-r px-2 text-xs text-muted-foreground">
-                                    {time}
-                                    </div>
-                                ))}
-                                </div>
-                                {weekDays.map(day => (
-                                <div key={day.toISOString()} className="min-w-[100px]">
-                                    <div className="sticky top-0 z-10 flex h-12 flex-col items-center justify-center border-b bg-card text-center">
-                                    <p className="font-semibold">{format(day, 'eee', { locale: it })}</p>
-                                    <p className="text-xs text-muted-foreground">{format(day, 'dd')}</p>
-                                    </div>
-                                    <div className="relative">
-                                    {timeSlots.map((time) => {
-                                        const { status, price } = getSlotStatus(day, time);
-                                        return (
-                                        <div key={time} className="relative h-12 border-b">
-                                            <Button
-                                                onClick={() => handleToggleSlot(day, time)}
-                                                disabled={status === 'booked'}
-                                                variant={'outline'}
-                                                className={cn(
-                                                    "absolute inset-0.5 h-auto w-auto rounded-sm text-xs transition-all",
-                                                    {
-                                                        'border-primary/50 text-primary-foreground bg-primary/90 hover:bg-primary': status === 'selected',
-                                                        'hover:bg-accent/50': status === 'available',
-                                                        'bg-muted text-muted-foreground cursor-not-allowed hover:bg-muted': status === 'booked',
-                                                    }
-                                                )}
-                                            >
-                                                {price.toFixed(2)} CHF
-                                            </Button>
-                                        </div>
-                                        );
-                                    })}
-                                    </div>
-                                </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-        <div className="lg:col-span-1">
-            <Card className="sticky top-24">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><ShoppingCart /> Riepilogo Prenotazione</CardTitle>
-                    <CardDescription>Gli slot selezionati scadono tra 10 minuti.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {mySelectedSlots.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-8">Seleziona uno slot dal calendario per iniziare.</p>
-                    ) : (
-                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                        {mySelectedSlots.map(slot => (
-                        <div key={slot.id} className="flex justify-between items-start text-sm p-2 rounded-md bg-muted/50">
-                            <div>
-                                <p className="font-semibold">{format(slot.day, 'eee dd/MM', { locale: it })} - {slot.time}</p>
-                                <p className="text-muted-foreground">{slot.price.toFixed(2)} CHF</p>
-                            </div>
-                            <div className="text-right">
-                                <div className="flex items-center gap-2">
-                                    <Timer className="h-4 w-4 text-destructive" />
-                                    <Countdown expiryTimestamp={slot.addedAt + TEN_MINUTES_MS} onExpire={() => handleToggleSlot(slot.day, slot.time)} />
-                                </div>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 mt-1" onClick={() => handleToggleSlot(slot.day, slot.time)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </div>
-                        </div>
-                        ))}
-                    </div>
-                    )}
-                </CardContent>
-                {mySelectedSlots.length > 0 && (
-                    <CardFooter className="flex-col items-stretch space-y-4">
-                    <div className="flex justify-between font-bold text-lg border-t pt-4">
-                        <span>Totale</span>
-                        <span>{total.toFixed(2)} CHF</span>
-                    </div>
-                    <Button onClick={handlePurchase}>Acquista Slot ({mySelectedSlots.length})</Button>
-                    </CardFooter>
-                )}
-            </Card>
-        </div>
-    </div>
-  );
-};
-
-
-const SelectionView = ({ onSelectCard }: { onSelectCard: (adSpaceId: string) => void }) => {
-  const [openPage, setOpenPage] = useState<string | null>('Home');
-  const firestore = useFirestore();
-
-  const adSpacesQuery = useMemo(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'ad_spaces'), orderBy('page'), orderBy('cardIndex'));
-  }, [firestore]);
-  
-  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
+// --- Sub-componente per la selezione dello spazio ---
+function SelectionView({
+  onSelectCard,
+  adSpaces,
+  isLoading
+}: {
+  onSelectCard: (adSpaceId: string) => void;
+  adSpaces: any[] | null;
+  isLoading: boolean;
+}) {
+  const [openPage, setOpenPage] = useState<string | null>(null);
 
   const sortedPages = useMemo(() => {
     if (!adSpaces) return [];
-  
+
     const pagesMap = adSpaces.reduce((acc, space) => {
       const pageName = String(space.page || 'Altro').trim();
       if (!pageName) return acc;
-  
-      if (!acc[pageName]) {
-        acc[pageName] = [];
-      }
+
+      if (!acc[pageName]) acc[pageName] = [];
       acc[pageName].push(space);
       return acc;
     }, {} as Record<string, DocumentData[]>);
-  
+
     return Object.entries(pagesMap)
       .sort(([pageA], [pageB]) => pageA.localeCompare(pageB))
       .map(([pageName, cards]) => ({
@@ -380,33 +77,32 @@ const SelectionView = ({ onSelectCard }: { onSelectCard: (adSpaceId: string) => 
       }));
   }, [adSpaces]);
 
-
   if (isLoading) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
-                <CardDescription>Caricamento spazi disponibili...</CardDescription>
-            </CardHeader>
-            <CardContent className="h-48 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin"/>
-            </CardContent>
-        </Card>
-    );
+      return (
+          <Card>
+              <CardHeader>
+                  <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
+                  <CardDescription>Caricamento spazi disponibili...</CardDescription>
+              </CardHeader>
+              <CardContent className="h-48 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin"/>
+              </CardContent>
+          </Card>
+      );
   }
-  
+
   if (!sortedPages.length) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Spazi Pubblicitari non disponibili</CardTitle>
-                <CardDescription>Non ci sono spazi pubblicitari configurati al momento.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p className="text-center text-muted-foreground py-8">Contatta un amministratore per la configurazione.</p>
-            </CardContent>
-        </Card>
-    );
+      return (
+          <Card>
+              <CardHeader>
+                  <CardTitle>Spazi Pubblicitari non disponibili</CardTitle>
+                  <CardDescription>Non ci sono spazi pubblicitari configurati al momento.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <p className="text-center text-muted-foreground py-8">Controlla la configurazione o contatta un amministratore.</p>
+              </CardContent>
+          </Card>
+      );
   }
 
 
@@ -414,9 +110,11 @@ const SelectionView = ({ onSelectCard }: { onSelectCard: (adSpaceId: string) => 
     <Card>
       <CardHeader>
         <CardTitle>Seleziona uno Spazio Pubblicitario</CardTitle>
-        <CardDescription>Scegli una pagina e una card per visualizzare il calendario delle disponibilità.</CardDescription>
+        <CardDescription>
+          Scegli una pagina e una card per visualizzare il calendario delle disponibilità.
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-2">
         {sortedPages.map(({ pageName, cards }) => (
             <div key={pageName}>
                 <Button
@@ -430,37 +128,344 @@ const SelectionView = ({ onSelectCard }: { onSelectCard: (adSpaceId: string) => 
                 </Button>
                 {openPage === pageName && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4 pl-8">
-                  {cards.map(card => (
+                    {cards.map(card => (
                     <Card 
-                      key={card.id} 
-                      onClick={() => onSelectCard(card.id)}
-                      className="cursor-pointer hover:shadow-md hover:border-primary transition-all"
+                        key={card.id} 
+                        className="cursor-pointer hover:shadow-md hover:border-primary transition-all"
+                        onClick={() => onSelectCard(card.id)}
                     >
-                      <CardHeader>
+                        <CardHeader>
                         <CardTitle>{card.name}</CardTitle>
                         <CardDescription>Visualizza agenda</CardDescription>
-                      </CardHeader>
+                        </CardHeader>
                     </Card>
-                  ))}
+                    ))}
                 </div>
-              )}
-
+                )}
             </div>
-            ))
-        }
+        ))}
       </CardContent>
     </Card>
   );
-};
+}
 
 
-// --- Main Component ---
+// --- Sub-componente per la prenotazione ---
+function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => void }) {
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const { toast } = useToast();
+
+    const adSpaceDocRef = useMemo(() => {
+        if (!firestore || !adSpaceId) return null;
+        return doc(firestore, 'ad_spaces', adSpaceId);
+    }, [firestore, adSpaceId]);
+    
+    const { data: adSpaceData, isLoading: isAdSpaceLoading } = useDoc(adSpaceDocRef);
+    
+    const [currentDate, setCurrentDate] = useState(new Date());
+    const [selectedSlots, setSelectedSlots] = useState<Map<string, { price: number; reservedAt: Date }>>(new Map());
+    
+    const weekDays = eachDayOfInterval({
+        start: startOfWeek(currentDate, { weekStartsOn: 1 }),
+        end: addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), 6),
+    });
+
+    const timeSlots = Array.from({ length: 13 }, (_, i) => `${(i + 8).toString().padStart(2, '0')}:00`);
+    const prices = [10, 10, 15, 15, 20, 10, 10, 15, 15, 20, 10, 10, 10]; // Prezzi fittizi
+    
+    // Rimuove gli slot scaduti dallo stato locale all'intervallo
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const now = Date.now();
+            const newSelectedSlots = new Map(selectedSlots);
+            let changed = false;
+            newSelectedSlots.forEach((value, key) => {
+                if (now > value.reservedAt.getTime() + TEN_MINUTES_MS) {
+                    newSelectedSlots.delete(key);
+                    changed = true;
+                }
+            });
+            if (changed) {
+                setSelectedSlots(newSelectedSlots);
+            }
+        }, 1000); // Controlla ogni secondo
+        return () => clearInterval(interval);
+    }, [selectedSlots]);
+    
+    const getSlotStatus = (day: Date, time: string): { status: 'available' | 'selected' | 'booked'; price: number } => {
+        const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
+        const booking = adSpaceData?.bookings?.[key];
+        const price = prices[timeSlots.indexOf(time)];
+
+        if (!booking) {
+            return { status: 'available', price };
+        }
+
+        if (['paid', 'processing', 'approved'].includes(booking.status)) {
+            return { status: 'booked', price };
+        }
+
+        if (booking.status === 'reserved') {
+          const reservedAt = booking.reservedAt?.toDate().getTime();
+          if (reservedAt && Date.now() < reservedAt + TEN_MINUTES_MS) {
+            return {
+              status: booking.sponsorId === user?.uid ? 'selected' : 'booked',
+              price,
+            };
+          }
+        }
+        
+        return { status: 'available', price };
+    };
+
+    const handleToggleSlot = async (day: Date, time: string) => {
+        if (!adSpaceDocRef || !user) return;
+        
+        const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
+        const price = prices[timeSlots.indexOf(time)];
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const adSpaceDoc = await transaction.get(adSpaceDocRef);
+                if (!adSpaceDoc.exists()) {
+                    throw new Error("Il documento dello spazio pubblicitario non esiste.");
+                }
+
+                const currentBookings = adSpaceDoc.data()?.bookings || {};
+                const existingBooking = currentBookings[key];
+
+                if (existingBooking) {
+                    // C'è una prenotazione, controlliamo se è la nostra e se è "reserved"
+                    if (existingBooking.sponsorId === user.uid && existingBooking.status === 'reserved') {
+                        // È la nostra, quindi la rimuoviamo (deselezione)
+                        delete currentBookings[key];
+                    } else {
+                        // È di un altro o in uno stato non cancellabile, non facciamo nulla.
+                        throw new Error("Slot già prenotato o in elaborazione.");
+                    }
+                } else {
+                    // Non c'è prenotazione, la creiamo
+                    currentBookings[key] = {
+                        status: 'reserved',
+                        sponsorId: user.uid,
+                        price: price,
+                        reservedAt: serverTimestamp(),
+                    };
+                }
+                
+                transaction.update(adSpaceDocRef, { bookings: currentBookings });
+            });
+        } catch (error: any) {
+            console.error("Transaction to toggle slot failed:", error.message);
+            toast({
+                variant: 'destructive',
+                title: 'Operazione fallita',
+                description: error.message,
+            });
+        }
+    };
+    
+    const handlePurchase = async () => {
+        if (!adSpaceDocRef || !user) return;
+        const slotsToPurchase = Array.from(selectedSlots.keys());
+        if (slotsToPurchase.length === 0) return;
+
+        toast({ title: "Simulazione d'acquisto", description: "Sto elaborando la tua prenotazione..."});
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const adSpaceDoc = await transaction.get(adSpaceDocRef);
+                if (!adSpaceDoc.exists()) {
+                    throw "Il documento non esiste.";
+                }
+                const currentBookings = adSpaceDoc.data().bookings || {};
+                
+                let purchasedCount = 0;
+                for (const key of slotsToPurchase) {
+                    const booking = currentBookings[key];
+                    if (booking && booking.sponsorId === user.uid && booking.status === 'reserved') {
+                        currentBookings[key].status = 'processing'; // Cambia stato in "processing"
+                        purchasedCount++;
+                    }
+                }
+
+                if (purchasedCount > 0) {
+                  transaction.update(adSpaceDocRef, { bookings: currentBookings });
+                } else {
+                  throw "Nessuno slot valido da acquistare. Potrebbero essere scaduti.";
+                }
+            });
+             toast({
+                title: 'Prenotazione in elaborazione!',
+                description: `I tuoi ${slotsToPurchase.length} slot sono ora in stato "processing".`,
+            });
+            setSelectedSlots(new Map());
+
+        } catch (error: any) {
+             toast({
+                variant: 'destructive',
+                title: 'Acquisto fallito',
+                description: error.toString(),
+            });
+        }
+    };
+
+    const totalCost = useMemo(() => {
+        return Array.from(selectedSlots.values()).reduce((acc, { price }) => acc + price, 0);
+    }, [selectedSlots]);
+    
+    // Aggiorna gli slot selezionati quando i dati da firestore cambiano
+    useEffect(() => {
+        if (!adSpaceData?.bookings || !user) {
+            setSelectedSlots(new Map());
+            return;
+        }
+    
+        const newSelectedSlots = new Map<string, { price: number; reservedAt: Date }>();
+        const now = Date.now();
+    
+        for (const key in adSpaceData.bookings) {
+            const booking = adSpaceData.bookings[key];
+            if (booking.status === 'reserved' && booking.sponsorId === user.uid) {
+                const reservedAt = booking.reservedAt?.toDate();
+                if (reservedAt && now < reservedAt.getTime() + TEN_MINUTES_MS) {
+                    newSelectedSlots.set(key, { price: booking.price, reservedAt });
+                }
+            }
+        }
+        setSelectedSlots(newSelectedSlots);
+    }, [adSpaceData, user]);
+
+
+    if (isAdSpaceLoading) {
+        return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>
+    }
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Calendario */}
+            <Card className="lg:col-span-2">
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <Button variant="outline" size="icon" onClick={onBack}><ChevronLeft /></Button>
+                        <CardTitle>{adSpaceData?.name}</CardTitle>
+                        <div className="w-10"></div> {/* Spacer */}
+                    </div>
+                    <CardDescription className="text-center">{adSpaceData?.page}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex justify-between items-center mb-4">
+                        <Button variant="outline" onClick={() => setCurrentDate(addDays(currentDate, -7))}>Settimana Prec.</Button>
+                        <span className="font-semibold text-lg">{format(weekDays[0], 'dd MMM', { locale: it })} - {format(weekDays[6], 'dd MMM yyyy', { locale: it })}</span>
+                        <Button variant="outline" onClick={() => setCurrentDate(addDays(currentDate, 7))}>Settimana Succ.</Button>
+                    </div>
+                    <div className="grid grid-cols-8 gap-1 text-center font-semibold">
+                        <div />
+                        {weekDays.map(day => (
+                            <div key={day.toString()} className={cn("p-2 rounded-md", isToday(day) && "bg-primary text-primary-foreground")}>
+                                <div>{format(day, 'eee', { locale: it })}</div>
+                                <div>{format(day, 'd')}</div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-8 gap-1 mt-2">
+                        {timeSlots.map(time => (
+                            <React.Fragment key={time}>
+                                <div className="p-2 text-sm text-muted-foreground text-center">{time}</div>
+                                {weekDays.map(day => {
+                                    const { status, price } = getSlotStatus(day, time);
+                                    return (
+                                        <div
+                                            key={day.toString()}
+                                            onClick={() => status !== 'booked' && handleToggleSlot(day, time)}
+                                            className={cn("p-2 border rounded-md text-center text-xs transition-colors", {
+                                                'cursor-pointer hover:bg-primary/20': status === 'available',
+                                                'bg-yellow-400 text-yellow-900 cursor-pointer': status === 'selected',
+                                                'bg-muted text-muted-foreground cursor-not-allowed line-through': status === 'booked',
+                                                'border-dashed': status === 'available'
+                                            })}
+                                        >
+                                            {price} CHF
+                                        </div>
+                                    )
+                                })}
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Riepilogo */}
+            <Card>
+                <CardHeader><CardTitle>Riepilogo Prenotazione</CardTitle></CardHeader>
+                <CardContent>
+                    {selectedSlots.size > 0 ? (
+                        <div className="space-y-2">
+                            {Array.from(selectedSlots.entries()).map(([key, { price, reservedAt }]) => {
+                                const [date, time] = key.split('_');
+                                const timeLeft = Math.max(0, Math.round((reservedAt.getTime() + TEN_MINUTES_MS - Date.now()) / 1000));
+                                return (
+                                    <div key={key} className="flex justify-between items-center text-sm p-2 bg-muted/50 rounded-md">
+                                        <div>
+                                            <p>{format(new Date(date), 'eee dd MMM', { locale: it })} - {time}</p>
+                                            <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3"/> Scade tra {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</p>
+                                        </div>
+                                        <div className='flex items-center gap-2'>
+                                            <p className="font-semibold">{price.toFixed(2)} CHF</p>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleToggleSlot(new Date(date), time)}><X className="h-4 w-4 text-destructive"/></Button>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground text-center py-8">Seleziona uno o più slot dal calendario per prenotarli.</p>
+                    )}
+                </CardContent>
+                {selectedSlots.size > 0 && (
+                    <CardFooter className="flex-col items-stretch space-y-4">
+                        <div className="flex justify-between font-bold text-lg">
+                            <span>Totale:</span>
+                            <span>{totalCost.toFixed(2)} CHF</span>
+                        </div>
+                        <Button onClick={handlePurchase}>Acquista {selectedSlots.size} Slot</Button>
+                    </CardFooter>
+                )}
+            </Card>
+        </div>
+    );
+}
+
+// --- Componente Principale ---
 export default function SponsorAgenda() {
   const [selectedAdSpaceId, setSelectedAdSpaceId] = useState<string | null>(null);
+  const firestore = useFirestore();
 
-  if (selectedAdSpaceId) {
-    return <BookingView adSpaceId={selectedAdSpaceId} onBack={() => setSelectedAdSpaceId(null)} />;
-  }
+  const adSpacesQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(
+      collection(firestore, 'ad_spaces'),
+      orderBy('page'),
+      orderBy('cardIndex')
+    );
+  }, [firestore]);
+
+  const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
+
+  const handleSelectCard = (id: string) => {
+    setSelectedAdSpaceId(id);
+  };
+
+  const handleBack = () => {
+    setSelectedAdSpaceId(null);
+  };
   
-  return <SelectionView onSelectCard={setSelectedAdSpaceId} />;
+  if (selectedAdSpaceId) {
+    return <BookingView adSpaceId={selectedAdSpaceId} onBack={handleBack} />;
+  }
+
+  return <SelectionView onSelectCard={handleSelectCard} adSpaces={adSpaces} isLoading={isLoading} />;
 }
+
+    
