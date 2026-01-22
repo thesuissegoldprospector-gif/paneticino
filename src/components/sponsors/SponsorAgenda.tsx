@@ -165,14 +165,17 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedSlots, setSelectedSlots] = useState<Map<string, { price: number; reservedAt: Date }>>(new Map());
-    const [, setTick] = useState(0);
     
+    // Timer to force re-render every second for countdown
     useEffect(() => {
         const timerId = setInterval(() => {
-            setTick(prev => prev + 1);
+            // Check if there are any selected slots to avoid unnecessary re-renders
+            if (selectedSlots.size > 0) {
+                 setSelectedSlots(prevSlots => new Map(prevSlots)); // Force update by creating a new map instance
+            }
         }, 1000);
         return () => clearInterval(timerId);
-    }, []);
+    }, [selectedSlots.size]);
     
     const weekDays = eachDayOfInterval({
         start: startOfWeek(currentDate, { weekStartsOn: 1 }),
@@ -182,30 +185,34 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
     const prices = [5, 5, 5, 5, 5, 5, 10, 10, 15, 20, 20, 15, 15, 20, 20, 15, 15, 10, 10, 10, 10, 5, 5, 5];
     
-    const getSlotStatus = (day: Date, time: string): { status: 'available' | 'selected' | 'booked'; price: number } => {
+    const getSlotStatus = (day: Date, time: string): { status: 'available' | 'selected' | 'booked'; price: number; display: string; } => {
         const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
         const booking = adSpaceData?.bookings?.[key];
         const price = prices[timeSlots.indexOf(time)];
 
+        const priceDisplay = `${price} CHF`;
+
         if (!booking) {
-            return { status: 'available', price };
+            return { status: 'available', price, display: priceDisplay };
         }
 
-        if (['paid', 'processing', 'approved'].includes(booking.status)) {
-            return { status: 'booked', price };
+        if (['paid', 'approved', 'processing'].includes(booking.status)) {
+            const statusText = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
+            return { status: 'booked', price, display: statusText };
         }
 
         if (booking.status === 'reserved') {
           const reservedAt = booking.reservedAt?.toDate().getTime();
           if (reservedAt && Date.now() < reservedAt + TEN_MINUTES_MS) {
-            return {
-              status: booking.sponsorId === user?.uid ? 'selected' : 'booked',
-              price,
-            };
+            if (booking.sponsorId === user?.uid) {
+                return { status: 'selected', price, display: priceDisplay };
+            } else {
+                return { status: 'booked', price, display: 'Reserved' };
+            }
           }
         }
         
-        return { status: 'available', price };
+        return { status: 'available', price, display: priceDisplay };
     };
 
     const handleToggleSlot = async (day: Date, time: string) => {
@@ -261,8 +268,20 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     
     const handlePurchase = async () => {
         if (!adSpaceDocRef || !user) return;
-        const slotsToPurchase = Array.from(selectedSlots.keys());
-        if (slotsToPurchase.length === 0) return;
+        
+        // Get slots to purchase directly from the live data, not the local state
+        const slotsToPurchase = Object.entries(adSpaceData?.bookings || {})
+            .filter(([, booking]) => booking.sponsorId === user.uid && booking.status === 'reserved')
+            .map(([key]) => key);
+
+        if (slotsToPurchase.length === 0) {
+             toast({
+                variant: 'destructive',
+                title: 'Nessuno slot selezionato',
+                description: "Non ci sono slot validi da acquistare. Potrebbero essere scaduti.",
+            });
+            return;
+        }
 
         toast({ title: "Simulazione d'acquisto", description: "Sto elaborando la tua prenotazione..."});
 
@@ -278,7 +297,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                 for (const key of slotsToPurchase) {
                     const booking = currentBookings[key];
                     if (booking && booking.sponsorId === user.uid && booking.status === 'reserved') {
-                        currentBookings[key].status = 'processing';
+                        currentBookings[key].status = 'processing'; // Set to 'processing'
                         purchasedCount++;
                     }
                 }
@@ -328,7 +347,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
         }
         
         if (newSelectedSlots.size !== selectedSlots.size || Array.from(newSelectedSlots.keys()).some(k => !selectedSlots.has(k))) {
-            setSelectedSlots(newSelectedSlots);
+            setSelectedSlots(new Map(newSelectedSlots));
         }
 
     }, [adSpaceData, user, selectedSlots.size]);
@@ -368,21 +387,23 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                         <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 mt-2 min-w-[700px]">
                             {timeSlots.map(time => (
                                 <React.Fragment key={time}>
-                                    <div className="p-2 text-sm text-muted-foreground text-center flex items-center justify-center">{time}</div>
+                                    <div className="p-2 h-16 text-sm text-muted-foreground text-center flex items-center justify-center">{time}</div>
                                     {weekDays.map(day => {
-                                        const { status, price } = getSlotStatus(day, time);
+                                        const { status, display } = getSlotStatus(day, time);
                                         return (
                                             <div
                                                 key={day.toString()}
                                                 onClick={() => status !== 'booked' && handleToggleSlot(day, time)}
-                                                className={cn("p-2 border rounded-md text-center text-xs transition-colors", {
-                                                    'cursor-pointer hover:bg-primary/20': status === 'available',
-                                                    'bg-yellow-400 text-yellow-900 cursor-pointer': status === 'selected',
-                                                    'bg-muted text-muted-foreground cursor-not-allowed line-through': status === 'booked',
-                                                    'border-dashed': status === 'available'
-                                                })}
+                                                className={cn(
+                                                    "p-4 h-16 border rounded-md text-center text-sm transition-colors flex items-center justify-center font-medium",
+                                                    {
+                                                        'cursor-pointer hover:bg-primary/20': status === 'available',
+                                                        'bg-yellow-400 text-yellow-900 cursor-pointer': status === 'selected',
+                                                        'bg-muted text-muted-foreground cursor-not-allowed': status === 'booked',
+                                                        'border-dashed': status === 'available'
+                                                    })}
                                             >
-                                                {price} CHF
+                                                {display}
                                             </div>
                                         )
                                     })}
