@@ -34,6 +34,7 @@ import {
   isSameDay,
   isToday,
   isPast,
+  endOfWeek,
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -287,24 +288,32 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     const [selectedSlots, setSelectedSlots] = useState<Map<string, { price: number; reservedAt: Date }>>(new Map());
     
     useEffect(() => {
-      const timerId = setInterval(() => {
-        if (selectedSlots.size > 0) {
-          setSelectedSlots(prevSlots => new Map(prevSlots));
-        }
-      }, 1000); 
+        const timerId = setInterval(() => {
+            let hasExpired = false;
+            const now = Date.now();
+            for (const [, { reservedAt }] of selectedSlots.entries()) {
+                if (now >= reservedAt.getTime() + TEN_MINUTES_MS) {
+                    hasExpired = true;
+                    break;
+                }
+            }
+            if (hasExpired || selectedSlots.size > 0) {
+                // Force a re-render to update timers or remove expired slots
+                setSelectedSlots(prevSlots => new Map(prevSlots));
+            }
+        }, 1000);
+
+        return () => clearInterval(timerId);
+    }, [selectedSlots]);
     
-      return () => clearInterval(timerId); 
-    }, [selectedSlots]); 
-    
-    const weekDays = eachDayOfInterval({
-        start: startOfWeek(currentDate, { weekStartsOn: 1 }),
-        end: addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), 6),
-    });
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     const timeSlots = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
     const prices = [5, 5, 5, 5, 5, 5, 10, 10, 15, 20, 20, 15, 15, 20, 20, 15, 15, 10, 10, 10, 10, 5, 5, 5];
     
-    const getSlotStatus = (day: Date, time: string): { status: 'available' | 'selected' | 'booked'; display: string } => {
+    const getSlotStatus = useCallback((day: Date, time: string): { status: 'available' | 'selected' | 'booked' | 'processing' | 'approved'; display: string } => {
         const key = `${format(day, 'yyyy-MM-dd')}_${time}`;
         const booking = adSpaceData?.bookings?.[key];
         const price = prices[timeSlots.indexOf(time)];
@@ -316,10 +325,9 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
         }
 
         if (['processing', 'paid', 'approved'].includes(booking.status)) {
-            let statusText = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
-            if (booking.status === 'paid') statusText = 'Approved';
-            if (booking.status === 'processing') statusText = 'Processing';
-            return { status: 'booked', display: statusText };
+            if(booking.status === 'processing') return { status: 'processing', display: 'Processing' };
+            if(booking.status === 'approved') return { status: 'approved', display: 'Approved' };
+            return { status: 'booked', display: 'Booked' };
         }
 
         if (booking.status === 'reserved') {
@@ -334,7 +342,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
         }
         
         return { status: 'available', display: priceDisplay };
-    };
+    }, [adSpaceData, user, prices, timeSlots]);
 
     const handleToggleSlot = async (day: Date, time: string) => {
         if (!adSpaceDocRef || !user) return;
@@ -489,47 +497,47 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                         </Button>
                         <div className="text-center">
                           <CardTitle>{adSpaceData?.name}</CardTitle>
-                          <CardDescription>{adSpaceData?.page}</CardDescription>
+                          <CardDescription>{format(weekStart, 'd MMM', { locale: it })} - {format(weekEnd, 'd MMM yyyy', { locale: it })}</CardDescription>
                         </div>
-                        <div className="w-10"></div>
+                        <div className="w-10 flex gap-2">
+                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex justify-between items-center mb-4">
-                        <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <span className="font-semibold text-center text-base sm:text-lg">
-                           {format(weekDays[0], 'd MMM', { locale: it })} - {format(weekDays[6], 'd MMM yyyy', { locale: it })}
-                        </span>
-                        <Button variant="outline" size="icon" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                    </div>
                     <div className="overflow-x-auto">
-                        <div className="grid grid-cols-[auto_repeat(7,minmax(100px,1fr))] gap-1 min-w-[750px]">
+                        <div className="grid grid-cols-[auto_repeat(7,minmax(80px,1fr))] gap-1 min-w-[750px]">
+                            {/* Headers */}
                             <div className="sticky left-0 bg-card z-10" />
                             {weekDays.map(day => (
-                                <div key={day.toString()} className={cn("p-2 rounded-md text-center font-semibold", isToday(day) && "bg-primary text-primary-foreground")}>
+                                <div key={day.toString()} className={cn("p-1 rounded-md text-center font-semibold text-xs", isToday(day) && "bg-primary text-primary-foreground")}>
                                     <div>{format(day, 'eee', { locale: it })}</div>
                                     <div>{format(day, 'd')}</div>
                                 </div>
                             ))}
+                            {/* Time slots */}
                             {timeSlots.map(time => (
                                 <React.Fragment key={time}>
-                                    <div className="p-2 h-12 text-sm text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">{time}</div>
+                                    <div className="p-1 h-12 text-xs text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">{time}</div>
                                     {weekDays.map(day => {
                                         const { status, display } = getSlotStatus(day, time);
                                         return (
                                             <div
                                                 key={day.toString()}
-                                                onClick={() => status !== 'booked' && handleToggleSlot(day, time)}
+                                                onClick={() => !['booked', 'processing', 'approved'].includes(status) && handleToggleSlot(day, time)}
                                                 className={cn(
-                                                    "p-2 h-12 border rounded-md text-center text-sm transition-colors flex items-center justify-center font-bold",
+                                                    "p-1 h-12 border rounded-md text-center text-xs transition-colors flex items-center justify-center font-bold min-w-[80px]",
                                                     {
                                                         'cursor-pointer hover:bg-primary/20': status === 'available',
-                                                        'bg-yellow-400 text-yellow-900 cursor-pointer': status === 'selected',
+                                                        'bg-green-200 text-green-800 cursor-pointer': status === 'selected',
                                                         'bg-muted text-muted-foreground cursor-not-allowed': status === 'booked',
+                                                        'bg-yellow-400 text-yellow-900 cursor-not-allowed': status === 'processing',
+                                                        'bg-green-500 text-white cursor-not-allowed': status === 'approved',
                                                         'border-dashed': status === 'available'
                                                     })}
                                             >
