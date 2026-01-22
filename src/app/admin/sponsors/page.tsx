@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -58,6 +57,7 @@ import {
   CheckCircle,
   ExternalLink,
   FileText,
+  CalendarClock,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -69,9 +69,8 @@ import { cn } from '@/lib/utils';
 import { useFirestore } from '@/firebase';
 import { collection, doc, getDocs, query, updateDoc, where, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, isPast, isToday } from 'date-fns';
 import { it } from 'date-fns/locale';
-import SponsorAgenda from '@/components/sponsors/SponsorAgenda';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
@@ -211,6 +210,106 @@ function AdminApprovalQueue() {
             </AccordionItem>
           ))}
         </Accordion>
+      </CardContent>
+    </Card>
+  );
+}
+
+// --- Admin Approved Slots ---
+function AdminApprovedSlots() {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [approvedSlots, setApprovedSlots] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!firestore) {
+      setIsLoading(false);
+      return;
+    }
+    const fetchSlots = async () => {
+      setIsLoading(true);
+      try {
+        const adSpacesQuery = query(collection(firestore, 'ad_spaces'));
+        const adSpacesSnapshot = await getDocs(adSpacesQuery);
+        const adSpaces = adSpacesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const sponsorsQuery = query(collection(firestore, 'sponsors'));
+        const sponsorsSnapshot = await getDocs(sponsorsQuery);
+        const sponsorsMap = new Map(sponsorsSnapshot.docs.map(d => [d.data().userId, d.data().companyName]));
+
+        const slots: any[] = [];
+        adSpaces.forEach((space: any) => {
+          if (!space.bookings) return;
+          Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
+            if (booking.status === 'approved') {
+              const [date, time] = key.split('_');
+              slots.push({
+                id: key,
+                adSpaceName: space.name,
+                pageName: space.page,
+                sponsorName: sponsorsMap.get(booking.sponsorId) || 'Sponsor Sconosciuto',
+                date,
+                time,
+              });
+            }
+          });
+        });
+
+        setApprovedSlots(slots.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)));
+
+      } catch (error) {
+        console.error("Failed to fetch approved slots:", error);
+        toast({ variant: 'destructive', title: "Errore", description: "Impossibile caricare gli slot approvati." });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSlots();
+  }, [firestore, toast]);
+  
+  if (isLoading) {
+    return <Card><CardContent className="p-6 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></CardContent></Card>;
+  }
+
+  if (approvedSlots.length === 0) {
+    return null; // Don't show the card if there are no approved slots
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Slot Approvati (Tutti gli Sponsor)</CardTitle>
+        <CardDescription>
+          Riepilogo di tutti gli slot pubblicitari approvati sulla piattaforma.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3 max-h-96 overflow-y-auto">
+        {approvedSlots.map((slot) => {
+          const slotDate = new Date(slot.date);
+          const isSlotInThePast = isPast(slotDate) && !isToday(slotDate);
+          return (
+            <div key={slot.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
+              <div>
+                <p className="font-semibold">{slot.adSpaceName} - <span className="font-normal">{slot.sponsorName}</span></p>
+                <p className="text-sm text-muted-foreground">
+                  {format(slotDate, 'eee dd MMM yyyy', { locale: it })} alle {slot.time}
+                </p>
+              </div>
+              {isSlotInThePast ? (
+                <Badge variant="outline" className="text-muted-foreground">
+                  <CalendarClock className="mr-1 h-3 w-3" />
+                  Passato
+                </Badge>
+              ) : (
+                <Badge className="bg-green-600 hover:bg-green-600/80 text-white">
+                  <CheckCircle className="mr-1 h-3 w-3" />
+                  Attivo/Futuro
+                </Badge>
+              )}
+            </div>
+          )
+        })}
       </CardContent>
     </Card>
   );
@@ -383,6 +482,8 @@ export default function AdminSponsorsPage() {
 
       <AdminApprovalQueue />
 
+      <AdminApprovedSlots />
+
       {/* Main Table Card */}
       <Card>
         <CardHeader>
@@ -512,8 +613,6 @@ export default function AdminSponsorsPage() {
         </CardContent>
       </Card>
 
-      <SponsorAgenda />
-      
       {/* Confirmation Dialog */}
       <AlertDialog open={!!dialogAction} onOpenChange={(open) => !open && setDialogAction(null)}>
         <AlertDialogContent>
