@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -54,6 +55,9 @@ import {
   Clock,
   PlusCircle,
   MoreHorizontal,
+  CheckCircle,
+  ExternalLink,
+  FileText,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -62,12 +66,147 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { useFirestore } from '@/firebase';
-import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { useFirestore, useCollection } from '@/firebase';
+import { collection, doc, getDocs, query, updateDoc, where, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import SponsorAgenda from '@/components/sponsors/SponsorAgenda';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+
+
+// --- Admin Approval Queue ---
+function AdminApprovalQueue() {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const adSpacesQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'ad_spaces'));
+  }, [firestore]);
+  const { data: adSpaces, isLoading: isLoadingSpaces } = useCollection(adSpacesQuery);
+
+  const sponsorsQuery = useMemo(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, 'sponsors'));
+  }, [firestore]);
+  const { data: sponsors, isLoading: isLoadingSponsors } = useCollection(sponsorsQuery);
+
+  const sponsorsMap = useMemo(() => {
+    if (!sponsors) return new Map();
+    return new Map(sponsors.map(s => [s.userId, s.companyName]));
+  }, [sponsors]);
+
+  const approvalQueue = useMemo(() => {
+    if (!adSpaces) return [];
+    const queue: any[] = [];
+    adSpaces.forEach(space => {
+      if (!space.bookings) return;
+      Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
+        if (booking.status === 'processing' && booking.content) {
+          const [date, time] = key.split('_');
+          queue.push({
+            slotKey: key,
+            adSpaceId: space.id,
+            sponsorId: booking.sponsorId,
+            sponsorName: sponsorsMap.get(booking.sponsorId) || 'Sponsor Sconosciuto',
+            adSpaceName: space.name,
+            pageName: space.page,
+            date,
+            time,
+            content: booking.content,
+          });
+        }
+      });
+    });
+    return queue.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  }, [adSpaces, sponsorsMap]);
+  
+  async function handleApprove(adSpaceId: string, slotKey: string) {
+    if (!firestore) return;
+    const adSpaceRef = doc(firestore, 'ad_spaces', adSpaceId);
+    const statusUpdatePath = `bookings.${slotKey}.status`;
+
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const adSpaceDoc = await transaction.get(adSpaceRef);
+        if (!adSpaceDoc.exists()) throw new Error("Spazio pubblicitario non trovato.");
+        transaction.update(adSpaceRef, { [statusUpdatePath]: 'approved' });
+      });
+      toast({ title: "Slot approvato!", description: "Il contenuto è ora attivo." });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: "Errore", description: error.message });
+    }
+  }
+
+  const isLoading = isLoadingSpaces || isLoadingSponsors;
+
+  if (isLoading) {
+    return <Card><CardContent className="p-6 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></CardContent></Card>;
+  }
+
+  if (approvalQueue.length === 0) {
+    return null; // Don't show the card if the queue is empty
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Coda di Approvazione Contenuti</CardTitle>
+        <CardDescription>Revisiona e approva i contenuti inviati dagli sponsor.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Accordion type="single" collapsible className="w-full">
+          {approvalQueue.map(item => (
+            <AccordionItem key={item.slotKey} value={item.slotKey}>
+              <AccordionTrigger>
+                <div className="flex w-full items-center justify-between pr-4">
+                  <div>
+                    <p className="font-semibold">{item.adSpaceName} ({item.pageName})</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.sponsorName} - {format(new Date(item.date), 'dd MMM yyyy', {locale: it})} alle {item.time}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">In attesa</Badge>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="p-4 bg-muted/30 rounded-md">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold">Titolo Annuncio</h4>
+                    <p>{item.content.title || '-'}</p>
+                  </div>
+                  {item.content.link && (
+                    <div>
+                      <h4 className="font-semibold">Link</h4>
+                      <a href={item.content.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                        {item.content.link} <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </div>
+                  )}
+                  {item.content.fileUrl && (
+                    <div>
+                      <h4 className="font-semibold">File Caricato</h4>
+                      <a href={item.content.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                        Visualizza file <FileText className="h-4 w-4" />
+                      </a>
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button onClick={() => handleApprove(item.adSpaceId, item.slotKey)}>
+                      <CheckCircle className="mr-2 h-4 w-4" /> Approva Contenuto
+                    </Button>
+                  </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 // Types
 type SponsorStatus = 'pending' | 'approved' | 'rejected';
@@ -232,6 +371,8 @@ export default function AdminSponsorsPage() {
         <StatCard title="Sponsor Totali" value={stats.total} icon={Users} isLoading={isLoading} />
         <StatCard title="Richieste in Attesa" value={stats.pending} icon={Clock} isLoading={isLoading} />
       </div>
+
+      <AdminApprovalQueue />
 
       {/* Main Table Card */}
       <Card>

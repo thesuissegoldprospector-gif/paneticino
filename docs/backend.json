@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -360,11 +361,31 @@
             "properties": {
               "status": {
                 "type": "string",
-                "enum": ["reserved", "paid"]
+                "enum": ["reserved", "processing", "approved", "paid"]
               },
               "sponsorId": { "type": "string" },
               "reservedAt": { "type": "object", "description": "Firestore Server Timestamp" },
-              "price": { "type": "number" }
+              "price": { "type": "number" },
+              "content": {
+                "type": "object",
+                "description": "Content submitted by the sponsor for the ad slot.",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "The main text/headline for the ad."
+                  },
+                  "link": {
+                    "type": "string",
+                    "description": "The destination URL for the ad.",
+                    "format": "uri"
+                  },
+                  "fileUrl": {
+                    "type": "string",
+                    "description": "URL of the uploaded image or video for the ad.",
+                    "format": "uri"
+                  }
+                }
+              }
             },
             "required": ["status", "sponsorId", "price"]
           }

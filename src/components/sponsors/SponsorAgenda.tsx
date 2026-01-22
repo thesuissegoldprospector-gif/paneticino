@@ -18,6 +18,9 @@ import {
   Clock,
   Loader2,
   X,
+  Edit,
+  Save,
+  Link as LinkIcon,
 } from 'lucide-react';
 import {
   addDays,
@@ -40,8 +43,105 @@ import {
   DocumentData,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { UpdateImageDialog } from '@/app/profile/dialogs';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
+
+// --- Sponsor Content Submission ---
+
+const contentSubmissionSchema = z.object({
+  title: z.string().min(3, "Il titolo deve avere almeno 3 caratteri.").max(100, "Massimo 100 caratteri."),
+  link: z.string().url("Per favore, inserisci un URL valido.").optional().or(z.literal('')),
+  fileUrl: z.string().url("L'URL del file non è valido.").optional().or(z.literal('')),
+});
+
+function SponsorContentForm({ slot }: { slot: any }) {
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  
+  const form = useForm<z.infer<typeof contentSubmissionSchema>>({
+    resolver: zodResolver(contentSubmissionSchema),
+    defaultValues: slot.content || { title: '', link: '', fileUrl: '' },
+  });
+
+  async function onSubmit(data: z.infer<typeof contentSubmissionSchema>) {
+    if (!firestore) return;
+    const adSpaceRef = doc(firestore, 'ad_spaces', slot.adSpaceId);
+    const updatePath = `bookings.${slot.slotKey}.content`;
+    
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const adSpaceDoc = await transaction.get(adSpaceRef);
+        if (!adSpaceDoc.exists()) throw new Error("Spazio pubblicitario non trovato.");
+        
+        transaction.update(adSpaceRef, { [updatePath]: data });
+      });
+      toast({ title: "Contenuto salvato!", description: "Il tuo contenuto è stato salvato e attende l'approvazione." });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: "Errore nel salvataggio", description: error.message });
+    }
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-4 bg-muted/50 rounded-lg">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Titolo / Testo Annuncio</FormLabel>
+              <FormControl><Input placeholder="Es. Scopri la nostra nuova collezione!" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="link"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Link (URL)</FormLabel>
+              <FormControl><Input placeholder="https://www.iltuosito.ch" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="fileUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Immagine / Video dell'Annuncio</FormLabel>
+              <FormControl>
+                <div>
+                  <UpdateImageDialog onUpdate={(url) => field.onChange(url)} currentUrl={field.value} pathPrefix={`uploads/sponsors/${slot.sponsorId}`}>
+                    <Button type="button" variant="outline">
+                      <Edit className="mr-2 h-4 w-4" /> Carica/Modifica File
+                    </Button>
+                  </UpdateImageDialog>
+                  {field.value && <LinkIcon href={field.value} target="_blank" className="text-sm text-blue-500 hover:underline ml-4 break-all">{field.value}</LinkIcon>}
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          Salva Contenuti
+        </Button>
+      </form>
+    </Form>
+  );
+}
+
 
 // --- Sub-componente per la selezione dello spazio ---
 function SelectionView({
@@ -167,20 +267,8 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     // Timer to force re-render every second for countdown
     useEffect(() => {
       const timerId = setInterval(() => {
-        const now = Date.now();
-        let shouldUpdate = false;
-    
-        for (const [key, value] of selectedSlots.entries()) {
-          if (now > value.reservedAt.getTime() + TEN_MINUTES_MS) {
-            shouldUpdate = true;
-            break;
-          }
-        }
-    
-        if (shouldUpdate || selectedSlots.size > 0) {
-          // Force a state update to re-render the component and show the countdown
-          // or remove expired slots.
-          setSelectedSlots(prevSlots => new Map(prevSlots));
+        if (selectedSlots.size > 0) {
+            setSelectedSlots(prevSlots => new Map(prevSlots));
         }
       }, 1000);
     
@@ -205,12 +293,13 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
         if (!booking) {
             return { status: 'available', display: priceDisplay };
         }
-    
+
         if (['processing', 'paid', 'approved'].includes(booking.status)) {
-            const statusText = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
+            let statusText = booking.status.charAt(0).toUpperCase() + booking.status.slice(1);
+            if (booking.status === 'paid') statusText = 'Approved'; // Visual consistency
             return { status: 'booked', display: statusText };
         }
-    
+
         if (booking.status === 'reserved') {
             const reservedAt = booking.reservedAt?.toDate();
             if (reservedAt && Date.now() < reservedAt.getTime() + TEN_MINUTES_MS) {
@@ -307,6 +396,8 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                     const booking = currentBookings[key];
                     if (booking && booking.sponsorId === user.uid && booking.status === 'reserved') {
                         currentBookings[key].status = 'processing';
+                        // Initialize content object
+                        currentBookings[key].content = { title: '', link: '', fileUrl: '' }; 
                         purchasedCount++;
                     }
                 }
@@ -371,7 +462,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
             <Card className="lg:col-span-2">
                 <CardHeader>
                     <div className="flex justify-between items-center">
-                        <Button variant="ghost" size="icon" onClick={onBack}>
+                        <Button variant="outline" size="icon" onClick={onBack}>
                           <ChevronLeft className="h-5 w-5" />
                           <span className="sr-only">Indietro</span>
                         </Button>
@@ -415,7 +506,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                                 key={day.toString()}
                                                 onClick={() => status !== 'booked' && handleToggleSlot(day, time)}
                                                 className={cn(
-                                                    "p-4 h-24 border rounded-md text-center text-sm transition-colors flex items-center justify-center font-bold",
+                                                    "p-4 h-24 border rounded-md text-center text-lg transition-colors flex items-center justify-center font-bold",
                                                     {
                                                         'cursor-pointer hover:bg-primary/20': status === 'available',
                                                         'bg-yellow-400 text-yellow-900 cursor-pointer': status === 'selected',
@@ -478,6 +569,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
 export default function SponsorAgenda() {
   const [selectedAdSpaceId, setSelectedAdSpaceId] = useState<string | null>(null);
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const adSpacesQuery = useMemo(() => {
     if (!firestore) return null;
@@ -490,6 +582,32 @@ export default function SponsorAgenda() {
 
   const { data: adSpaces, isLoading } = useCollection(adSpacesQuery);
 
+  const processingSlots = useMemo(() => {
+    if (!adSpaces || !user) return [];
+    const slots: any[] = [];
+    adSpaces.forEach(space => {
+      if (!space.bookings) return;
+      Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
+        if (booking.status === 'processing' && booking.sponsorId === user.uid) {
+          const [date, time] = key.split('_');
+          slots.push({
+            id: key,
+            slotKey: key,
+            adSpaceId: space.id,
+            adSpaceName: space.name,
+            pageName: space.page,
+            date,
+            time,
+            content: booking.content,
+            sponsorId: user.uid,
+          });
+        }
+      });
+    });
+    return slots.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  }, [adSpaces, user]);
+
+
   const handleSelectCard = (id: string) => {
     setSelectedAdSpaceId(id);
   };
@@ -498,9 +616,46 @@ export default function SponsorAgenda() {
     setSelectedAdSpaceId(null);
   };
   
-  if (selectedAdSpaceId) {
-    return <BookingView adSpaceId={selectedAdSpaceId} onBack={handleBack} />;
-  }
+  return (
+    <div className="space-y-6">
+      {processingSlots.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Contenuti in Attesa di Approvazione</CardTitle>
+            <CardDescription>
+              Completa i dati per gli slot che hai prenotato. Una volta salvati, saranno inviati per la revisione.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="w-full">
+              {processingSlots.map((slot) => (
+                <AccordionItem value={slot.id} key={slot.id}>
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex w-full items-center justify-between pr-4">
+                      <div>
+                        <p className="font-semibold">{slot.adSpaceName} - {slot.pageName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(slot.date), 'eee dd MMM yyyy', {locale: it})} alle {slot.time}
+                        </p>
+                      </div>
+                      <Badge>Processing</Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <SponsorContentForm slot={slot} />
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </CardContent>
+        </Card>
+      )}
 
-  return <SelectionView onSelectCard={handleSelectCard} adSpaces={adSpaces} isLoading={isLoading} />;
+      {selectedAdSpaceId ? (
+        <BookingView adSpaceId={selectedAdSpaceId} onBack={handleBack} />
+      ) : (
+        <SelectionView onSelectCard={handleSelectCard} adSpaces={adSpaces} isLoading={isLoading} />
+      )}
+    </div>
+  );
 }
