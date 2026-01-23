@@ -405,6 +405,9 @@ type SponsorData = {
   approvalStatus: SponsorStatus;
   email: string;
   registrationDate: string;
+  address: string;
+  firstName: string;
+  lastName: string;
 };
 
 // --- Sub-components ---
@@ -446,6 +449,7 @@ export default function AdminSponsorsPage() {
   const [filter, setFilter] = useState<SponsorStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogAction, setDialogAction] = useState<{ action: SponsorStatus; sponsor: SponsorData } | null>(null);
+  const [detailsSponsor, setDetailsSponsor] = useState<SponsorData | null>(null);
 
   useEffect(() => {
     if (!firestore) return;
@@ -483,6 +487,9 @@ export default function AdminSponsorsPage() {
             approvalStatus: profile.approvalStatus as SponsorStatus,
             email: user?.email || 'N/D',
             registrationDate: user?.registrationDate || new Date().toISOString(),
+            address: profile.address || 'N/D',
+            firstName: user?.firstName || 'N/D',
+            lastName: user?.lastName || 'N/D',
           };
         });
 
@@ -653,7 +660,9 @@ export default function AdminSponsorsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem disabled>Apri Dettagli</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setDetailsSponsor(sponsor)}>
+                              Apri Dettagli
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               className='text-green-600 focus:text-green-700'
                               disabled={sponsor.approvalStatus === 'approved'}
@@ -734,6 +743,49 @@ export default function AdminSponsorsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Details Dialog */}
+      <Dialog open={!!detailsSponsor} onOpenChange={(open) => !open && setDetailsSponsor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Dettagli Sponsor</DialogTitle>
+            <DialogDescription>
+              Dati di registrazione per <strong>{detailsSponsor?.companyName}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          {detailsSponsor && (
+            <div className="py-4 space-y-4">
+              <div className="flex items-center">
+                  <p className="w-32 text-sm text-muted-foreground">Azienda</p>
+                  <p className="font-semibold">{detailsSponsor.companyName}</p>
+              </div>
+              <div className="flex items-center">
+                  <p className="w-32 text-sm text-muted-foreground">Titolare</p>
+                  <p className="font-semibold">{detailsSponsor.firstName} {detailsSponsor.lastName}</p>
+              </div>
+              <div className="flex items-center">
+                  <p className="w-32 text-sm text-muted-foreground">Email</p>
+                  <p className="font-semibold">{detailsSponsor.email}</p>
+              </div>
+              <div className="flex items-center">
+                  <p className="w-32 text-sm text-muted-foreground">Indirizzo</p>
+                  <p className="font-semibold">{detailsSponsor.address}</p>
+              </div>
+              <div className="flex items-center">
+                  <p className="w-32 text-sm text-muted-foreground">Registrato il</p>
+                  <p className="font-semibold">{format(new Date(detailsSponsor.registrationDate), 'dd MMM yyyy', { locale: it })}</p>
+              </div>
+              <div className="flex items-center">
+                  <p className="w-32 text-sm text-muted-foreground">Stato</p>
+                  <StatusBadge status={detailsSponsor.approvalStatus} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailsSponsor(null)}>Chiudi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
