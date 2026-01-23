@@ -489,28 +489,29 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2">
-                 <CardHeader>
+                 <div className="flex justify-start p-4 pb-0">
+                    <Button variant="ghost" onClick={onBack} className="text-muted-foreground">
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        Indietro
+                    </Button>
+                </div>
+                <CardHeader className="pt-2">
                     <div className="flex justify-between items-center">
-                        <Button variant="outline" size="icon" onClick={onBack}>
-                          <ChevronLeft className="h-5 w-5" />
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
+                            <ChevronLeft className="h-4 w-4" />
                         </Button>
                         <div className="text-center">
                           <CardTitle>{adSpaceData?.name}</CardTitle>
                           <CardDescription>{format(weekStart, 'd MMM', { locale: it })} - {format(weekEnd, 'd MMM yyyy', { locale: it })}</CardDescription>
                         </div>
-                        <div className="w-10 flex gap-2">
-                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(addDays(currentDate, -7))}>
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(addDays(currentDate, 7))}>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
                     </div>
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">
-                        <div className="grid grid-cols-[auto_repeat(7,minmax(80px,1fr))] gap-1 min-w-[750px]">
+                        <div className="grid grid-cols-[auto_repeat(7,minmax(60px,1fr))] gap-1 min-w-[600px]">
                             {/* Headers */}
                             <div className="sticky left-0 bg-card z-10" />
                             {weekDays.map(day => (
@@ -525,7 +526,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                 const endTimeString = `${((startTimeNumber + 1) % 24).toString().padStart(2, '0')}:00`;
                                 return (
                                 <React.Fragment key={time}>
-                                    <div className="p-1 h-12 text-xs text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">
+                                    <div className="p-1 h-6 text-xs text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">
                                         {time}–{endTimeString}
                                     </div>
                                     {weekDays.map(day => {
