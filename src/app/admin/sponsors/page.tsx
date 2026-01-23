@@ -442,9 +442,9 @@ function AdminApprovedSlots({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Report Slot Approvati</CardTitle>
+          <CardTitle>Report Contabile</CardTitle>
           <CardDescription>
-            Riepilogo degli slot dal {from} al {to}.
+            Riepilogo degli slot approvati dal {from} al {to}.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -473,13 +473,13 @@ function AdminApprovedSlots({
               Filtra e stampa un riepilogo di tutti gli slot pubblicitari approvati.
             </CardDescription>
           </div>
-          <Button onClick={() => onPrintRequest?.(localDateRange)} variant="outline" className="no-print">
+          <Button onClick={() => onPrintRequest?.(localDateRange)} variant="outline">
             <Printer className="mr-2 h-4 w-4" /> Stampa
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-          <div className="flex flex-col sm:flex-row gap-2 mb-6 items-center no-print">
+          <div className="flex flex-col sm:flex-row gap-2 mb-6 items-center">
             <Popover>
                 <PopoverTrigger asChild>
                     <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !localDateRange?.from && "text-muted-foreground")}>
@@ -503,7 +503,7 @@ function AdminApprovedSlots({
                     <Calendar mode="single" selected={localDateRange?.to} onSelect={(d) => setLocalDateRange(prev => ({...prev, to: d}))} initialFocus />
                 </PopoverContent>
             </Popover>
-            <Button variant="ghost" onClick={() => setLocalDateRange(undefined)} className="no-print">Reset</Button>
+            <Button variant="ghost" onClick={() => setLocalDateRange(undefined)}>Reset</Button>
         </div>
         {reportContent}
       </CardContent>
