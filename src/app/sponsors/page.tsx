@@ -11,7 +11,7 @@ import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Building, CalendarCheck, Lock, Mail, ShieldCheck, UploadCloud, UserPlus, Loader2 } from 'lucide-react';
+import { Building, CalendarCheck, Lock, Mail, ShieldCheck, UploadCloud, UserPlus, Loader2, User, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,9 @@ import { useRouter } from 'next/navigation';
 
 const registerSchema = z.object({
   companyName: z.string().min(2, { message: 'Il nome azienda è obbligatorio.' }),
+  ownerFirstName: z.string().min(2, { message: 'Il nome del titolare è obbligatorio.' }),
+  ownerLastName: z.string().min(2, { message: 'Il cognome del titolare è obbligatorio.' }),
+  address: z.string().min(5, { message: 'L\'indirizzo è obbligatorio.' }),
   email: z.string().email({ message: 'Email non valida.' }),
   password: z.string().min(6, { message: 'La password deve contenere almeno 6 caratteri.' }),
 });
@@ -60,7 +63,14 @@ function SponsorAuthForm() {
 
   const registerForm = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { companyName: '', email: '', password: '' },
+    defaultValues: {
+      companyName: '',
+      ownerFirstName: '',
+      ownerLastName: '',
+      address: '',
+      email: '',
+      password: '',
+    },
   });
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
@@ -85,8 +95,8 @@ function SponsorAuthForm() {
         email: user.email,
         role: 'sponsor',
         registrationDate: new Date().toISOString(),
-        firstName: values.companyName,
-        lastName: '(Sponsor)',
+        firstName: values.ownerFirstName,
+        lastName: values.ownerLastName,
         photoURL: '',
       }, {});
 
@@ -95,10 +105,11 @@ function SponsorAuthForm() {
         id: user.uid,
         userId: user.uid,
         companyName: values.companyName,
+        address: values.address,
         approvalStatus: 'pending',
       }, {});
       
-      await updateProfile(user, { displayName: values.companyName });
+      await updateProfile(user, { displayName: `${values.ownerFirstName} ${values.ownerLastName}` });
       
       toast({
         title: 'Richiesta Inviata!',
@@ -156,6 +167,44 @@ function SponsorAuthForm() {
                     <div className="relative">
                       <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input placeholder="La Tua Azienda SRL" {...field} className="pl-10" />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="flex flex-col sm:flex-row gap-4">
+                <FormField control={registerForm.control} name="ownerFirstName" render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel>Nome Titolare</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Mario" {...field} className="pl-10" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={registerForm.control} name="ownerLastName" render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel>Cognome Titolare</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Rossi" {...field} className="pl-10" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <FormField control={registerForm.control} name="address" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Indirizzo Azienda</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="Via Fittizia 123, 6900 Lugano" {...field} className="pl-10" />
                     </div>
                   </FormControl>
                   <FormMessage />

@@ -62,15 +62,27 @@ function SponsorProfileCard({ user, sponsorProfile }) {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <p className="w-32 text-muted-foreground">Nome Azienda</p>
+                    <p className="w-40 text-muted-foreground">Nome Azienda</p>
                     <p className="font-semibold">{sponsorProfile.companyName}</p>
                 </div>
+                {sponsorProfile.address && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <p className="w-40 text-muted-foreground">Indirizzo Azienda</p>
+                        <p className="font-semibold">{sponsorProfile.address}</p>
+                    </div>
+                )}
+                 {user.displayName && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <p className="w-40 text-muted-foreground">Titolare</p>
+                        <p className="font-semibold">{user.displayName}</p>
+                    </div>
+                )}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <p className="w-32 text-muted-foreground">Email</p>
+                    <p className="w-40 text-muted-foreground">Email</p>
                     <p className="font-semibold">{user.email}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <p className="w-32 text-muted-foreground">Stato Account</p>
+                    <p className="w-40 text-muted-foreground">Stato Account</p>
                     <StatusBadge status={sponsorProfile.approvalStatus} />
                 </div>
             </CardContent>
