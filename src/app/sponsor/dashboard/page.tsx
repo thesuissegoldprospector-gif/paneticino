@@ -3,8 +3,8 @@
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc } from 'firebase/firestore';
-import { useFirestore, useDoc, useUser } from '@/firebase';
+import { doc, collection } from 'firebase/firestore';
+import { useFirestore, useDoc, useUser, useCollection } from '@/firebase';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Clock, XCircle, LogOut, Printer, Calendar as CalendarIcon } from 'lucide-react';
@@ -78,7 +78,7 @@ function SponsorProfileCard({ user, sponsorProfile }) {
     );
 }
 
-function ApprovedSlotsReport({ approvedSlots, isLoading }) {
+function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[], isLoading: boolean }) {
     const [date, setDate] = useState<DateRange | undefined>(undefined);
 
     const filteredSlots = useMemo(() => {
@@ -229,20 +229,14 @@ export default function SponsorDashboardPage() {
   }, [firestore, user]);
   const { data: sponsorProfile, isLoading: isSponsorProfileLoading } = useDoc(sponsorDocRef);
 
-  // We need all ad spaces to find the ones approved for this user
-  const adSpacesQuery = useMemo(() => {
-    if (!firestore) return null;
-    return doc(firestore, 'ad_spaces'); // This should query the collection, not a doc
-  }, [firestore]);
-  const { data: adSpaces } = useDoc(adSpacesQuery); // This hook is for single doc. Let's correct this.
-  
   // Correctly query the ad_spaces collection
-   const adSpacesCollectionQuery = useMemo(() => {
+  const adSpacesCollectionQuery = useMemo(() => {
     if (!firestore) return null;
-    return doc(firestore, 'ad_spaces'); // This still looks wrong. useCollection needs a query or collection ref.
+    return collection(firestore, 'ad_spaces');
   }, [firestore]);
+  const { data: adSpaces, isLoading: isAdSpacesLoading } = useCollection(adSpacesCollectionQuery);
 
-  const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading;
+  const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading || isAdSpacesLoading;
 
   useEffect(() => {
     if (isLoading) return;
@@ -257,17 +251,23 @@ export default function SponsorDashboardPage() {
         if (!adSpaces || !user) return [];
         const slots: any[] = [];
         
-        // This assumes adSpaces is an array, but useDoc returns a single doc. This needs fixing.
-        // Let's assume we fetch all spaces and filter. This is inefficient but will work for now.
-        // The correct way would be to get ALL documents from `ad_spaces` collection.
-        // Let's imagine we have `adSpacesCollection` from a `useCollection` hook instead.
+        adSpaces.forEach(space => {
+            if (!space.bookings) return;
+            Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
+                if (booking.status === 'approved' && booking.sponsorId === user.uid) {
+                    const [date, time] = key.split('_');
+                    slots.push({
+                        id: key,
+                        adSpaceName: space.name,
+                        pageName: space.page,
+                        date,
+                        time,
+                    });
+                }
+            });
+        });
         
-        // I'll leave the logic inside SponsorAgenda to handle fetching for now, and derive the approved slots here.
-        // This is getting complex. I'll just focus on getting the approvedSlots list for the report.
-        
-        // The logic from SponsorAgenda is better. I'll reuse it here.
-        // This requires fetching all ad_spaces.
-        return []; // Placeholder, the real logic is in SponsorAgenda for now.
+        return slots.sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
     }, [adSpaces, user]);
 
   const handleLogout = async () => {
@@ -312,7 +312,10 @@ export default function SponsorDashboardPage() {
         )}
 
         {status === 'approved' && (
-          <SponsorAgenda />
+          <>
+            <ApprovedSlotsReport approvedSlots={approvedSlots} isLoading={isAdSpacesLoading} />
+            <SponsorAgenda />
+          </>
         )}
 
         {status === 'rejected' && (
