@@ -65,16 +65,14 @@ function SponsorProfileCard({ user, sponsorProfile }) {
                     <p className="w-40 text-muted-foreground">Nome Azienda</p>
                     <p className="font-semibold">{sponsorProfile.companyName}</p>
                 </div>
+                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <p className="w-40 text-muted-foreground">Titolare</p>
+                    <p className="font-semibold">{user.displayName || 'N/D'}</p>
+                </div>
                 {sponsorProfile.address && (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                         <p className="w-40 text-muted-foreground">Indirizzo Azienda</p>
                         <p className="font-semibold">{sponsorProfile.address}</p>
-                    </div>
-                )}
-                 {user.displayName && (
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                        <p className="w-40 text-muted-foreground">Titolare</p>
-                        <p className="font-semibold">{user.displayName}</p>
                     </div>
                 )}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -112,14 +110,6 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
             return true;
         });
     }, [approvedSlots, date]);
-
-    if (isLoading) {
-        return <Card><CardContent className="p-6 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></CardContent></Card>;
-    }
-    
-    if (approvedSlots.length === 0) {
-        return null;
-    }
     
     return (
         <>
@@ -155,32 +145,38 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-2 items-center">
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.from && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {date?.from ? format(date.from, "dd LLL y", { locale: it }) : <span>Da (data)</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={date?.from} onSelect={(d) => setDate(prev => ({...prev, from: d}))} initialFocus />
-                            </PopoverContent>
-                        </Popover>
-                        <span className="hidden sm:block">-</span>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.to && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {date?.to ? format(date.to, "dd LLL y", { locale: it }) : <span>A (data)</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={date?.to} onSelect={(d) => setDate(prev => ({...prev, to: d}))} initialFocus />
-                            </PopoverContent>
-                        </Popover>
-                         <Button variant="ghost" onClick={() => setDate(undefined)}>Reset</Button>
-                    </div>
+                     {isLoading ? (
+                        <div className="flex items-center justify-center p-4">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                    ) : (
+                        <div className="flex flex-col sm:flex-row gap-2 items-center">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.from && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {date?.from ? format(date.from, "dd LLL y", { locale: it }) : <span>Da (data)</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={date?.from} onSelect={(d) => setDate(prev => ({...prev, from: d}))} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                            <span className="hidden sm:block">-</span>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.to && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {date?.to ? format(date.to, "dd LLL y", { locale: it }) : <span>A (data)</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="single" selected={date?.to} onSelect={(d) => setDate(prev => ({...prev, to: d}))} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                            <Button variant="ghost" onClick={() => setDate(undefined)}>Reset</Button>
+                        </div>
+                    )}
                 </CardContent>
                  <CardFooter>
                      <Button onClick={() => window.print()} disabled={filteredSlots.length === 0}>
@@ -241,23 +237,22 @@ export default function SponsorDashboardPage() {
   }, [firestore, user]);
   const { data: sponsorProfile, isLoading: isSponsorProfileLoading } = useDoc(sponsorDocRef);
 
-  // Correctly query the ad_spaces collection
+  // Correctly query the ad_spaces collection instead of a single doc
   const adSpacesCollectionQuery = useMemo(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null; // Prevent query if not logged in
     return collection(firestore, 'ad_spaces');
-  }, [firestore]);
+  }, [firestore, user]);
   const { data: adSpaces, isLoading: isAdSpacesLoading } = useCollection(adSpacesCollectionQuery);
 
   const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading || isAdSpacesLoading;
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!user) {
+    if (!isUserLoading && !user) {
       router.replace('/login');
-    } else if (userDoc?.role !== 'sponsor') {
+    } else if (!isUserLoading && !isUserDocLoading && userDoc && userDoc.role !== 'sponsor') {
       router.replace('/profile');
     }
-  }, [user, userDoc, isLoading, router]);
+  }, [user, userDoc, isUserLoading, isUserDocLoading, router]);
   
     const approvedSlots = useMemo(() => {
         if (!adSpaces || !user) return [];
