@@ -9,6 +9,7 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
+  CardFooter
 } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -60,6 +61,8 @@ import {
   FileText,
   CalendarClock,
   XCircle,
+  Printer,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -77,6 +80,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import SponsorAgenda from '@/components/sponsors/SponsorAgenda';
 import { Textarea } from '@/components/ui/textarea';
 import { useRouter } from 'next/navigation';
+import type { DateRange } from 'react-day-picker';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 
 // --- Admin Approval Queue ---
@@ -297,11 +303,22 @@ function AdminApprovalQueue() {
 }
 
 // --- Admin Approved Slots ---
-function AdminApprovedSlots() {
+function AdminApprovedSlots({
+  printable = false,
+  dateRange: dateRangeProp,
+  onPrintRequest,
+}: {
+  printable?: boolean;
+  dateRange?: DateRange;
+  onPrintRequest?: (dateRange: DateRange | undefined) => void;
+}) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [approvedSlots, setApprovedSlots] = useState<any[]>([]);
+  const [localDateRange, setLocalDateRange] = useState<DateRange | undefined>(undefined);
+
+  const effectiveDateRange = printable ? dateRangeProp : localDateRange;
 
   useEffect(() => {
     if (!firestore) {
@@ -349,48 +366,118 @@ function AdminApprovedSlots() {
     fetchSlots();
   }, [firestore, toast]);
   
-  if (isLoading) {
-    return <Card><CardContent className="p-6 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></CardContent></Card>;
-  }
+  const filteredSlots = useMemo(() => {
+    if (!approvedSlots) return [];
+    if (!effectiveDateRange?.from) return approvedSlots;
 
-  if (approvedSlots.length === 0) {
-    return null; // Don't show the card if there are no approved slots
+    return approvedSlots.filter(slot => {
+        const slotDate = new Date(slot.date);
+        
+        const fromDate = new Date(effectiveDateRange.from!);
+        fromDate.setHours(0,0,0,0);
+        if (slotDate < fromDate) return false;
+
+        if (effectiveDateRange.to) {
+            const toDate = new Date(effectiveDateRange.to);
+            toDate.setHours(23, 59, 59, 999);
+            if (slotDate > toDate) return false;
+        } else { // Single day selection
+            const toDate = new Date(effectiveDateRange.from!);
+            toDate.setHours(23, 59, 59, 999);
+            if (slotDate > toDate) return false;
+        }
+        
+        return true;
+    });
+  }, [approvedSlots, effectiveDateRange]);
+
+
+  const reportContent = (
+    <div className="border rounded-md">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Spazio</TableHead>
+            <TableHead>Pagina</TableHead>
+            <TableHead>Sponsor</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead>Orario</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading ? (
+             <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center">
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+                </TableCell>
+              </TableRow>
+          ) : filteredSlots.length > 0 ? (
+            filteredSlots.map(slot => (
+              <TableRow key={slot.id}>
+                <TableCell className="font-medium">{slot.adSpaceName}</TableCell>
+                <TableCell>{slot.pageName}</TableCell>
+                <TableCell>{slot.sponsorName}</TableCell>
+                <TableCell>{format(new Date(slot.date), 'dd/MM/yyyy', { locale: it })}</TableCell>
+                <TableCell>{slot.time}</TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={5} className="h-24 text-center">Nessuno slot trovato per i criteri selezionati.</TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
+  if (printable) {
+    const from = effectiveDateRange?.from ? format(effectiveDateRange.from, 'dd MMM yyyy', {locale: it}) : 'inizio';
+    const to = effectiveDateRange?.to ? format(effectiveDateRange.to, 'dd MMM yyyy', {locale: it}) : 'oggi';
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Report Slot Approvati</CardTitle>
+          <CardDescription>
+            Riepilogo degli slot dal {from} al {to}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>{reportContent}</CardContent>
+      </Card>
+    );
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Slot Approvati (Tutti gli Sponsor)</CardTitle>
-        <CardDescription>
-          Riepilogo di tutti gli slot pubblicitari approvati sulla piattaforma.
-        </CardDescription>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle>Slot Approvati (Tutti gli Sponsor)</CardTitle>
+            <CardDescription>
+              Filtra e stampa un riepilogo di tutti gli slot pubblicitari approvati.
+            </CardDescription>
+          </div>
+          <Button onClick={() => onPrintRequest?.(localDateRange)} variant="outline" className="no-print">
+            <Printer className="mr-2 h-4 w-4" /> Stampa
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-3 max-h-96 overflow-y-auto">
-        {approvedSlots.map((slot) => {
-          const slotDate = new Date(slot.date);
-          const isSlotInThePast = isPast(slotDate) && !isToday(slotDate);
-          return (
-            <div key={slot.id} className="flex justify-between items-center p-3 bg-muted/50 rounded-md">
-              <div>
-                <p className="font-semibold">{slot.adSpaceName} - <span className="font-normal">{slot.sponsorName}</span></p>
-                <p className="text-sm text-muted-foreground">
-                  {format(slotDate, 'eee dd MMM yyyy', { locale: it })} alle {slot.time}
-                </p>
-              </div>
-              {isSlotInThePast ? (
-                <Badge variant="outline" className="text-muted-foreground">
-                  <CalendarClock className="mr-1 h-3 w-3" />
-                  Passato
-                </Badge>
-              ) : (
-                <Badge className="bg-green-600 hover:bg-green-600/80 text-white">
-                  <CheckCircle className="mr-1 h-3 w-3" />
-                  Attivo/Futuro
-                </Badge>
-              )}
-            </div>
-          )
-        })}
+      <CardContent>
+          <div className="flex flex-col sm:flex-row gap-2 mb-6 items-center no-print">
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !localDateRange?.from && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {localDateRange?.from ? format(localDateRange.from, "dd LLL y", { locale: it }) : <span>Da (data)</span>}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="range" selected={localDateRange} onSelect={setLocalDateRange} />
+                </PopoverContent>
+            </Popover>
+            <Button variant="ghost" onClick={() => setLocalDateRange(undefined)} className="no-print">Reset</Button>
+        </div>
+        {reportContent}
       </CardContent>
     </Card>
   );
@@ -452,6 +539,18 @@ export default function AdminSponsorsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogAction, setDialogAction] = useState<{ action: SponsorStatus; sponsor: SponsorData } | null>(null);
   const [detailsSponsor, setDetailsSponsor] = useState<SponsorData | null>(null);
+  const [printJob, setPrintJob] = useState<{ type: string; dateRange?: DateRange } | null>(null);
+
+  useEffect(() => {
+    if (printJob) {
+        const timer = setTimeout(() => {
+            window.print();
+            setPrintJob(null);
+        }, 100);
+        return () => clearTimeout(timer);
+    }
+  }, [printJob]);
+
 
   useEffect(() => {
     if (!firestore) return;
@@ -556,242 +655,250 @@ export default function AdminSponsorsPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
-      {/* Header & Breadcrumb */}
-      <div>
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Link href="/admin/applications" className="hover:underline">Admin</Link>
-          <ChevronRight className="h-4 w-4 mx-1" />
-          <span>Dashboard Sponsor</span>
-        </div>
-        <h1 className="text-3xl font-bold mt-1">Dashboard Sponsor</h1>
-      </div>
-
-      {/* Stat Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Sponsor Totali" value={stats.total} icon={Users} isLoading={isLoading} />
-        <StatCard title="Richieste in Attesa" value={stats.pending} icon={Clock} isLoading={isLoading} />
-      </div>
-
-      <AdminApprovalQueue />
-
-      <AdminApprovedSlots />
-
-      {/* Main Table Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestione Sponsor</CardTitle>
-          <CardDescription>
-            Revisiona e gestisci le richieste di sponsorizzazione.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Toolbar */}
-          <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
-            <div className="relative w-full md:w-auto md:flex-grow">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cerca per nome o email..."
-                className="pl-8 w-full"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <Select onValueChange={value => setFilter(value as any)} defaultValue="all">
-              <SelectTrigger className="w-full md:w-[180px]">
-                <SelectValue placeholder="Filtra per stato" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutti</SelectItem>
-                <SelectItem value="pending">In attesa</SelectItem>
-                <SelectItem value="approved">Approvato</SelectItem>
-                <SelectItem value="rejected">Rifiutato</SelectItem>
-              </SelectContent>
-            </Select>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="w-full md:w-auto">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Crea Sponsor
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Crea Nuovo Sponsor</DialogTitle>
-                  <DialogDescription>
-                    Questa funzionalità è in fase di sviluppo.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                    <DialogTrigger asChild><Button variant="outline">Chiudi</Button></DialogTrigger>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+    <>
+      <div className={cn("container mx-auto max-w-7xl px-4 py-8 space-y-6", printJob ? 'no-print' : '')}>
+        {/* Header & Breadcrumb */}
+        <div>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Link href="/admin/applications" className="hover:underline">Admin</Link>
+            <ChevronRight className="h-4 w-4 mx-1" />
+            <span>Dashboard Sponsor</span>
           </div>
+          <h1 className="text-3xl font-bold mt-1">Dashboard Sponsor</h1>
+        </div>
 
-          {/* Table */}
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Azienda</TableHead>
-                  <TableHead>Stato</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Data Registrazione</TableHead>
-                  <TableHead className="text-right">Azioni</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
+        {/* Stat Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard title="Sponsor Totali" value={stats.total} icon={Users} isLoading={isLoading} />
+          <StatCard title="Richieste in Attesa" value={stats.pending} icon={Clock} isLoading={isLoading} />
+        </div>
+
+        <AdminApprovalQueue />
+
+        <AdminApprovedSlots onPrintRequest={(dateRange) => setPrintJob({ type: 'approvedSlots', dateRange })} />
+
+        {/* Main Table Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Gestione Sponsor</CardTitle>
+            <CardDescription>
+              Revisiona e gestisci le richieste di sponsorizzazione.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Toolbar */}
+            <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
+              <div className="relative w-full md:w-auto md:flex-grow">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cerca per nome o email..."
+                  className="pl-8 w-full"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select onValueChange={value => setFilter(value as any)} defaultValue="all">
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="Filtra per stato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti</SelectItem>
+                  <SelectItem value="pending">In attesa</SelectItem>
+                  <SelectItem value="approved">Approvato</SelectItem>
+                  <SelectItem value="rejected">Rifiutato</SelectItem>
+                </SelectContent>
+              </Select>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button className="w-full md:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Crea Sponsor
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Crea Nuovo Sponsor</DialogTitle>
+                    <DialogDescription>
+                      Questa funzionalità è in fase di sviluppo.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                      <DialogTrigger asChild><Button variant="outline">Chiudi</Button></DialogTrigger>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* Table */}
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                    </TableCell>
+                    <TableHead>Azienda</TableHead>
+                    <TableHead>Stato</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Data Registrazione</TableHead>
+                    <TableHead className="text-right">Azioni</TableHead>
                   </TableRow>
-                ) : filteredSponsors.length > 0 ? (
-                  filteredSponsors.map(sponsor => (
-                    <TableRow key={sponsor.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => handleRowClick(sponsor.userId)}>
-                      <TableCell className="font-medium">{sponsor.companyName}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={sponsor.approvalStatus} />
-                      </TableCell>
-                      <TableCell>{sponsor.email}</TableCell>
-                      <TableCell>
-                        {format(new Date(sponsor.registrationDate), 'dd MMM yyyy', { locale: it })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu modal={false}>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); setDetailsSponsor(sponsor); }}>
-                              Apri Dettagli
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className='text-green-600 focus:text-green-700'
-                              disabled={sponsor.approvalStatus === 'approved'}
-                              onSelect={(e) => { e.stopPropagation(); setDialogAction({ action: 'approved', sponsor }); }}
-                            >
-                              Approva
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className='text-yellow-600 focus:text-yellow-700'
-                              disabled={sponsor.approvalStatus !== 'approved'}
-                              onSelect={(e) => { e.stopPropagation(); setDialogAction({ action: 'pending', sponsor }); }}
-                            >
-                              Sospendi
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-red-600 focus:text-red-700"
-                              disabled={sponsor.approvalStatus === 'rejected'}
-                              onSelect={(e) => { e.stopPropagation(); setDialogAction({ action: 'rejected', sponsor }); }}
-                            >
-                              Rifiuta
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      Nessun sponsor trovato con i criteri selezionati.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-            <CardTitle>Agenda Generale Sponsor</CardTitle>
-            <CardDescription>
-                Visualizza e prenota slot per conto di uno sponsor. Seleziona uno spazio per iniziare.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <SponsorAgenda />
-        </CardContent>
-      </Card>
-
-      {/* Confirmation Dialog */}
-      <AlertDialog open={!!dialogAction} onOpenChange={(open) => !open && setDialogAction(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Conferma Azione</AlertDialogTitle>
-            <AlertDialogDescription>
-              Sei sicuro di voler cambiare lo stato di <strong>{dialogAction?.sponsor.companyName}</strong> in "{statusConfig[dialogAction?.action || 'pending'].label}"?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDialogAction(null)}>Annulla</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (dialogAction) {
-                  handleStatusUpdate(dialogAction.sponsor.id, dialogAction.action);
-                  setDialogAction(null);
-                }
-              }}
-              className={cn({
-                  'bg-green-600 text-white hover:bg-green-700': dialogAction?.action === 'approved',
-                  'bg-yellow-500 text-white hover:bg-yellow-600': dialogAction?.action === 'pending',
-                  [buttonVariants({ variant: 'destructive' })]: dialogAction?.action === 'rejected',
-              })}
-            >
-              Conferma
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Details Dialog */}
-      <Dialog open={!!detailsSponsor} onOpenChange={(open) => !open && setDetailsSponsor(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Dettagli Sponsor</DialogTitle>
-            <DialogDescription>
-              Dati di registrazione per <strong>{detailsSponsor?.companyName}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-          {detailsSponsor && (
-            <div className="py-4 space-y-4">
-              <div className="flex items-center">
-                  <p className="w-32 text-sm text-muted-foreground">Azienda</p>
-                  <p className="font-semibold">{detailsSponsor.companyName}</p>
-              </div>
-              <div className="flex items-center">
-                  <p className="w-32 text-sm text-muted-foreground">Titolare</p>
-                  <p className="font-semibold">{detailsSponsor.firstName} {detailsSponsor.lastName}</p>
-              </div>
-              <div className="flex items-center">
-                  <p className="w-32 text-sm text-muted-foreground">Email</p>
-                  <p className="font-semibold">{detailsSponsor.email}</p>
-              </div>
-              <div className="flex items-center">
-                  <p className="w-32 text-sm text-muted-foreground">Indirizzo</p>
-                  <p className="font-semibold">{detailsSponsor.address}</p>
-              </div>
-              <div className="flex items-center">
-                  <p className="w-32 text-sm text-muted-foreground">Registrato il</p>
-                  <p className="font-semibold">{format(new Date(detailsSponsor.registrationDate), 'dd MMM yyyy', { locale: it })}</p>
-              </div>
-              <div className="flex items-center">
-                  <p className="w-32 text-sm text-muted-foreground">Stato</p>
-                  <StatusBadge status={detailsSponsor.approvalStatus} />
-              </div>
+                  ) : filteredSponsors.length > 0 ? (
+                    filteredSponsors.map(sponsor => (
+                      <TableRow key={sponsor.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => handleRowClick(sponsor.userId)}>
+                        <TableCell className="font-medium">{sponsor.companyName}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={sponsor.approvalStatus} />
+                        </TableCell>
+                        <TableCell>{sponsor.email}</TableCell>
+                        <TableCell>
+                          {format(new Date(sponsor.registrationDate), 'dd MMM yyyy', { locale: it })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); setDetailsSponsor(sponsor); }}>
+                                Apri Dettagli
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className='text-green-600 focus:text-green-700'
+                                disabled={sponsor.approvalStatus === 'approved'}
+                                onSelect={(e) => { e.stopPropagation(); setDialogAction({ action: 'approved', sponsor }); }}
+                              >
+                                Approva
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className='text-yellow-600 focus:text-yellow-700'
+                                disabled={sponsor.approvalStatus !== 'approved'}
+                                onSelect={(e) => { e.stopPropagation(); setDialogAction({ action: 'pending', sponsor }); }}
+                              >
+                                Sospendi
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-700"
+                                disabled={sponsor.approvalStatus === 'rejected'}
+                                onSelect={(e) => { e.stopPropagation(); setDialogAction({ action: 'rejected', sponsor }); }}
+                              >
+                                Rifiuta
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        Nessun sponsor trovato con i criteri selezionati.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailsSponsor(null)}>Chiudi</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+              <CardTitle>Agenda Generale Sponsor</CardTitle>
+              <CardDescription>
+                  Visualizza e prenota slot per conto di uno sponsor. Seleziona uno spazio per iniziare.
+              </CardDescription>
+          </CardHeader>
+          <CardContent>
+              <SponsorAgenda />
+          </CardContent>
+        </Card>
+
+        {/* Confirmation Dialog */}
+        <AlertDialog open={!!dialogAction} onOpenChange={(open) => !open && setDialogAction(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Conferma Azione</AlertDialogTitle>
+              <AlertDialogDescription>
+                Sei sicuro di voler cambiare lo stato di <strong>{dialogAction?.sponsor.companyName}</strong> in "{statusConfig[dialogAction?.action || 'pending'].label}"?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDialogAction(null)}>Annulla</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (dialogAction) {
+                    handleStatusUpdate(dialogAction.sponsor.id, dialogAction.action);
+                    setDialogAction(null);
+                  }
+                }}
+                className={cn({
+                    'bg-green-600 text-white hover:bg-green-700': dialogAction?.action === 'approved',
+                    'bg-yellow-500 text-white hover:bg-yellow-600': dialogAction?.action === 'pending',
+                    [buttonVariants({ variant: 'destructive' })]: dialogAction?.action === 'rejected',
+                })}
+              >
+                Conferma
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Details Dialog */}
+        <Dialog open={!!detailsSponsor} onOpenChange={(open) => !open && setDetailsSponsor(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Dettagli Sponsor</DialogTitle>
+              <DialogDescription>
+                Dati di registrazione per <strong>{detailsSponsor?.companyName}</strong>.
+              </DialogDescription>
+            </DialogHeader>
+            {detailsSponsor && (
+              <div className="py-4 space-y-4">
+                <div className="flex items-center">
+                    <p className="w-32 text-sm text-muted-foreground">Azienda</p>
+                    <p className="font-semibold">{detailsSponsor.companyName}</p>
+                </div>
+                <div className="flex items-center">
+                    <p className="w-32 text-sm text-muted-foreground">Titolare</p>
+                    <p className="font-semibold">{detailsSponsor.firstName} {detailsSponsor.lastName}</p>
+                </div>
+                <div className="flex items-center">
+                    <p className="w-32 text-sm text-muted-foreground">Email</p>
+                    <p className="font-semibold">{detailsSponsor.email}</p>
+                </div>
+                <div className="flex items-center">
+                    <p className="w-32 text-sm text-muted-foreground">Indirizzo</p>
+                    <p className="font-semibold">{detailsSponsor.address}</p>
+                </div>
+                <div className="flex items-center">
+                    <p className="w-32 text-sm text-muted-foreground">Registrato il</p>
+                    <p className="font-semibold">{format(new Date(detailsSponsor.registrationDate), 'dd MMM yyyy', { locale: it })}</p>
+                </div>
+                <div className="flex items-center">
+                    <p className="w-32 text-sm text-muted-foreground">Stato</p>
+                    <StatusBadge status={detailsSponsor.approvalStatus} />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDetailsSponsor(null)}>Chiudi</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="hidden print:block container mx-auto py-8">
+        {printJob?.type === 'approvedSlots' && (
+          <AdminApprovedSlots printable dateRange={printJob.dateRange} />
+        )}
+      </div>
+    </>
   );
 }
