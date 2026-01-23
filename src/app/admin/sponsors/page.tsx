@@ -653,7 +653,7 @@ export default function AdminSponsorsPage() {
                         {format(new Date(sponsor.registrationDate), 'dd MMM yyyy', { locale: it })}
                       </TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
                               <MoreHorizontal className="h-4 w-4" />
