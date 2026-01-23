@@ -18,6 +18,7 @@ import { it } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 
 
 function useUserDoc(userId?: string) {
@@ -88,15 +89,15 @@ function SponsorProfileCard({ user, sponsorProfile }) {
     );
 }
 
-function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[], isLoading: boolean }) {
+function ApprovedSlotsReport({ approvedSlots, isLoading, user, sponsorProfile }) {
     const [date, setDate] = useState<DateRange | undefined>(undefined);
 
     const filteredSlots = useMemo(() => {
-        if (!approvedSlots || !date?.from) return [];
+        if (!approvedSlots) return [];
+        if (!date?.from) return approvedSlots; // Return all if no date is selected for screen view
         
         return approvedSlots.filter(slot => {
             if (!slot.date) return false;
-
             const slotDate = new Date(slot.date);
             
             const fromDate = new Date(date.from!);
@@ -108,7 +109,6 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                 toDate.setHours(23, 59, 59, 999);
                 if (slotDate > toDate) return false;
             } else {
-                // If only 'from' is selected, check if it's the same day
                 const toDate = new Date(date.from!);
                 toDate.setHours(23, 59, 59, 999);
                 if (slotDate > toDate) return false;
@@ -118,32 +118,10 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
         });
     }, [approvedSlots, date]);
     
-    // For printing, we might want to print all if no date is selected
-    const printFilteredSlots = useMemo(() => {
-        if (!approvedSlots) return [];
-        if (!date?.from && !date?.to) return approvedSlots;
+    const totalCost = useMemo(() => {
+        return filteredSlots.reduce((sum, slot) => sum + (slot.price || 0), 0);
+    }, [filteredSlots]);
 
-        return approvedSlots.filter(slot => {
-            if (!slot.date) return false;
-            const slotDate = new Date(slot.date);
-            
-            if (date?.from) {
-                const fromDate = new Date(date.from);
-                fromDate.setHours(0,0,0,0);
-                if (slotDate < fromDate) return false;
-            }
-
-            if (date?.to) {
-                const toDate = new Date(date.to);
-                toDate.setHours(23, 59, 59, 999);
-                if (slotDate > toDate) return false;
-            }
-            
-            return true;
-        });
-    }, [approvedSlots, date]);
-
-    
     return (
         <>
             <style jsx global>{`
@@ -152,71 +130,139 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                     }
-                    .no-print {
-                        display: none !important;
-                    }
-                    .print-container {
+                    .no-print { display: none !important; }
+                    .print-container { 
                         display: block !important;
+                        max-width: 100% !important; 
+                        border: none !important; 
+                        box-shadow: none !important;
                         padding: 0 !important;
                         margin: 0 !important;
-                        max-width: 100% !important;
-                        box-shadow: none !important;
-                        border: none !important;
                     }
-                     main {
-                        padding-top: 0 !important;
-                        background: #fff !important;
-                     }
+                    main { padding-top: 0 !important; background: #fff !important; }
+                    body, .print-card { background: #fff !important; color: #000 !important; }
                 }
             `}</style>
 
-            <Card className="no-print">
-                <CardHeader>
-                    <CardTitle>Report Slot Pubblicati</CardTitle>
-                    <CardDescription>
-                        Filtra per data e stampa un report dei tuoi slot pubblicitari approvati.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     {isLoading ? (
-                        <div className="flex items-center justify-center p-4">
-                            <Loader2 className="h-6 w-6 animate-spin" />
+            <div className="no-print">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Report Slot Pubblicati</CardTitle>
+                        <CardDescription>
+                            Filtra per data e stampa un report dei tuoi slot pubblicitari approvati.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center p-4">
+                                <Loader2 className="h-6 w-6 animate-spin" />
+                            </div>
+                        ) : (
+                            <div className="flex flex-col sm:flex-row gap-2 items-center">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.from && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {date?.from ? format(date.from, "dd LLL y", { locale: it }) : <span>Da (data)</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={date?.from} onSelect={(d) => setDate(prev => ({...prev, from: d, to: d && prev?.to && d > prev.to ? d : prev?.to }))} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                                <span className="hidden sm:block">-</span>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.to && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {date?.to ? format(date.to, "dd LLL y", { locale: it }) : <span>A (data)</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={date?.to} onSelect={(d) => setDate(prev => ({...prev, to: d}))} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                                <Button variant="ghost" onClick={() => setDate(undefined)}>Reset</Button>
+                            </div>
+                        )}
+                        <div className="border rounded-md mt-4">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Spazio</TableHead>
+                                        <TableHead>Data</TableHead>
+                                        <TableHead>Orario</TableHead>
+                                        <TableHead className="text-right">Prezzo</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredSlots.length > 0 ? (
+                                        filteredSlots.map((slot) => (
+                                            <TableRow key={slot.id}>
+                                                <TableCell>{slot.adSpaceName}</TableCell>
+                                                <TableCell>{format(new Date(slot.date), 'eee dd MMM yyyy', { locale: it })}</TableCell>
+                                                <TableCell>{formatTimeRange(slot.time)}</TableCell>
+                                                <TableCell className="text-right">{(slot.price || 0).toFixed(2)} CHF</TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                                            {date?.from ? "Nessun slot trovato per il periodo selezionato." : "Seleziona un intervallo di date per vedere i risultati, o lascia vuoto per vederli tutti."}
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
                         </div>
-                    ) : (
-                        <div className="flex flex-col sm:flex-row gap-2 items-center">
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.from && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date?.from ? format(date.from, "dd LLL y", { locale: it }) : <span>Da (data)</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar mode="single" selected={date?.from} onSelect={(d) => setDate(prev => ({...prev, from: d, to: d && prev?.to && d > prev.to ? d : prev?.to }))} initialFocus />
-                                </PopoverContent>
-                            </Popover>
-                            <span className="hidden sm:block">-</span>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !date?.to && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date?.to ? format(date.to, "dd LLL y", { locale: it }) : <span>A (data)</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar mode="single" selected={date?.to} onSelect={(d) => setDate(prev => ({...prev, to: d}))} initialFocus />
-                                </PopoverContent>
-                            </Popover>
-                            <Button variant="ghost" onClick={() => setDate(undefined)}>Reset</Button>
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={() => window.print()} disabled={filteredSlots.length === 0}>
+                            <Printer className="mr-2 h-4 w-4" />
+                            Stampa Report
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
+
+            <div className="hidden print-container">
+                 <Card className="print-card">
+                    <CardHeader>
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h1 className="text-2xl font-bold text-primary">PaneDelivery</h1>
+                                <p className="text-muted-foreground">da KappelerIncorporate</p>
+                                <div className="text-xs text-muted-foreground mt-4">
+                                    <p>Via alle Bolle, Sessa</p>
+                                    <p>6997, Svizzera</p>
+                                    <p>info@panedelivery.ch</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <h2 className="text-2xl font-semibold text-gray-700">RICEVUTA</h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Data: {format(new Date(), 'dd MMMM yyyy', { locale: it })}
+                                </p>
+                            </div>
                         </div>
-                    )}
-                    <div className="border rounded-md mt-4">
-                        <Table>
+                        {sponsorProfile && user && (
+                            <div className="mt-8 mb-6 p-4 bg-gray-100 rounded-lg text-sm">
+                                <h3 className="font-semibold mb-1 text-gray-600">Fatturato a:</h3>
+                                <p className="font-bold text-gray-800">{sponsorProfile.companyName}</p>
+                                <p className="text-gray-700">{user.displayName}</p>
+                                <p className="text-gray-700">{sponsorProfile.address}</p>
+                                <p className="text-gray-700">{user.email}</p>
+                            </div>
+                        )}
+                    </CardHeader>
+                    <CardContent>
+                       <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Spazio</TableHead>
                                     <TableHead>Data</TableHead>
                                     <TableHead>Orario</TableHead>
+                                    <TableHead className="text-right">Prezzo</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -224,60 +270,31 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                                     filteredSlots.map((slot) => (
                                         <TableRow key={slot.id}>
                                             <TableCell>{slot.adSpaceName}</TableCell>
-                                            <TableCell>{format(new Date(slot.date), 'eee dd MMM yyyy', { locale: it })}</TableCell>
+                                            <TableCell>{format(new Date(slot.date), 'dd/MM/yyyy', { locale: it })}</TableCell>
                                             <TableCell>{formatTimeRange(slot.time)}</TableCell>
+                                            <TableCell className="text-right">{(slot.price || 0).toFixed(2)} CHF</TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
-                                           {date?.from ? "Nessun slot trovato per il periodo selezionato." : "Seleziona un intervallo di date per vedere i risultati."}
-                                        </TableCell>
+                                        <TableCell colSpan={4} className="h-24 text-center">Nessun acquisto per questo periodo.</TableCell>
                                     </TableRow>
                                 )}
                             </TableBody>
                         </Table>
-                    </div>
-                </CardContent>
-                 <CardFooter>
-                     <Button onClick={() => window.print()} disabled={printFilteredSlots.length === 0}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Stampa Report
-                    </Button>
-                 </CardFooter>
-            </Card>
-
-            <div className="hidden print-container">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Report Slot Pubblicitari</CardTitle>
-                        <CardDescription>
-                            Periodo: {printFilteredSlots.length > 0 && date?.from ? format(date.from, "dd LLL y", { locale: it }) : 'Tutti'} - {printFilteredSlots.length > 0 && date?.to ? format(date.to, "dd LLL y", { locale: it }) : ''}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                       <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Spazio</TableHead>
-                                    <TableHead>Pagina</TableHead>
-                                    <TableHead>Data</TableHead>
-                                    <TableHead>Orario</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {printFilteredSlots.map((slot) => (
-                                    <TableRow key={slot.id}>
-                                        <TableCell>{slot.adSpaceName}</TableCell>
-                                        <TableCell>{slot.pageName}</TableCell>
-                                        <TableCell>{format(new Date(slot.date), 'eee dd MMM yyyy', { locale: it })}</TableCell>
-                                        <TableCell>{formatTimeRange(slot.time)}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                         {printFilteredSlots.length === 0 && <p className="text-center text-muted-foreground p-8">Nessun slot trovato per il periodo selezionato.</p>}
+                         <Separator className="my-4" />
+                         <div className="flex justify-end">
+                            <div className="w-full max-w-xs space-y-2 text-right">
+                               <div className="flex justify-between font-bold text-lg">
+                                    <span>Totale</span>
+                                    <span>{totalCost.toFixed(2)} CHF</span>
+                                </div>
+                            </div>
+                        </div>
                     </CardContent>
+                    <CardFooter className="text-center text-xs text-muted-foreground justify-center pt-6">
+                        <p>Grazie per aver scelto PaneDelivery come partner.</p>
+                    </CardFooter>
                 </Card>
             </div>
         </>
@@ -299,9 +316,9 @@ export default function SponsorDashboardPage() {
   const { data: sponsorProfile, isLoading: isSponsorProfileLoading } = useDoc(sponsorDocRef);
 
   const adSpacesCollectionQuery = useMemo(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
     return collection(firestore, 'ad_spaces');
-  }, [firestore, user]);
+  }, [firestore]);
   const { data: adSpaces, isLoading: isAdSpacesLoading } = useCollection(adSpacesCollectionQuery);
 
   const isLoading = isUserLoading || isUserDocLoading || isSponsorProfileLoading || isAdSpacesLoading;
@@ -329,6 +346,7 @@ export default function SponsorDashboardPage() {
                         pageName: space.page,
                         date,
                         time,
+                        price: booking.price || 0,
                     });
                 }
             });
@@ -380,7 +398,12 @@ export default function SponsorDashboardPage() {
 
         {status === 'approved' && (
           <>
-            <ApprovedSlotsReport approvedSlots={approvedSlots} isLoading={isAdSpacesLoading} />
+            <ApprovedSlotsReport 
+                approvedSlots={approvedSlots} 
+                isLoading={isAdSpacesLoading}
+                user={user}
+                sponsorProfile={sponsorProfile}
+            />
             <SponsorAgenda />
           </>
         )}
