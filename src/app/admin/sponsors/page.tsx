@@ -83,6 +83,7 @@ import { useRouter } from 'next/navigation';
 import type { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Separator } from '@/components/ui/separator';
 
 
 // --- Admin Approval Queue ---
@@ -349,6 +350,7 @@ function AdminApprovedSlots({
                 sponsorName: sponsorsMap.get(booking.sponsorId) || 'Sponsor Sconosciuto',
                 date,
                 time,
+                price: booking.price || 0,
               });
             }
           });
@@ -402,12 +404,13 @@ function AdminApprovedSlots({
             <TableHead>Sponsor</TableHead>
             <TableHead>Data</TableHead>
             <TableHead>Orario</TableHead>
+            <TableHead className="text-right">Prezzo</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   <Loader2 className="mx-auto h-6 w-6 animate-spin" />
                 </TableCell>
               </TableRow>
@@ -419,11 +422,12 @@ function AdminApprovedSlots({
                 <TableCell>{slot.sponsorName}</TableCell>
                 <TableCell>{format(new Date(slot.date), 'dd/MM/yyyy', { locale: it })}</TableCell>
                 <TableCell>{slot.time}</TableCell>
+                <TableCell className="text-right font-mono">{slot.price.toFixed(2)} CHF</TableCell>
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">Nessuno slot trovato per i criteri selezionati.</TableCell>
+              <TableCell colSpan={6} className="h-24 text-center">Nessuno slot trovato per i criteri selezionati.</TableCell>
             </TableRow>
           )}
         </TableBody>
@@ -432,8 +436,9 @@ function AdminApprovedSlots({
   );
 
   if (printable) {
-    const from = effectiveDateRange?.from ? format(effectiveDateRange.from, 'dd MMM yyyy', {locale: it}) : 'inizio';
-    const to = effectiveDateRange?.to ? format(effectiveDateRange.to, 'dd MMM yyyy', {locale: it}) : 'oggi';
+    const from = effectiveDateRange?.from ? format(effectiveDateRange.from, 'dd MMM yyyy', { locale: it }) : 'inizio';
+    const to = effectiveDateRange?.to ? format(effectiveDateRange.to, 'dd MMM yyyy', { locale: it }) : from;
+    const totalCost = filteredSlots.reduce((sum, slot) => sum + (slot.price || 0), 0);
     return (
       <Card>
         <CardHeader>
@@ -442,7 +447,18 @@ function AdminApprovedSlots({
             Riepilogo degli slot dal {from} al {to}.
           </CardDescription>
         </CardHeader>
-        <CardContent>{reportContent}</CardContent>
+        <CardContent>
+          {reportContent}
+          <div className="flex justify-end mt-4">
+            <div className="w-full max-w-xs space-y-2 text-right">
+              <Separator />
+              <div className="flex justify-between font-bold text-lg">
+                <span>Totale</span>
+                <span>{totalCost.toFixed(2)} CHF</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
       </Card>
     );
   }
@@ -472,7 +488,19 @@ function AdminApprovedSlots({
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="range" selected={localDateRange} onSelect={setLocalDateRange} />
+                    <Calendar mode="single" selected={localDateRange?.from} onSelect={(d) => setLocalDateRange(prev => ({...prev, from: d}))} initialFocus />
+                </PopoverContent>
+            </Popover>
+            <span className="hidden sm:block text-muted-foreground">-</span>
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant={"outline"} className={cn("w-full sm:w-[200px] justify-start text-left font-normal", !localDateRange?.to && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {localDateRange?.to ? format(localDateRange.to, "dd LLL y", { locale: it }) : <span>A (data)</span>}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={localDateRange?.to} onSelect={(d) => setLocalDateRange(prev => ({...prev, to: d}))} initialFocus />
                 </PopoverContent>
             </Popover>
             <Button variant="ghost" onClick={() => setLocalDateRange(undefined)} className="no-print">Reset</Button>
