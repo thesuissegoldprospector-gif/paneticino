@@ -9,11 +9,58 @@ import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Clock, XCircle, LogOut } from 'lucide-react';
 import { getAuth, signOut } from 'firebase/auth';
 import SponsorAgenda from '@/components/sponsors/SponsorAgenda';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 function useUserDoc(userId?: string) {
   const firestore = useFirestore();
   const userRef = useMemo(() => (firestore && userId ? doc(firestore, 'users', userId) : null), [firestore, userId]);
   return useDoc(userRef);
+}
+
+// --- Helper components ---
+
+type SponsorStatus = 'pending' | 'approved' | 'rejected';
+
+const statusConfig: Record<SponsorStatus, { label: string; color: string }> = {
+  pending: { label: 'In attesa', color: 'bg-yellow-500 hover:bg-yellow-500/80' },
+  approved: { label: 'Approvato', color: 'bg-green-500 hover:bg-green-500/80' },
+  rejected: { label: 'Rifiutato', color: 'bg-red-500 hover:bg-red-500/80' },
+};
+
+const StatusBadge = ({ status }: { status: SponsorStatus }) => {
+  if (!status) return null;
+  const config = statusConfig[status] || { label: 'Sconosciuto', color: 'bg-gray-400' };
+  return <Badge className={cn('text-white', config.color)}>{config.label}</Badge>;
+};
+
+function SponsorProfileCard({ user, sponsorProfile }) {
+    if (!user || !sponsorProfile) return null;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Il Tuo Profilo Sponsor</CardTitle>
+                <CardDescription>
+                    Questi sono i dati associati al tuo account.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <p className="w-32 text-muted-foreground">Nome Azienda</p>
+                    <p className="font-semibold">{sponsorProfile.companyName}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <p className="w-32 text-muted-foreground">Email</p>
+                    <p className="font-semibold">{user.email}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <p className="w-32 text-muted-foreground">Stato Account</p>
+                    <StatusBadge status={sponsorProfile.approvalStatus} />
+                </div>
+            </CardContent>
+        </Card>
+    );
 }
 
 // --- Main Page Component ---
@@ -74,6 +121,8 @@ export default function SponsorDashboardPage() {
   return (
     <div className="container mx-auto max-w-7xl px-4 py-8">
       <div className="space-y-8">
+        <SponsorProfileCard user={user} sponsorProfile={sponsorProfile} />
+
         {status === 'pending' && (
           <Card className="border-yellow-500">
             <CardHeader>
