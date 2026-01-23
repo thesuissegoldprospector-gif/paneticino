@@ -136,7 +136,7 @@ export default function SponsorDetailsPage() {
     }
 
     return (
-        <div className="container mx-auto max-w-2xl px-4 py-8">
+        <div className="container mx-auto max-w-4xl px-4 py-8">
             <style jsx global>{`
                 @media print {
                     body {
@@ -145,8 +145,14 @@ export default function SponsorDetailsPage() {
                     }
                     .no-print { display: none !important; }
                     main { padding-top: 0 !important; }
-                    .print-container { max-width: 100% !important; border: none; box-shadow: none; }
-                    body, .print-container { background: #fff !important; color: #000 !important; }
+                    .print-container { 
+                        max-width: 100% !important; 
+                        border: none !important; 
+                        box-shadow: none !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                    }
+                    body, .print-card { background: #fff !important; color: #000 !important; }
                 }
             `}</style>
             
@@ -214,18 +220,47 @@ export default function SponsorDetailsPage() {
 
             {/* Purchases Report Card */}
             <Card className="mt-8 print-container">
-                 <CardHeader>
-                    <div className="flex justify-between items-center">
+                 <CardHeader className="p-6">
+                    {/* Header for screen view (non-print) */}
+                    <div className="flex justify-between items-center no-print">
                         <div>
                             <CardTitle>Riepilogo Acquisti</CardTitle>
                             <CardDescription>Slot acquistati da {sponsorProfile.companyName}.</CardDescription>
                         </div>
-                        <Button onClick={() => window.print()} variant="outline" size="icon" className="no-print">
+                         <Button onClick={() => window.print()} variant="outline" size="icon" className="no-print">
                             <Printer className="h-4 w-4" />
                         </Button>
                     </div>
+
+                    {/* Header for print view */}
+                     <div className="hidden print:block">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h1 className="text-2xl font-bold text-primary">PaneDelivery</h1>
+                                <p className="text-muted-foreground">da KappelerIncorporate</p>
+                                <div className="text-xs text-muted-foreground mt-4">
+                                    <p>Via alle Bolle, Sessa</p>
+                                    <p>6997, Svizzera</p>
+                                    <p>info@panedelivery.ch</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <h2 className="text-2xl font-semibold text-gray-700">RICEVUTA</h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Data: {format(new Date(), 'dd MMMM yyyy', { locale: it })}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-8 mb-6 p-4 bg-gray-100 rounded-lg text-sm">
+                            <h3 className="font-semibold mb-1 text-gray-600">Fatturato a:</h3>
+                            <p className="font-bold text-gray-800">{sponsorProfile.companyName}</p>
+                            <p className="text-gray-700">{userProfile.firstName} {userProfile.lastName}</p>
+                            <p className="text-gray-700">{sponsorProfile.address}</p>
+                            <p className="text-gray-700">{userProfile.email}</p>
+                        </div>
+                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6 pt-0">
                     <div className="flex flex-col sm:flex-row gap-2 mb-6 no-print items-center">
                         <Popover>
                             <PopoverTrigger asChild>
@@ -283,11 +318,23 @@ export default function SponsorDetailsPage() {
                     </div>
 
                     <Separator className="my-4" />
-                    <div className="text-right">
-                        <p className="text-muted-foreground">Totale per il periodo selezionato</p>
-                        <p className="font-bold text-2xl">{totalCost.toFixed(2)} CHF</p>
+                     <div className="flex justify-end">
+                        <div className="w-full max-w-xs space-y-2 text-right">
+                           <div className="flex justify-between text-muted-foreground">
+                                <span>Subtotale</span>
+                                <span>{totalCost.toFixed(2)} CHF</span>
+                            </div>
+                            <Separator />
+                            <div className="flex justify-between font-bold text-lg">
+                                <span>Totale</span>
+                                <span>{totalCost.toFixed(2)} CHF</span>
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
+                 <CardFooter className="text-center text-xs text-muted-foreground justify-center p-6 pt-0 print:pt-6">
+                    <p>Grazie per aver scelto PaneDelivery come partner.</p>
+                </CardFooter>
             </Card>
         </div>
     );
