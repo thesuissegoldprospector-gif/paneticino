@@ -440,7 +440,7 @@ function AdminApprovedSlots({
     const to = effectiveDateRange?.to ? format(effectiveDateRange.to, 'dd MMM yyyy', { locale: it }) : from;
     const totalCost = filteredSlots.reduce((sum, slot) => sum + (slot.price || 0), 0);
     return (
-      <Card>
+      <Card className="print-card">
         <CardHeader>
           <CardTitle>Report Contabile</CardTitle>
           <CardDescription>
@@ -684,6 +684,32 @@ export default function AdminSponsorsPage() {
 
   return (
     <>
+      <style jsx global>{`
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .no-print {
+                display: none !important;
+            }
+            main {
+                padding-top: 0 !important;
+                background: #fff !important;
+            }
+            .print-container {
+                max-width: 100% !important; 
+                border: none !important; 
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            body, .print-card { 
+                background: #fff !important; 
+                color: #000 !important; 
+            }
+        }
+      `}</style>
       <div className={cn("container mx-auto max-w-7xl px-4 py-8 space-y-6", printJob ? 'no-print' : '')}>
         {/* Header & Breadcrumb */}
         <div>
@@ -922,7 +948,7 @@ export default function AdminSponsorsPage() {
         </Dialog>
       </div>
 
-      <div className="hidden print:block container mx-auto py-8">
+      <div className="hidden print:block container mx-auto py-8 print-container">
         {printJob?.type === 'approvedSlots' && (
           <AdminApprovedSlots printable dateRange={printJob.dateRange} />
         )}
