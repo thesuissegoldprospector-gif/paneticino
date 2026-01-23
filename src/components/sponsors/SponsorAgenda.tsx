@@ -61,6 +61,13 @@ import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 
+const formatTimeRange = (time: string) => {
+    if (!time || !time.includes(':')) return time;
+    const startTimeNumber = parseInt(time.split(':')[0], 10);
+    const endTimeString = `${((startTimeNumber + 1) % 24).toString().padStart(2, '0')}:00`;
+    return `${time}–${endTimeString}`;
+};
+
 // --- Sponsor Content Submission ---
 
 const contentSubmissionSchema = z.object({
@@ -511,7 +518,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">
-                        <div className="grid grid-cols-[auto_repeat(7,minmax(60px,1fr))] gap-1 min-w-[600px]">
+                        <div className="grid grid-cols-[auto_repeat(7,minmax(80px,1fr))] gap-1 min-w-[700px]">
                             {/* Headers */}
                             <div className="sticky left-0 bg-card z-10" />
                             {weekDays.map(day => (
@@ -526,7 +533,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                 const endTimeString = `${((startTimeNumber + 1) % 24).toString().padStart(2, '0')}:00`;
                                 return (
                                 <React.Fragment key={time}>
-                                    <div className="p-1 h-6 text-xs text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">
+                                    <div className="p-1 h-8 text-xs text-muted-foreground text-center flex items-center justify-center sticky left-0 bg-card z-10 border-r">
                                         {time}–{endTimeString}
                                     </div>
                                     {weekDays.map(day => {
@@ -536,7 +543,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                                 key={day.toString()}
                                                 onClick={() => !['booked', 'processing', 'approved'].includes(status) && handleToggleSlot(day, time)}
                                                 className={cn(
-                                                    "p-1 h-6 border rounded-md text-center text-[10px] transition-colors flex items-center justify-center font-bold min-w-[60px]",
+                                                    "p-1 h-8 border rounded-md text-center text-xs transition-colors flex items-center justify-center font-bold min-w-[80px]",
                                                     {
                                                         'cursor-pointer hover:bg-green-100': status === 'available',
                                                         'bg-green-200 text-green-800 cursor-pointer': status === 'selected',
@@ -568,7 +575,7 @@ function BookingView({ adSpaceId, onBack }: { adSpaceId: string; onBack: () => v
                                 return (
                                     <div key={key} className="flex justify-between items-center text-sm p-2 bg-muted/50 rounded-md">
                                         <div>
-                                            <p>{format(new Date(date), 'eee dd MMM', { locale: it })} - {time}</p>
+                                            <p>{format(new Date(date), 'eee dd MMM', { locale: it })} - {formatTimeRange(time)}</p>
                                             <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3"/> Scade tra {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</p>
                                         </div>
                                         <div className='flex items-center gap-2'>
@@ -690,7 +697,7 @@ export default function SponsorAgenda() {
                       <div>
                         <p className="font-semibold">{slot.adSpaceName} - {slot.pageName}</p>
                         <p className="text-sm text-muted-foreground">
-                          {format(new Date(slot.date), 'eee dd MMM yyyy', {locale: it})} alle {slot.time}
+                          {format(new Date(slot.date), 'eee dd MMM yyyy', {locale: it})} alle {formatTimeRange(slot.time)}
                         </p>
                       </div>
                       {slot.status === 'rejected' ? (
@@ -727,7 +734,7 @@ export default function SponsorAgenda() {
                         <div>
                             <p className="font-semibold">{slot.adSpaceName} - {slot.pageName}</p>
                             <p className="text-sm text-muted-foreground">
-                            {format(slotDate, 'eee dd MMM yyyy', {locale: it})} alle {slot.time}
+                            {format(slotDate, 'eee dd MMM yyyy', {locale: it})} alle {formatTimeRange(slot.time)}
                             </p>
                         </div>
                         {isSlotInThePast ? (
