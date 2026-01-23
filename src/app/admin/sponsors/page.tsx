@@ -76,6 +76,7 @@ import { it } from 'date-fns/locale';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import SponsorAgenda from '@/components/sponsors/SponsorAgenda';
 import { Textarea } from '@/components/ui/textarea';
+import { useRouter } from 'next/navigation';
 
 
 // --- Admin Approval Queue ---
@@ -444,6 +445,7 @@ const StatusBadge = ({ status }: { status: SponsorStatus }) => {
 export default function AdminSponsorsPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
   const [sponsors, setSponsors] = useState<SponsorData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<SponsorStatus | 'all'>('all');
@@ -549,6 +551,10 @@ export default function AdminSponsorsPage() {
     };
   }, [sponsors]);
 
+  const handleRowClick = (sponsorId: string) => {
+    router.push(`/admin/sponsors/${sponsorId}`);
+  };
+
   return (
     <div className="container mx-auto max-w-7xl px-4 py-8 space-y-6">
       {/* Header & Breadcrumb */}
@@ -643,7 +649,7 @@ export default function AdminSponsorsPage() {
                   </TableRow>
                 ) : filteredSponsors.length > 0 ? (
                   filteredSponsors.map(sponsor => (
-                    <TableRow key={sponsor.id}>
+                    <TableRow key={sponsor.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => handleRowClick(sponsor.userId)}>
                       <TableCell className="font-medium">{sponsor.companyName}</TableCell>
                       <TableCell>
                         <StatusBadge status={sponsor.approvalStatus} />
@@ -655,32 +661,32 @@ export default function AdminSponsorsPage() {
                       <TableCell className="text-right">
                         <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => setDetailsSponsor(sponsor)}>
+                            <DropdownMenuItem onSelect={(e) => { e.stopPropagation(); setDetailsSponsor(sponsor); }}>
                               Apri Dettagli
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className='text-green-600 focus:text-green-700'
                               disabled={sponsor.approvalStatus === 'approved'}
-                              onSelect={() => setDialogAction({ action: 'approved', sponsor })}
+                              onSelect={(e) => { e.stopPropagation(); setDialogAction({ action: 'approved', sponsor }); }}
                             >
                               Approva
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className='text-yellow-600 focus:text-yellow-700'
                               disabled={sponsor.approvalStatus !== 'approved'}
-                              onSelect={() => setDialogAction({ action: 'pending', sponsor })}
+                              onSelect={(e) => { e.stopPropagation(); setDialogAction({ action: 'pending', sponsor }); }}
                             >
                               Sospendi
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-red-600 focus:text-red-700"
                               disabled={sponsor.approvalStatus === 'rejected'}
-                              onSelect={() => setDialogAction({ action: 'rejected', sponsor })}
+                              onSelect={(e) => { e.stopPropagation(); setDialogAction({ action: 'rejected', sponsor }); }}
                             >
                               Rifiuta
                             </DropdownMenuItem>
