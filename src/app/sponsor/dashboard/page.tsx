@@ -181,44 +181,6 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                             <Button variant="ghost" onClick={() => setDate(undefined)}>Reset</Button>
                         </div>
                     )}
-                    <div className="border-t pt-4 mt-4">
-                        <div className="border rounded-md">
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Spazio</TableHead>
-                                        <TableHead>Pagina</TableHead>
-                                        <TableHead>Data</TableHead>
-                                        <TableHead>Orario</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {isLoading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="h-24 text-center">
-                                                <Loader2 className="mx-auto h-6 w-6 animate-spin" />
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : filteredSlots.length > 0 ? (
-                                        filteredSlots.map((slot) => (
-                                            <TableRow key={slot.id}>
-                                                <TableCell>{slot.adSpaceName}</TableCell>
-                                                <TableCell>{slot.pageName}</TableCell>
-                                                <TableCell>{format(new Date(slot.date), 'eee dd MMM yyyy', { locale: it })}</TableCell>
-                                                <TableCell>{formatTimeRange(slot.time)}</TableCell>
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
-                                                Nessun slot trovato per il periodo selezionato.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </div>
                 </CardContent>
                  <CardFooter>
                      <Button onClick={() => window.print()} disabled={filteredSlots.length === 0}>
