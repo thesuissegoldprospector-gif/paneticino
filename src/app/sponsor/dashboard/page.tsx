@@ -92,20 +92,48 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
     const [date, setDate] = useState<DateRange | undefined>(undefined);
 
     const filteredSlots = useMemo(() => {
-        if (!approvedSlots) return [];
+        if (!approvedSlots || !date?.from) return [];
+        
         return approvedSlots.filter(slot => {
             if (!slot.date) return false;
-            if (!date?.from && !date?.to) return true;
-            
+
             const slotDate = new Date(slot.date);
             
-            if (date.from) {
+            const fromDate = new Date(date.from!);
+            fromDate.setHours(0,0,0,0);
+            if (slotDate < fromDate) return false;
+
+            if (date.to) {
+                const toDate = new Date(date.to);
+                toDate.setHours(23, 59, 59, 999);
+                if (slotDate > toDate) return false;
+            } else {
+                // If only 'from' is selected, check if it's the same day
+                const toDate = new Date(date.from!);
+                toDate.setHours(23, 59, 59, 999);
+                if (slotDate > toDate) return false;
+            }
+            
+            return true;
+        });
+    }, [approvedSlots, date]);
+    
+    // For printing, we might want to print all if no date is selected
+    const printFilteredSlots = useMemo(() => {
+        if (!approvedSlots) return [];
+        if (!date?.from && !date?.to) return approvedSlots;
+
+        return approvedSlots.filter(slot => {
+            if (!slot.date) return false;
+            const slotDate = new Date(slot.date);
+            
+            if (date?.from) {
                 const fromDate = new Date(date.from);
                 fromDate.setHours(0,0,0,0);
                 if (slotDate < fromDate) return false;
             }
 
-            if (date.to) {
+            if (date?.to) {
                 const toDate = new Date(date.to);
                 toDate.setHours(23, 59, 59, 999);
                 if (slotDate > toDate) return false;
@@ -114,6 +142,7 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
             return true;
         });
     }, [approvedSlots, date]);
+
     
     return (
         <>
@@ -145,7 +174,7 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                 <CardHeader>
                     <CardTitle>Report Slot Pubblicati</CardTitle>
                     <CardDescription>
-                        Filtra e stampa un report dei tuoi slot pubblicitari approvati.
+                        Filtra per data e stampa un report dei tuoi slot pubblicitari approvati.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -163,7 +192,7 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar mode="single" selected={date?.from} onSelect={(d) => setDate(prev => ({...prev, from: d}))} initialFocus />
+                                    <Calendar mode="single" selected={date?.from} onSelect={(d) => setDate(prev => ({...prev, from: d, to: d && prev?.to && d > prev.to ? d : prev?.to }))} initialFocus />
                                 </PopoverContent>
                             </Popover>
                             <span className="hidden sm:block">-</span>
@@ -181,9 +210,37 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                             <Button variant="ghost" onClick={() => setDate(undefined)}>Reset</Button>
                         </div>
                     )}
+                    <div className="border rounded-md mt-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Spazio</TableHead>
+                                    <TableHead>Data</TableHead>
+                                    <TableHead>Orario</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredSlots.length > 0 ? (
+                                    filteredSlots.map((slot) => (
+                                        <TableRow key={slot.id}>
+                                            <TableCell>{slot.adSpaceName}</TableCell>
+                                            <TableCell>{format(new Date(slot.date), 'eee dd MMM yyyy', { locale: it })}</TableCell>
+                                            <TableCell>{formatTimeRange(slot.time)}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                                           {date?.from ? "Nessun slot trovato per il periodo selezionato." : "Seleziona un intervallo di date per vedere i risultati."}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
                  <CardFooter>
-                     <Button onClick={() => window.print()} disabled={filteredSlots.length === 0}>
+                     <Button onClick={() => window.print()} disabled={printFilteredSlots.length === 0}>
                         <Printer className="mr-2 h-4 w-4" />
                         Stampa Report
                     </Button>
@@ -195,7 +252,7 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                     <CardHeader>
                         <CardTitle>Report Slot Pubblicitari</CardTitle>
                         <CardDescription>
-                            Periodo: {date?.from ? format(date.from, "dd LLL y", { locale: it }) : 'Inizio'} - {date?.to ? format(date.to, "dd LLL y", { locale: it }) : 'Fine'}
+                            Periodo: {printFilteredSlots.length > 0 && date?.from ? format(date.from, "dd LLL y", { locale: it }) : 'Tutti'} - {printFilteredSlots.length > 0 && date?.to ? format(date.to, "dd LLL y", { locale: it }) : ''}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -209,7 +266,7 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredSlots.map((slot) => (
+                                {printFilteredSlots.map((slot) => (
                                     <TableRow key={slot.id}>
                                         <TableCell>{slot.adSpaceName}</TableCell>
                                         <TableCell>{slot.pageName}</TableCell>
@@ -219,7 +276,7 @@ function ApprovedSlotsReport({ approvedSlots, isLoading }: { approvedSlots: any[
                                 ))}
                             </TableBody>
                         </Table>
-                         {filteredSlots.length === 0 && <p className="text-center text-muted-foreground p-8">Nessun slot trovato per il periodo selezionato.</p>}
+                         {printFilteredSlots.length === 0 && <p className="text-center text-muted-foreground p-8">Nessun slot trovato per il periodo selezionato.</p>}
                     </CardContent>
                 </Card>
             </div>
@@ -241,9 +298,8 @@ export default function SponsorDashboardPage() {
   }, [firestore, user]);
   const { data: sponsorProfile, isLoading: isSponsorProfileLoading } = useDoc(sponsorDocRef);
 
-  // Correctly query the ad_spaces collection instead of a single doc
   const adSpacesCollectionQuery = useMemo(() => {
-    if (!firestore || !user) return null; // Prevent query if not logged in
+    if (!firestore || !user) return null;
     return collection(firestore, 'ad_spaces');
   }, [firestore, user]);
   const { data: adSpaces, isLoading: isAdSpacesLoading } = useCollection(adSpacesCollectionQuery);
