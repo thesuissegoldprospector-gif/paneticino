@@ -306,68 +306,21 @@ function AdminApprovalQueue() {
 // --- Admin Approved Slots ---
 function AdminApprovedSlots({
   printable = false,
+  approvedSlots,
+  isLoading,
   dateRange: dateRangeProp,
   onPrintRequest,
 }: {
   printable?: boolean;
+  approvedSlots: any[];
+  isLoading: boolean;
   dateRange?: DateRange;
   onPrintRequest?: (dateRange: DateRange | undefined) => void;
 }) {
-  const firestore = useFirestore();
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
-  const [approvedSlots, setApprovedSlots] = useState<any[]>([]);
   const [localDateRange, setLocalDateRange] = useState<DateRange | undefined>(undefined);
 
   const effectiveDateRange = printable ? dateRangeProp : localDateRange;
 
-  useEffect(() => {
-    if (!firestore) {
-      setIsLoading(false);
-      return;
-    }
-    const fetchSlots = async () => {
-      setIsLoading(true);
-      try {
-        const adSpacesQuery = query(collection(firestore, 'ad_spaces'));
-        const adSpacesSnapshot = await getDocs(adSpacesQuery);
-        const adSpaces = adSpacesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        const sponsorsQuery = query(collection(firestore, 'sponsors'));
-        const sponsorsSnapshot = await getDocs(sponsorsQuery);
-        const sponsorsMap = new Map(sponsorsSnapshot.docs.map(d => [d.data().userId, d.data().companyName]));
-
-        const slots: any[] = [];
-        adSpaces.forEach((space: any) => {
-          if (!space.bookings) return;
-          Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
-            if (booking.status === 'approved') {
-              const [date, time] = key.split('_');
-              slots.push({
-                id: key,
-                adSpaceName: space.name,
-                pageName: space.page,
-                sponsorName: sponsorsMap.get(booking.sponsorId) || 'Sponsor Sconosciuto',
-                date,
-                time,
-                price: booking.price || 0,
-              });
-            }
-          });
-        });
-
-        setApprovedSlots(slots.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)));
-
-      } catch (error) {
-        console.error("Failed to fetch approved slots:", error);
-        toast({ variant: 'destructive', title: "Errore", description: "Impossibile caricare gli slot approvati." });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchSlots();
-  }, [firestore, toast]);
-  
   const filteredSlots = useMemo(() => {
     if (!approvedSlots) return [];
     if (!effectiveDateRange?.from) return approvedSlots;
@@ -563,6 +516,7 @@ export default function AdminSponsorsPage() {
   const router = useRouter();
   const [sponsors, setSponsors] = useState<SponsorData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [approvedSlots, setApprovedSlots] = useState<any[]>([]);
   const [filter, setFilter] = useState<SponsorStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogAction, setDialogAction] = useState<{ action: SponsorStatus; sponsor: SponsorData } | null>(null);
@@ -583,46 +537,73 @@ export default function AdminSponsorsPage() {
   useEffect(() => {
     if (!firestore) return;
 
-    const fetchSponsors = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
       try {
         const sponsorsQuery = query(collection(firestore, 'sponsors'));
-        const sponsorsSnapshot = await getDocs(sponsorsQuery);
+        const adSpacesQuery = query(collection(firestore, 'ad_spaces'));
+        
+        const [sponsorsSnapshot, adSpacesSnapshot] = await Promise.all([
+            getDocs(sponsorsQuery),
+            getDocs(adSpacesQuery),
+        ]);
+
         const sponsorProfiles = sponsorsSnapshot.docs.map(d => ({ id: d.id, ...d.data() as any }));
 
-        if (sponsorProfiles.length === 0) {
+        // 1. Logic for "Gestione Sponsor" table
+        if (sponsorProfiles.length > 0) {
+            const userIds = sponsorProfiles.map(s => s.userId).filter(Boolean);
+            if (userIds.length > 0) {
+                const usersQuery = query(collection(firestore, 'users'), where('__name__', 'in', userIds));
+                const usersSnapshot = await getDocs(usersQuery);
+                const usersMap = new Map(usersSnapshot.docs.map(d => [d.id, d.data()]));
+
+                const mergedData: SponsorData[] = sponsorProfiles.map(profile => {
+                  const user = usersMap.get(profile.userId);
+                  return {
+                    id: profile.id,
+                    userId: profile.userId,
+                    companyName: profile.companyName,
+                    approvalStatus: profile.approvalStatus as SponsorStatus,
+                    email: user?.email || 'N/D',
+                    registrationDate: user?.registrationDate || new Date().toISOString(),
+                    address: profile.address || 'N/D',
+                    firstName: user?.firstName || 'N/D',
+                    lastName: user?.lastName || 'N/D',
+                  };
+                });
+                setSponsors(mergedData);
+            } else {
+                setSponsors([]);
+            }
+        } else {
             setSponsors([]);
-            setIsLoading(false);
-            return;
         }
 
-        const userIds = sponsorProfiles.map(s => s.userId).filter(Boolean);
-        if (userIds.length === 0) {
-            setSponsors([]);
-            setIsLoading(false);
-            return;
-        }
-
-        const usersQuery = query(collection(firestore, 'users'), where('__name__', 'in', userIds));
-        const usersSnapshot = await getDocs(usersQuery);
-        const usersMap = new Map(usersSnapshot.docs.map(d => [d.id, d.data()]));
-
-        const mergedData: SponsorData[] = sponsorProfiles.map(profile => {
-          const user = usersMap.get(profile.userId);
-          return {
-            id: profile.id,
-            userId: profile.userId,
-            companyName: profile.companyName,
-            approvalStatus: profile.approvalStatus as SponsorStatus,
-            email: user?.email || 'N/D',
-            registrationDate: user?.registrationDate || new Date().toISOString(),
-            address: profile.address || 'N/D',
-            firstName: user?.firstName || 'N/D',
-            lastName: user?.lastName || 'N/D',
-          };
+        // 2. Logic for "Slot Approvati" report
+        const adSpaces = adSpacesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const sponsorsMapForSlots = new Map(sponsorProfiles.map(s => [s.userId, s.companyName]));
+        
+        const slots: any[] = [];
+        adSpaces.forEach((space: any) => {
+          if (!space.bookings) return;
+          Object.entries(space.bookings).forEach(([key, booking]: [string, any]) => {
+            if (booking.status === 'approved') {
+              const [date, time] = key.split('_');
+              slots.push({
+                id: key,
+                adSpaceName: space.name,
+                pageName: space.page,
+                sponsorName: sponsorsMapForSlots.get(booking.sponsorId) || 'Sponsor Sconosciuto',
+                date,
+                time,
+                price: booking.price || 0,
+              });
+            }
+          });
         });
+        setApprovedSlots(slots.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)));
 
-        setSponsors(mergedData);
       } catch (error) {
         console.error('Failed to fetch sponsors:', error);
         toast({
@@ -630,12 +611,14 @@ export default function AdminSponsorsPage() {
           title: 'Errore',
           description: 'Impossibile caricare i dati degli sponsor.',
         });
+        setSponsors([]);
+        setApprovedSlots([]);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchSponsors();
+    fetchData();
   }, [firestore, toast]);
 
   const handleStatusUpdate = async (sponsorId: string, newStatus: SponsorStatus) => {
@@ -729,7 +712,11 @@ export default function AdminSponsorsPage() {
 
         <AdminApprovalQueue />
 
-        <AdminApprovedSlots onPrintRequest={(dateRange) => setPrintJob({ type: 'approvedSlots', dateRange })} />
+        <AdminApprovedSlots 
+            approvedSlots={approvedSlots}
+            isLoading={isLoading}
+            onPrintRequest={(dateRange) => setPrintJob({ type: 'approvedSlots', dateRange })}
+        />
 
         {/* Main Table Card */}
         <Card>
@@ -950,7 +937,12 @@ export default function AdminSponsorsPage() {
 
       <div className="hidden print:block container mx-auto py-8 print-container">
         {printJob?.type === 'approvedSlots' && (
-          <AdminApprovedSlots printable dateRange={printJob.dateRange} />
+          <AdminApprovedSlots 
+            printable 
+            dateRange={printJob.dateRange} 
+            approvedSlots={approvedSlots}
+            isLoading={isLoading}
+          />
         )}
       </div>
     </>
