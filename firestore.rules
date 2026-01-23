@@ -124,8 +124,8 @@ service cloud.firestore {
     // --------------------------------------------------
     match /ad_spaces/{adSpaceId} {
 
-      // Tutti gli utenti autenticati possono leggere
-      allow read: if isSignedIn();
+      // Tutti possono leggere gli spazi pubblicitari per visualizzarli.
+      allow read: if true;
 
       // Admin: controllo totale
       allow write: if isAdmin();
