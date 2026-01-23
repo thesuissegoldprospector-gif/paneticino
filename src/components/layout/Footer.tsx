@@ -29,7 +29,7 @@ export function Footer() {
           <div>
             <h3 className="text-base font-semibold text-white mb-4">Link Utili</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link href="#" className="hover:text-white hover:underline">Chi Siamo</Link></li>
+              <li><Link href="/about" className="hover:text-white hover:underline">Chi Siamo</Link></li>
               <li><Link href="#" className="hover:text-white hover:underline">FAQ</Link></li>
               <li><Link href="/baker-application" className="hover:text-white hover:underline">Diventa un Panettiere</Link></li>
               <li><Link href="/sponsors" className="hover:text-white hover:underline">Spazio Sponsor</Link></li>
