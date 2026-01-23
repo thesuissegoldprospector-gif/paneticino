@@ -385,10 +385,12 @@ export default function SponsorDashboardPage() {
   return (
     <div className="container mx-auto max-w-7xl px-4 py-8">
       <div className="space-y-8">
-        <SponsorProfileCard user={user} sponsorProfile={sponsorProfile} />
+        <div className="no-print">
+            <SponsorProfileCard user={user} sponsorProfile={sponsorProfile} />
+        </div>
 
         {status === 'pending' && (
-          <Card className="border-yellow-500">
+          <Card className="border-yellow-500 no-print">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-yellow-600"><Clock /> Richiesta in Revisione</CardTitle>
               <CardDescription>Il tuo profilo sponsor è in attesa di approvazione. Riceverai una notifica non appena sarà stato revisionato.</CardDescription>
@@ -404,12 +406,14 @@ export default function SponsorDashboardPage() {
                 user={user}
                 sponsorProfile={sponsorProfile}
             />
-            <SponsorAgenda />
+            <div className="no-print">
+                <SponsorAgenda />
+            </div>
           </>
         )}
 
         {status === 'rejected' && (
-          <Card className="border-destructive">
+          <Card className="border-destructive no-print">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-destructive"><XCircle /> Richiesta Rifiutata</CardTitle>
               <CardDescription>Purtroppo, la tua richiesta di sponsorizzazione non è stata approvata. Contatta il supporto per maggiori informazioni.</CardDescription>
@@ -418,7 +422,7 @@ export default function SponsorDashboardPage() {
         )}
       </div>
 
-      <div className="mt-8 flex justify-center">
+      <div className="mt-8 flex justify-center no-print">
         <Button variant="destructive" onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" /> Esci
         </Button>
